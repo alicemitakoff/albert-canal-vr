@@ -1,4 +1,6 @@
 <title>Kwaadmechelen Swap VR</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 /* Layout: full-bleed 3D canal scene. Glass instrument panels sit on the edges:
    brand top-left, tools top-right with the route map, story card bottom-left,
@@ -175,6 +177,10 @@ body.hidden-ui .chrome,body.hidden-ui #labels{opacity:0;visibility:hidden}
 .pill button{border:0;background:transparent;border-radius:7px;padding:7px 11px;font:700 14px var(--sans);color:var(--ivory);cursor:pointer}
 .pill button[aria-pressed="true"]{background:var(--brass);color:var(--navy)}
 
+#vrBig{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;padding:34px 70px;border-radius:28px;border:0;background:#ffffff;color:var(--navy);font:700 46px/1.1 var(--sans);cursor:pointer;box-shadow:0 0 0 0 rgba(255,255,255,.5),0 20px 60px rgba(0,0,0,.5);animation:ping 1.8s ease-out infinite;display:flex;flex-direction:column;align-items:center;gap:8px}
+#vrBig small{font:400 20px var(--sans);color:#33475f}
+#vrBig[hidden]{display:none}
+body.quest #act{display:none}
 /* guided checkpoints and the end card */
 .act{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);transform:translateX(-50%);width:min(400px,calc(100vw - 32px));padding:14px 18px 18px;text-align:center;border:1px solid var(--hair);z-index:4;pointer-events:auto}
 .act[hidden],.endc[hidden]{display:none}
@@ -280,6 +286,7 @@ body.hidden-ui .restore{display:flex}
   </footer>
 </div>
 
+<button id="vrBig" hidden>Enter VR<small>360° · put on the headset view</small></button>
 <section class="act panel" id="act" hidden aria-live="assertive">
   <div class="eyebrow" id="actE">Your move</div>
   <p id="actP"></p>
@@ -1016,11 +1023,11 @@ function packAState(t){ if(t<21.6) return {v:'On board',c:'var(--low)',p:0}; if(
    9. Camera views with orbit and zoom
    ============================================================ */
 const VIEWS=[
- {id:'follow',name:'Follow',  vr:'Drone',     type:'orbit', target:followTarget, rel:true, az:-0.62, el:0.36, dist:175, min:28, max:1400},
- {id:'bridge',name:'Wheelhouse',vr:'Wheelhouse',type:'fps',  eye:()=>barge.localToWorld(new V3(0,13.9,-17.4)), yaw:0, pitch:-0.13, fov:62},
- {id:'quay',  name:'Quay',    vr:'Quay',      type:'orbit', target:()=>hub.localToWorld(new V3(0,7,-8)), rel:false, az:-2.75, el:0.30, dist:125, min:18, max:900},
- {id:'lock',  name:'Lock',    vr:'Lock',      type:'orbit', target:()=>lock.localToWorld(new V3(-10,8,-18)), rel:false, az:-0.9, el:0.5, dist:300, min:30, max:1500},
- {id:'over',  name:'Overview',vr:'Overview',  type:'orbit', target:()=>new V3(1050,0,330), rel:false, az:-2.6, el:0.62, dist:1500, min:250, max:5200}
+ {id:'follow',name:'Follow',  vr:'Drone, following the barge',     type:'orbit', target:followTarget, rel:true, az:-0.62, el:0.36, dist:175, min:28, max:1400},
+ {id:'bridge',name:'Wheelhouse',vr:'On the barge',type:'fps',  eye:()=>barge.localToWorld(new V3(0,13.9,-17.4)), yaw:0, pitch:-0.13, fov:62},
+ {id:'quay',  name:'Quay',    vr:'On the quay by the swap crane',type:'orbit', target:()=>hub.localToWorld(new V3(0,7,-8)), rel:false, az:-2.75, el:0.30, dist:125, min:18, max:900},
+ {id:'lock',  name:'Lock',    vr:'On the lock wall',type:'orbit', target:()=>lock.localToWorld(new V3(-10,8,-18)), rel:false, az:-0.9, el:0.5, dist:300, min:30, max:1500},
+ {id:'over',  name:'Overview',vr:'High above the canal',type:'orbit', target:()=>new V3(1050,0,330), rel:false, az:-2.6, el:0.62, dist:1500, min:250, max:5200}
 ];
 /* the drone looks ahead of the barge, and swings over to the crane while the packs are swapped */
 function followTarget(){ const b=barge.localToWorld(new V3(0,5,-60)); const t=tNow;
@@ -1349,15 +1356,21 @@ function drawVRPanel(t){
   if(waiting){ vrPrompt(c,W,'Pull the trigger: '+waiting.btn); vrTex.needsUpdate=true; return; }
   const soc=socAt(t); c.fillStyle='rgba(255,255,255,.14)'; c.fillRect(56,478,520,12); c.fillStyle=soc<30?'#ff3b30':soc<60?'#ffb21e':'#22f08f'; c.fillRect(56,478,520*soc/100,12);
   c.fillStyle='#c5d3e4'; c.font='700 26px Arial,sans-serif'; c.fillText('Pack on board: '+(t<43.6?'A':'C'),56,462); c.fillStyle='#ffffff'; c.font='700 34px Arial,sans-serif'; c.fillText(Math.round(soc)+'%',600,492);
-  c.fillStyle='#c5d3e4'; c.font='400 25px Arial,sans-serif'; c.fillText('Trigger: next view ('+VIEWS[cam.v].vr+')   ·   Stick: zoom and turn   ·   A/X: map   ·   B/Y: captions   ·   Grip: pause',56,560);
+  c.fillStyle='#c5d3e4'; c.font='400 25px Arial,sans-serif'; c.fillText('You are at: '+VIEWS[cam.v].vr+'   ·   B or Y: change place   ·   A or X: map   ·   Stick: turn   ·   Grip: pause',56,560);
   vrTex.needsUpdate=true;
 }
 function vrPrompt(c,W,txt){ c.font='700 40px Arial,sans-serif'; const w=c.measureText(txt).width+80; const x=(W-w)/2, y=440;
   const a=0.88+0.12*Math.sin(performance.now()/260); c.fillStyle='rgba(255,255,255,'+a+')'; rr(c,x,y,w,96,48); c.fill();
   c.fillStyle='#061a33'; c.textAlign='center'; c.fillText(txt,W/2,y+62); c.textAlign='left'; }
+/* where you stand in the headset: real eye height on the barge, the quay and the lock wall */
+const VR_SPOTS={
+  quay:()=>({p:hub.localToWorld(new V3(19,1.8,-11)), look:hub.localToWorld(new V3(21,1.8,8))}),
+  lock:()=>({p:lock.localToWorld(new V3(10,12.05,-16)), look:lock.localToWorld(new V3(10,12.05,8))})
+};
 function placeVR(){
   const v=VIEWS[cam.v]; vrDolly=0; panelSnap=true;
-  if(v.type==='fps'){ barge.add(rig); rig.position.set(0,9.65,-15.6); rig.rotation.set(0,0,0); }
+  if(VR_SPOTS[v.id]){ const s=VR_SPOTS[v.id](); scene.add(rig); rig.position.copy(s.p); rig.rotation.set(0,Math.atan2(s.p.x-s.look.x,s.p.z-s.look.z),0); return; }
+  if(v.type==='fps'){ barge.add(rig); rig.position.set(0,12.25,-17.3); rig.rotation.set(0,0,0); }   // on the wheelhouse roof, facing the battery bay and the containers
   else { scene.add(rig); const tg=v.target(); const az=v.az+(v.rel?bargeHeading():0); const d=Math.min(v.dist,v.id==='over'?700:160);
     rig.position.set(tg.x+Math.sin(az)*d, Math.max(surfaceH(tg.x+Math.sin(az)*d,tg.z+Math.cos(az)*d)+2,tg.y+Math.sin(v.el)*d*0.6), tg.z+Math.cos(az)*d);
     rig.rotation.set(0,Math.atan2(rig.position.x-tg.x,rig.position.z-tg.z),0); }
@@ -1387,7 +1400,7 @@ function pollXR(dt){ const s=renderer.xr.getSession(); if(!s) return;
     if(Math.abs(ay)>0.2&&VIEWS[cam.v].type!=='fps'){ const fwd=new V3(0,0,-1).applyQuaternion(camera.getWorldQuaternion(new THREE.Quaternion())); vrDolly+=ay*dt*60; if(VIEWS[cam.v].id!=='follow') rig.position.addScaledVector(fwd,-ay*dt*45); }
     const b4=gp.buttons[4]&&gp.buttons[4].pressed, b5=gp.buttons[5]&&gp.buttons[5].pressed;
     const k=h+'4', k2=h+'5';
-    if(b4&&!btnPrev[k]){ vrMapOn=!vrMapOn; vrMap.visible=vrMapOn; } if(b5&&!btnPrev[k2]){ vrCaptions=!vrCaptions; vrPanel.visible=vrCaptions; }
+    if(b4&&!btnPrev[k]){ vrMapOn=!vrMapOn; vrMap.visible=vrMapOn; } if(b5&&!btnPrev[k2]){ setView((cam.v+1)%VIEWS.length); hudDirty=true; }
     btnPrev[k]=b4; btnPrev[k2]=b5; }
 }
 for(let i=0;i<2;i++){ const c=renderer.xr.getController(i); c.addEventListener('select',()=>{ if(waiting) act(); else if(ended) replay(0); else setView((cam.v+1)%VIEWS.length); }); c.addEventListener('squeeze',()=>setPaused(!paused)); rig.add(c); }
@@ -1399,13 +1412,14 @@ function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
 (async()=>{ if(!navigator.xr){ vrUnavailable('Open this page in the Meta Quest browser'); return; }
   try{ if(!await navigator.xr.isSessionSupported('immersive-vr')){ vrUnavailable('VR is not available here'); return; } }catch(e){ vrUnavailable('VR is blocked in this frame'); return; }
   vrBtn.disabled=false; vrBtn.textContent='Enter VR';
+  if(IS_QUEST){ document.body.classList.add('quest'); $('vrBig').hidden=false; $('vrBig').onclick=()=>vrBtn.onclick(); }
   vrBtn.onclick=async()=>{ const cur=renderer.xr.getSession(); if(cur){ cur.end(); return; }
     let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ window.__diag('Enter VR refused: '+e.name+' '+e.message); return; }
     try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(1); }catch(e){}
     sun.shadow.mapSize.set(1024,1024); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
     try{ await renderer.xr.setSession(s); }catch(e){ window.__diag('Starting VR failed: '+e.name+' '+e.message); try{ s.end(); }catch(_){} return; }
-    vrBtn.textContent='Exit VR'; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; placeVR(); panelSnap=true; hudDirty=true;
-    s.addEventListener('end',()=>{ vrBtn.textContent='Enter VR'; vrPanel.visible=false; vrMap.visible=false; scene.add(rig); rig.position.set(0,0,0); rig.rotation.set(0,0,0); camera.position.set(0,0,0); setView(cam.v,true); }); };
+    vrBtn.textContent='Exit VR'; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; setView(1); panelSnap=true; hudDirty=true; $('vrBig').hidden=true;
+    s.addEventListener('end',()=>{ vrBtn.textContent='Enter VR'; if(IS_QUEST) $('vrBig').hidden=false; vrPanel.visible=false; vrMap.visible=false; scene.add(rig); rig.position.set(0,0,0); rig.rotation.set(0,0,0); camera.position.set(0,0,0); setView(cam.v,true); }); };
 })();
 
 /* ============================================================
