@@ -273,7 +273,8 @@ body.hidden-ui .restore{display:flex}
         <div class="lrow"><span class="lk">Weather at the lock</span><span class="lv" id="liveW">…</span></div>
         <div class="lrow"><span class="lk">Belgian grid, renewables</span><span class="lv" id="liveG">…</span></div>
         <div class="lbar"><i id="liveBar"></i></div>
-        <div class="lsrc">Open‑Meteo · Elia open data · refreshed every 5 min</div>
+        <div class="lrow"><span class="lk">Barges on the canal (AIS)</span><span class="lv" id="liveS">…</span></div>
+        <div class="lsrc">Open‑Meteo · Elia open data · AIS via aisstream.io</div>
       </div>
     </section>
   </div>
@@ -1297,6 +1298,9 @@ function drawRoute(ctx,view,opt){
     ctx.beginPath(); ctx.arc(x,y,3*dpr,0,7); ctx.fillStyle=MAPC.hub; ctx.fill();
     ctx.font=`600 ${(opt.full?13:11)*dpr}px Arial,sans-serif`; const label=opt.full?Hh.name:Hh.name.split(' ')[0]; const tw=ctx.measureText(label).width;
     const lx=clamp(x-tw/2,8*dpr,W-tw-8*dpr), ly=opt.full?y-15*dpr:(y>H*0.6?y-14*dpr:y+24*dpr); ctx.fillStyle='rgba(6,26,51,.82)'; ctx.fillRect(lx-6*dpr,ly-13*dpr,tw+12*dpr,18*dpr); ctx.fillStyle='#ffffff'; ctx.fillText(label,lx,ly); }
+  // live vessels from AIS
+  if(AIS.list.length){ for(const v of AIS.list){ const [x,y]=P(v.lon,v.lat); if(x<-10||y<-10||x>W+10||y>H+10) continue;
+      ctx.beginPath(); ctx.arc(x,y,3.4*dpr,0,7); ctx.fillStyle='#22f08f'; ctx.fill(); ctx.lineWidth=1.2*dpr; ctx.strokeStyle='#061a33'; ctx.stroke(); } }
   // barge marker
   const [bx,by]=P(...routeKmLL(kmNow)); const pulse=(performance.now()/900)%1;
   ctx.beginPath(); ctx.arc(bx,by,(6+pulse*12)*dpr,0,7); ctx.strokeStyle=`rgba(124,200,255,${(1-pulse)*0.8})`; ctx.lineWidth=2*dpr; ctx.stroke();
@@ -1380,7 +1384,7 @@ function drawVRPanel(t){
     c.font='400 36px Arial,sans-serif'; c.fillStyle='#ffffff'; wrapText(c,'One swap of about 30 minutes at Kwaadmechelen replaced hours on a charger. Pack A stays behind to charge for the next barge.',W-112).slice(0,3).forEach((l,k)=>c.fillText(l,56,240+k*50));
     vrPrompt(c,W,'Pull the trigger to replay'); vrTex.needsUpdate=true; return; }
   c.fillStyle='#7cc8ff'; c.font='700 28px Arial,sans-serif'; c.fillText('Step '+(i+1)+' of '+CH.length+'      Time-lapse ×'+ch.tl,56,78);
-  { const L=liveSummary(); if(L.t){ c.textAlign='right'; c.font='700 24px Arial,sans-serif'; c.fillStyle='#22f08f'; c.fillText('● LIVE '+L.t.slice(0,5),W-56,78); c.font='400 22px Arial,sans-serif'; c.fillStyle='#c5d3e4'; c.fillText([L.w,L.g?'grid renewables '+L.g:''].filter(Boolean).join('   ·   ').replace(/ · /g,', '),W-56,112); c.textAlign='left'; } }
+  { const L=liveSummary(); if(L.t){ c.textAlign='right'; c.font='700 24px Arial,sans-serif'; c.fillStyle='#22f08f'; c.fillText('● LIVE '+L.t.slice(0,5),W-56,78); c.font='400 22px Arial,sans-serif'; c.fillStyle='#c5d3e4'; c.fillText([L.w,L.g?'grid renewables '+L.g:'',AIS.list.length?AIS.list.length+' live barges':''].filter(Boolean).join('   ·   ').replace(/ · /g,', '),W-56,112); c.textAlign='left'; } }
   c.fillStyle='#ffffff'; c.font='700 62px Arial,sans-serif'; c.fillText(ch.h,52,170);
   c.font='400 35px Arial,sans-serif'; c.fillStyle='#ffffff'; wrapText(c,ch.b,W-112).slice(0,4).forEach((l,k)=>c.fillText(l,56,230+k*48));
   if(waiting){ vrPrompt(c,W,'Pull the trigger: '+waiting.btn); vrTex.needsUpdate=true; return; }
@@ -1497,9 +1501,43 @@ function liveSummary(){ const out={};
   return out; }
 function drawLive(){ const s=liveSummary();
   $('liveW').textContent=s.w||'not available'; $('liveG').textContent=s.g||'not available'; $('liveT').textContent=s.t||'offline';
-  $('liveBar').style.width=(s.share||0)+'%'; document.querySelector('#live .ldot').classList.toggle('off',!LIVE.ok); }
+  $('liveBar').style.width=(s.share||0)+'%';
+  const nS=AIS.list.length, nIn=AIS.list.filter(v=>v.inScene).length;
+  $('liveS').textContent=AIS.err?'waiting for data':(AIS.updated?(nS+' on the corridor'+(nIn?', '+nIn+' in view':'')+' · '+AIS.updated.slice(11,16)+' UTC'):'…'); document.querySelector('#live .ldot').classList.toggle('off',!LIVE.ok); }
 $('liveFold').onclick=()=>{ const m=$('live'); m.classList.toggle('collapsed'); $('liveFold').textContent=m.classList.contains('collapsed')?'Show':'Fold'; };
-function startLive(){ refreshLive().catch(()=>drawLive()); setInterval(()=>refreshLive().catch(()=>{}),300000); }
+/* live vessels: positions collected every 10 minutes from AIS by a GitHub job, moved on between updates at their reported speed */
+const AIS={list:[],objs:new Map(),updated:null};
+const AIS_URL='https://raw.githubusercontent.com/alicemitakoff/albert-canal-vr/live-data/live/ships.json';
+async function refreshAIS(){
+  let d; try{ d=await liveJSON(AIS_URL+'?t='+Date.now()); }catch(e){ AIS.err=true; drawLive(); return; }
+  AIS.err=false; AIS.updated=d.updated; const now=Date.now()/1000;
+  AIS.list=(d.ships||[]).filter(v=>v.lat&&v.lon&&now-v.seen<3*3600);
+  for(const v of AIS.list){ const p=ll(v.lon,v.lat); v.x=p.x; v.z=p.z; v.inScene=p.x>-2600&&p.x<3450&&p.z>-1200&&p.z<1430; }
+  syncAIS(); drawLive(); hudDirty=true; }
+function aisHeading(v){ return (v.hdg!=null&&v.hdg<360)?v.hdg:(v.cog!=null&&v.cog<360?v.cog:null); }
+function syncAIS(){
+  const keep=new Set();
+  for(const v of AIS.list){ if(!v.inScene) continue; keep.add(v.mmsi);
+    let o=AIS.objs.get(v.mmsi);
+    if(!o){ o=traffic.clone(true); o.visible=true; scene.add(o); AIS.objs.set(v.mmsi,o);
+      const L=addLabel({id:'ais'+v.mmsi,n:'',s:'',col:'#22f08f',from:-1,to:1e9,at:()=>o.localToWorld(new V3(0,14,0)),info:{e:'Live AIS',h:'',p:'',d:[]}}); o.userData.label=L; }
+    const len=v.len>20?v.len:110; o.scale.set(clamp(len/135,0.35,1.4),1,clamp(len/135,0.35,1.4));
+    o.userData.v=v; const L=o.userData.label; const nm=v.name||('MMSI '+v.mmsi);
+    L.n='LIVE  '+nm; L.s=(v.sog!=null?v.sog.toFixed(1)+' kn':'');
+    L.info.h=nm; L.info.p='A real vessel on the Albert Canal right now, from its AIS transponder. Its position moves on at the reported speed between updates.';
+    L.info.d=[['Speed',(v.sog!=null?v.sog.toFixed(1)+' knots':'not reported')],['Heading',aisHeading(v)!=null?Math.round(aisHeading(v))+'°':'not reported'],['Length',v.len?v.len+' m':'not reported'],['Destination',v.dest||'not reported'],['Last report',new Date(v.seen*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})],['MMSI',v.mmsi]]; L.k=''; }
+  for(const [m,o] of AIS.objs){ if(!keep.has(m)){ scene.remove(o); const L=o.userData.label; if(L){ L.el.remove(); LABELS.splice(LABELS.indexOf(L),1); } AIS.objs.delete(m); } }
+}
+function updateAIS(){ const now=Date.now()/1000;
+  for(const o of AIS.objs.values()){ const v=o.userData.v; if(!v) continue; const h=aisHeading(v); const dt=Math.min(900,Math.max(0,now-v.seen));
+    const sp=(v.sog!=null&&v.sog>0.3&&v.sog<20)?v.sog*0.5144:0; let x=v.x, z=v.z, yaw=h!=null?-h*D2R:o.rotation.y;
+    // on the canal: glide along the centreline at the reported speed, keeping the reported side of the fairway
+    if(v.km==null){ const p0=new V3(v.x,0,v.z); v.km=kmOf(p0); const c=kmPoint(v.km), t=kmTangent(v.km); v.lat=(v.x-c.x)*t.z-(v.z-c.z)*t.x; v.onCanal=sp>0&&Math.hypot(v.x-c.x,v.z-c.z)<90&&v.km>KM0+0.05&&v.km<53.85; v.lat=clamp(v.lat,-45,45); }
+    if(v.onCanal){ const t0=kmTangent(v.km); const dir=h!=null?Math.sign(Math.sin(h*D2R)*t0.x-Math.cos(h*D2R)*t0.z)||1:1;
+      const km=clamp(v.km+dir*sp*dt/1000,KM0,53.89); const c=kmPoint(km), t=kmTangent(km); x=c.x+t.z*v.lat; z=c.z-t.x*v.lat; yaw=Math.atan2(-t.x*dir,-t.z*dir); }
+    else if(h!=null&&sp>0){ x+=Math.sin(h*D2R)*sp*Math.min(dt,120); z-=Math.cos(h*D2R)*sp*Math.min(dt,120); }
+    const lvl=kmOf(new V3(x,0,z))>52.45?10:0; o.position.set(x,KEEL+lvl,z); o.rotation.y=yaw; } }
+function startLive(){ refreshAIS(); setInterval(refreshAIS,120000); refreshLive().catch(()=>drawLive()); setInterval(()=>refreshLive().catch(()=>{}),300000); }
 
 /* ============================================================
    15. Build and loop
@@ -1551,7 +1589,7 @@ function frame(now){
     if(guided&&cpNext<CP.length&&nt>=CP[cpNext].t){ nt=CP[cpNext].t; arrive(CP[cpNext]); }
     if(nt>=T_END){ nt=T_END; finish(); }
     tNow=nt; }
-  applyTime(tNow); updateBatteryFX(tNow,dt);
+  applyTime(tNow); updateBatteryFX(tNow,dt); if(AIS.objs.size) updateAIS();
   const xr=renderer.xr.isPresenting;
   renderer.shadowMap.autoUpdate=!xr; if(xr&&((++xrFrame)%3===0)) renderer.shadowMap.needsUpdate=true;
   if(xr){ pollXR(dt); vrFollow(dt); placePanels(dt); vrPanel.visible=vrCaptions||!!waiting||ended; if((waiting||ended)&&Math.floor(now/120)!==Math.floor((now-dt*1000)/120)) hudDirty=true; if(Math.floor(now/250)!==Math.floor((now-dt*1000)/250)||hudDirty){ if(vrPanel.visible) drawVRPanel(tNow); if(vrMapOn&&MB){ drawRoute(vrMapC.getContext('2d'),(()=>{ const [x0,y0]=mapXY(4.25,51.31),[x1,y1]=mapXY(5.53,50.92); return {cx:(x0+x1)/2,cy:(y0+y1)/2,s:Math.min(1200/(x1-x0),680/(y1-y0))*0.95}; })(),{km:kmOf(barge.position),style:'night',dpr:2,full:true}); vrMapTex.needsUpdate=true; } hudDirty=false; } }

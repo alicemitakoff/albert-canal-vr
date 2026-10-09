@@ -47,7 +47,7 @@ async def collect(ships):
 
 def main():
     if not KEY:
-        raise SystemExit('AISSTREAM_KEY is not set')
+        print('AISSTREAM_KEY is not set yet: nothing to do'); return
     ships = load_previous()
     asyncio.run(collect(ships))
     now = int(time.time())
@@ -55,6 +55,7 @@ def main():
     os.makedirs('live', exist_ok=True)
     json.dump({'updated': datetime.datetime.utcnow().replace(microsecond=0).isoformat() + 'Z', 'source': 'aisstream.io',
                'count': len(keep), 'ships': sorted(keep, key=lambda s: -s['seen'])}, open(OUT, 'w'), separators=(',', ':'))
+    open('live/.ok', 'w').write('1')
     print('ships', len(keep))
 
 if __name__ == '__main__':

@@ -28,6 +28,7 @@ jobs:
         run: python tools/ais_fetch.py
       - name: Publish to the live-data branch (one commit, replaced each time)
         run: |
+          [ -f live/.ok ] || { echo "no new data"; exit 0; }
           cp live/ships.json /tmp/ships.json
           git config user.name "live-ais bot"
           git config user.email "actions@users.noreply.github.com"
