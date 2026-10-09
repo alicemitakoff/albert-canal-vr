@@ -46,7 +46,7 @@ static const float T_END = 126.f, KEEL = -300.f, SOC_KM = 1.117f;
 static const TCHAR* SpotNames[] = { TEXT("On the wheelhouse roof"), TEXT("On the quay by the swap crane"), TEXT("On the lock wall"), TEXT("Drone, following the barge") };
 
 // colours: red at 20% or less, orange below 60%, green from 60%
-static FLinearColor PctColour(float P) { return P <= 20 ? FLinearColor(1.f, 0.045f, 0.03f) : P < 60 ? FLinearColor(1.f, 0.44f, 0.012f) : FLinearColor(0.016f, 0.87f, 0.27f); }
+static FLinearColor PctColour(float P) { return P <= 20 ? FLinearColor(1.f, 0.045f, 0.03f) : P < 60 ? FLinearColor(1.f, 0.22f, 0.0f) : FLinearColor(0.016f, 0.87f, 0.27f); }
 static FColor PctFColor(float P) { return P <= 20 ? FColor(255, 59, 48) : P < 60 ? FColor(255, 178, 30) : FColor(34, 240, 143); }
 
 static FString Wrap(const FString& S, int32 Max)
@@ -322,8 +322,8 @@ void ASwapExperience::UpdatePanel()
 	else Prompt = bVR ? TEXT("B or Y: change place") : TEXT("Tab: change place  ·  hold right mouse: look around  ·  P: pause");
 	if (Prompt != LastPrompt) { LastPrompt = Prompt; TxtPrompt->SetText(FText::FromString(Prompt)); TxtPrompt->SetTextRenderColor(Waiting >= 0 ? FColor(255, 214, 120) : FColor(150, 175, 200)); }
 	// on-board pack: pack A until the swap, pack C after
-	const bool bA = T < 43.6f; const float Pct = bA ? PackAPct() : PackCPct();
-	TxtBatt->SetText(FText::FromString(FString::Printf(TEXT("On-board pack: %d%%  %s"), FMath::RoundToInt(bA && T >= 21.6f ? 0.f : Pct), bA ? (T < 21.6f ? TEXT("Pack A") : TEXT("being swapped")) : TEXT("Pack C"))));
+	const bool bA = T < 43.6f; const float Pct = (bA && T >= 21.6f) ? 0.f : (bA ? PackAPct() : PackCPct());
+	TxtBatt->SetText(FText::FromString(FString::Printf(TEXT("On-board pack: %d%%  %s"), FMath::RoundToInt(Pct), bA ? (T < 21.6f ? TEXT("Pack A") : TEXT("being swapped")) : TEXT("Pack C"))));
 	TxtBatt->SetTextRenderColor(PctFColor(Pct));
 	const float W = 60.f * FMath::Clamp(Pct / 100.f, 0.01f, 1.f);
 	BarFill->SetRelativeLocation(FVector(-0.4f, 54 - W / 2.f, -13)); BarFill->SetRelativeScale3D(FVector(0.006f, W / 100.f, 0.024f));
