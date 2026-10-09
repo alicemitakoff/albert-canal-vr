@@ -1,0 +1,1473 @@
+<title>Kwaadmechelen Swap VR</title>
+<style>
+/* Layout: full-bleed 3D canal scene. Glass instrument panels sit on the edges:
+   brand top-left, tools top-right with the route map, story card bottom-left,
+   views and zoom bottom-right, chapter timeline along the bottom. Everything but
+   the scene can be hidden. One deliberate dark "night bridge" look. */
+:root{
+  --navy:#061a33;            /* deep water night */
+  --glass:rgba(8,32,66,.93);
+  --glass-strong:rgba(8,32,66,.97);
+  --ivory:#ffffff;           /* primary text */
+  --mist:#c5d3e4;            /* secondary text */
+  --faint:#90a3ba;
+  --brass:#7cc8ff;           /* the one accent */
+  --brass-soft:rgba(124,200,255,.16);
+  --hair:rgba(255,255,255,.22);
+  --hair-cool:rgba(255,255,255,.12);
+  --low:#e5534b; --amber:#e8a33d; --full:#3fc79a; --water:#5bb8e6;
+  --serif:Arial,'Helvetica Neue',Helvetica,sans-serif;
+  --sans:Arial,'Helvetica Neue',Helvetica,sans-serif;
+  --mono:Arial,'Helvetica Neue',Helvetica,sans-serif;
+  --r:14px;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{margin:0;background:var(--navy);color:var(--ivory);font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased}
+#gl{position:fixed;inset:0;display:block;width:100%;height:100%;touch-action:none;cursor:grab;outline:none}
+#gl.drag{cursor:grabbing}
+button{font:inherit;color:inherit}
+.chrome{position:fixed;inset:0;pointer-events:none;transition:opacity .45s ease}
+body.hidden-ui .chrome,body.hidden-ui #labels{opacity:0;visibility:hidden}
+.panel{background:var(--glass);border:1px solid var(--hair-cool);border-radius:var(--r);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.eyebrow{font:700 14px/1.25 var(--sans);letter-spacing:.02em;text-transform:none;color:var(--brass)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* brand */
+.brand{position:absolute;top:calc(env(safe-area-inset-top,0px) + 16px);left:16px;padding:12px 16px 13px;pointer-events:auto;max-width:min(420px,calc(100vw - 32px))}
+.brand h1{margin:3px 0 0;font:700 20px/1.15 var(--serif);color:var(--ivory);text-wrap:balance}
+.brand p{display:none}
+
+/* tools */
+.tools{position:absolute;top:calc(env(safe-area-inset-top,0px) + 16px);right:16px;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none}
+.toolrow{display:flex;gap:6px;padding:6px;pointer-events:auto}
+.ib{width:38px;height:38px;border-radius:10px;border:1px solid transparent;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--ivory);position:relative}
+.ib:hover{background:rgba(255,255,255,.06)}
+.ib[aria-pressed="true"]{background:var(--brass-soft);border-color:var(--hair);color:var(--brass)}
+.ib svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ib:focus-visible,.btn:focus-visible,.seg button:focus-visible,.chap:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.ib .tip{position:absolute;top:44px;right:0;white-space:nowrap;background:var(--glass-strong);border:1px solid var(--hair);padding:6px 10px;border-radius:8px;font:400 14px var(--sans);color:var(--ivory);opacity:0;pointer-events:none;transition:opacity .15s}
+.ib:hover .tip,.ib:focus-visible .tip{opacity:1}
+.vrbtn{height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--hair);background:var(--brass);color:var(--navy);font:700 14px var(--sans);text-transform:none;cursor:pointer}
+.vrbtn:disabled{opacity:.55;cursor:default;letter-spacing:.04em;text-transform:none;font-weight:500}
+
+/* mini map */
+.minimap{width:320px;max-width:calc(100vw - 32px);padding:10px 10px 8px;pointer-events:auto}
+.minimap .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 8px}
+.minimap .hd .t{font:700 16px/1.1 var(--serif);color:var(--ivory)}
+.minimap canvas{display:block;width:100%;aspect-ratio:300/170;border-radius:9px;cursor:pointer;background:#0b1626}
+.minimap .ft{display:flex;justify-content:space-between;margin:7px 2px 0;font:400 13px var(--mono);color:var(--mist)}
+.linkbtn{background:none;border:0;padding:4px 4px;color:var(--brass);font:700 14px var(--sans);text-transform:none;cursor:pointer}
+.minimap.collapsed canvas,.minimap.collapsed .ft{display:none}
+.minimap.collapsed .hd{margin-bottom:0}
+
+/* story card */
+.story{position:absolute;left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);width:min(460px,calc(100vw - 32px));pointer-events:auto;overflow:hidden;transition:width .3s ease}
+.story .in{padding:16px 18px 16px}
+.story .top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.story .meta{display:flex;align-items:center;gap:10px;min-width:0}
+.story h2{margin:6px 0 8px;font:700 24px/1.2 var(--serif);color:var(--ivory);text-wrap:balance}
+.story .body{margin:0;font:400 17px/1.55 var(--sans);color:var(--ivory);max-width:40ch;letter-spacing:.01em;word-spacing:.04em}
+.tl{display:none}
+.tl[hidden]{display:none}
+.collapse{width:30px;height:30px;border-radius:8px;border:1px solid var(--hair-cool);background:transparent;cursor:pointer;display:grid;place-items:center;flex:none}
+.collapse svg{width:14px;height:14px;stroke:var(--ivory);fill:none;stroke-width:1.8;transition:transform .25s}
+.status .stat:nth-child(2){display:none}
+.status{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--hair-cool)}
+.stat .k{font:700 13px/1.3 var(--sans);letter-spacing:.01em;text-transform:none;color:var(--mist)}
+.stat .v{display:flex;align-items:baseline;gap:6px;margin-top:4px;font:400 16px/1.3 var(--sans);color:var(--ivory)}
+.stat .v b{font:700 20px var(--mono);color:var(--ivory)}
+.bar{height:7px;border-radius:2px;background:rgba(255,255,255,.1);margin-top:7px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:2px;background:var(--full);transition:width .4s ease, background .4s}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:2px;flex:none}
+.story.min .body,.story.min .status,.story.min h2{display:none}
+.story.min{width:auto;max-width:calc(100vw - 32px)}
+.story.min .in{padding:10px 12px 10px 16px}
+.story.min .mini-title{display:inline}
+.mini-title{display:none;font:700 18px/1.2 var(--serif);color:var(--ivory);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.story.min .collapse svg{transform:rotate(180deg)}
+
+/* views + zoom */
+.views{position:absolute;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+.seg{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px;padding:5px;pointer-events:auto}
+.seg button{border:0;background:transparent;padding:9px 13px;border-radius:9px;font:700 15px var(--sans);color:var(--ivory);cursor:pointer;white-space:nowrap}
+.seg button:hover{color:var(--ivory);background:rgba(255,255,255,.05)}
+.seg button[aria-pressed="true"]{color:var(--navy);background:var(--brass)}
+.zoom{display:flex;gap:4px;padding:5px;pointer-events:auto}
+.zoom .ib{width:34px;height:34px}
+
+/* timeline */
+.timeline{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);display:flex;align-items:center;gap:12px;padding:10px 14px;pointer-events:auto}
+.play{width:40px;height:40px;border-radius:50%;border:1px solid var(--hair);background:var(--brass-soft);color:var(--brass);display:grid;place-items:center;cursor:pointer;flex:none}
+.play svg{width:16px;height:16px;fill:currentColor}
+.track{position:relative;flex:1;height:40px;cursor:pointer;min-width:0}
+.chaps{position:absolute;left:0;right:0;top:16px;height:8px;display:flex;gap:3px}
+.chap{flex:var(--w) 1 0;border:0;padding:0;height:8px;border-radius:3px;background:rgba(255,255,255,.14);position:relative;overflow:hidden;cursor:pointer}
+.chap i{position:absolute;inset:0;width:0;background:var(--brass);transition:none}
+.chap:hover{background:rgba(255,255,255,.18)}
+.chap .lab{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);white-space:nowrap;background:var(--glass-strong);border:1px solid var(--hair-cool);padding:5px 9px;border-radius:8px;font:500 12px var(--sans);color:var(--ivory);opacity:0;pointer-events:none}
+.track .tipbox{position:absolute;bottom:34px;transform:translateX(-50%);white-space:nowrap;background:var(--glass-strong);border:1px solid var(--hair);padding:7px 11px;border-radius:8px;font:400 15px var(--sans);color:var(--ivory);opacity:0;pointer-events:none;transition:opacity .12s}
+.track:hover .tipbox{opacity:1}
+.time{font:700 15px var(--mono);color:var(--mist);white-space:nowrap}
+.speed{border:1px solid var(--hair);background:transparent;border-radius:8px;padding:7px 10px;font:700 14px var(--mono);color:var(--ivory);cursor:pointer}
+
+/* labels in the scene */
+#labels{position:fixed;inset:0;pointer-events:none;overflow:hidden;transition:opacity .4s}
+.lbl{position:absolute;left:0;top:0;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;pointer-events:none;will-change:transform;transition:opacity .25s}
+.lbl .card{pointer-events:auto;cursor:pointer;background:var(--glass-strong);border:1px solid var(--hair);border-radius:9px;padding:6px 11px 7px;text-align:left;white-space:nowrap;box-shadow:0 8px 22px rgba(0,0,0,.28)}
+.lbl .card:hover{border-color:var(--hair)}
+.lbl .n{display:flex;align-items:center;gap:7px;font:700 14px/1.25 var(--sans);color:var(--ivory);text-transform:none}
+.lbl .s{display:none}
+.lbl .stem{width:1.5px;height:24px;background:rgba(255,255,255,.75)}
+.lbl .pin{width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.25);margin-top:-1px}
+.lbl.minor .card{background:rgba(9,19,33,.62);padding:4px 8px}
+.lbl.minor .n{font-size:13px}
+.lbl.minor .stem{height:16px}
+.lbl.batt .card{border:1px solid var(--hair);padding:7px 12px 8px;min-width:128px;box-shadow:0 8px 22px rgba(0,0,0,.3)}
+.lbl.batt .n{font-size:15px}
+.lbl .pc{margin-left:auto;padding-left:12px;font:700 17px/1 var(--sans)}
+.lbl.batt .s{font-size:15px}
+.lbl .bb{height:5px;border-radius:2px;background:rgba(255,255,255,.14);margin-top:7px;overflow:hidden}
+.lbl .bb i{display:block;height:100%;width:0}
+.lbl.batt .stem{width:2px}
+.lbl.batt .pin{width:9px;height:9px}
+
+/* info popover */
+.info{position:fixed;width:min(320px,calc(100vw - 32px));padding:15px 16px 14px;pointer-events:auto;z-index:5}
+.info h3{margin:6px 0 8px;font:700 21px/1.25 var(--serif);color:var(--ivory)}
+.info p{margin:0 0 12px;font:400 16px/1.55 var(--sans);color:var(--ivory)}
+.info dl{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin:0;font:400 15px/1.4 var(--sans)}
+.info dt{color:var(--mist)}.info dd{margin:0;font-weight:700;color:var(--ivory)}
+.info .x{position:absolute;top:10px;right:10px}
+
+/* full map */
+.mapview{position:fixed;inset:0;z-index:6;display:none;background:rgba(5,10,18,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);pointer-events:auto}
+.mapview.open{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
+.mapstage{position:relative;overflow:hidden;border-radius:var(--r);border:1px solid var(--hair-cool);min-height:0}
+.mapstage canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
+.mapstage .ctrl{position:absolute;top:12px;left:12px;display:flex;gap:8px;align-items:center}
+.mapx{position:absolute;top:12px;right:12px;z-index:2;display:flex;align-items:center;gap:8px;height:44px;padding:0 16px 0 12px;border-radius:12px;border:1px solid var(--hair);background:var(--glass-strong);color:var(--ivory);font:700 16px var(--sans);cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.35)}
+.mapx:hover{background:rgba(20,52,96,.98)}
+.mapx svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.mapx:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.mapstage .scale{position:absolute;left:14px;bottom:12px;font:500 11px var(--mono);color:var(--ivory);text-shadow:0 1px 2px #000}
+.mapstage .credit{position:absolute;right:12px;bottom:10px;font:400 10.5px var(--sans);color:rgba(255,244,199,.8);text-shadow:0 1px 2px #000;text-align:right}
+.side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+.side .panel{padding:16px}
+.side h2{margin:6px 0 6px;font:700 26px/1.2 var(--serif);color:var(--ivory)}
+.side p{margin:0;color:var(--ivory);font:400 16px/1.55 var(--sans)}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px;margin-top:14px}
+.facts div b{display:block;font:700 24px/1.15 var(--mono);color:var(--ivory)}
+.facts div span{font:400 14px/1.3 var(--sans);text-transform:none;color:var(--mist)}
+.places{list-style:none;margin:0;padding:0}
+.places li button{width:100%;display:grid;grid-template-columns:14px 1fr auto;align-items:center;gap:10px;text-align:left;padding:9px 6px;border:0;border-bottom:1px solid var(--hair-cool);background:transparent;cursor:pointer;border-radius:6px}
+.places li button:hover{background:rgba(255,255,255,.05)}
+.places .nm{font:700 15px/1.3 var(--sans);color:var(--ivory)}
+.places .sb{display:block;font:400 14px/1.35 var(--sans);color:var(--ivory)}
+.places .km{font:500 12px var(--mono);color:var(--mist)}
+.sym{width:12px;height:12px;border-radius:50%}
+.sym.hub{border:2px solid var(--brass);background:transparent}
+.sym.lock{border-radius:2px;background:var(--water);width:8px;margin-left:2px}
+.sym.term{border-radius:2px;background:var(--ivory)}
+.profile svg{display:block;width:100%;height:auto}
+.btn{border:1px solid var(--hair);background:var(--brass-soft);color:var(--brass);border-radius:9px;padding:9px 14px;font:700 14px var(--sans);text-transform:none;cursor:pointer}
+.pill{display:flex;gap:2px;padding:4px;border-radius:10px}
+.pill button{border:0;background:transparent;border-radius:7px;padding:7px 11px;font:700 14px var(--sans);color:var(--ivory);cursor:pointer}
+.pill button[aria-pressed="true"]{background:var(--brass);color:var(--navy)}
+
+/* guided checkpoints and the end card */
+.act{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);transform:translateX(-50%);width:min(400px,calc(100vw - 32px));padding:14px 18px 18px;text-align:center;border:1px solid var(--hair);z-index:4;pointer-events:auto}
+.act[hidden],.endc[hidden]{display:none}
+.act p{margin:6px 0 14px;font:400 17px/1.45 var(--sans);color:var(--ivory)}
+.actbtn{border:0;border-radius:999px;background:#ffffff;color:var(--navy);font:700 19px/1.2 var(--sans);padding:14px 28px;cursor:pointer;animation:ping 1.8s ease-out infinite}
+.actbtn:hover{filter:brightness(1.08)}
+.actbtn:focus-visible{outline:3px solid var(--ivory);outline-offset:3px}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(255,255,255,.45)}75%{box-shadow:0 0 0 16px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
+.act .or{display:block;margin-top:10px;font:400 14px var(--sans);color:var(--mist)}
+.endc{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,calc(100vw - 32px));padding:22px 24px 24px;z-index:4;pointer-events:auto;border:1px solid var(--hair)}
+.endc h2{margin:8px 0 10px;font:700 30px/1.2 var(--sans);color:var(--ivory)}
+.endc p{margin:0 0 18px;font:400 18px/1.55 var(--sans);color:var(--ivory)}
+.endc .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.guide[aria-pressed="true"]{background:var(--brass);color:var(--navy);border-color:var(--brass)}
+#gl.pick{cursor:pointer}
+/* hidden-ui restore + credits + loader */
+.restore{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);display:none;pointer-events:auto;align-items:center;gap:8px;padding:8px 12px 8px 10px;cursor:pointer;border:1px solid var(--hair);background:var(--glass)}
+body.hidden-ui .restore{display:flex}
+.restore svg{width:16px;height:16px;stroke:var(--brass);fill:none;stroke-width:1.6}
+.restore span{font:700 14px var(--sans);text-transform:none;color:var(--brass)}
+.credits{position:fixed;left:50%;transform:translateX(-50%);bottom:2px;font:400 11px var(--sans);color:rgba(255,244,199,.7);white-space:nowrap;pointer-events:none}
+#load{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(120% 90% at 50% 40%,#0c2a52 0%,#061a33 70%);z-index:10;transition:opacity .8s}
+#load .c{text-align:center;padding:0 24px}
+#load h1{margin:10px 0 6px;font:700 clamp(28px,4vw,44px)/1.15 var(--serif);color:var(--ivory)}
+#load p{margin:0;color:var(--ivory);font:400 17px var(--sans)}
+#bar{width:min(320px,70vw);height:2px;background:rgba(255,255,255,.12);margin:22px auto 10px;overflow:hidden;border-radius:1px}
+#bar i{display:block;height:100%;width:0;background:var(--brass);transition:width .25s}
+#loadTxt{font:400 14px var(--mono);color:var(--faint)}
+@media (max-width:1360px){ .act{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 16px);width:min(380px,calc(100vw - 32px))} }
+@media (max-width:820px){
+  .act{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 148px)}
+  body.waiting .story{display:none}
+  .minimap{width:240px}
+  .story{bottom:calc(env(safe-area-inset-bottom,0px) + 148px)}
+  .views{bottom:calc(env(safe-area-inset-bottom,0px) + 82px);left:16px;right:16px;align-items:stretch}
+  .seg{justify-content:flex-start}
+  .zoom{display:none}
+  .story h2{font-size:24px}
+  .brand h1{font-size:20px}
+  .mapview.open{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+  .side{max-height:40vh}
+  .time{display:none}
+}
+@media (max-width:560px){ .brand{padding:9px 12px} .brand p{display:none} .brand h1{font-size:18px} .tools{top:calc(env(safe-area-inset-top,0px) + 84px)} .minimap{display:none} .seg button{padding:7px 9px;font-size:12px} .story .body{font-size:14.5px} }
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+
+<canvas id="gl" tabindex="0" aria-label="3D view: a CMA CGM electric barge swaps its battery at BCTN Meerhout and passes Kwaadmechelen lock on the Albert Canal"></canvas>
+<div id="labels" aria-hidden="false"></div>
+
+<div class="chrome">
+  <header class="brand panel">
+    <div class="eyebrow">CMA CGM × NatPower Marine</div>
+    <h1>Albert Canal Battery Swap</h1>
+    <p>Kwaadmechelen · BCTN Meerhout quay · canal km 51.9</p>
+  </header>
+
+  <div class="tools">
+    <div class="toolrow panel" role="toolbar" aria-label="Display">
+      <button class="ib" id="tMap" aria-pressed="true" aria-label="Route map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Zm0 0v14m6-12v14"/></svg><span class="tip">Route map (M)</span></button>
+      <button class="ib" id="tLabels" aria-pressed="true" aria-label="Labels"><svg viewBox="0 0 24 24"><path d="M4 6h10l4 4-4 4H4z"/><path d="M8 18v2"/></svg><span class="tip">Labels (L)</span></button>
+      <button class="ib" id="tHide" aria-pressed="false" aria-label="Hide interface"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.6"/><path d="M4 4l16 16"/></svg><span class="tip">Hide interface (H)</span></button>
+      <button class="ib" id="tFull" aria-pressed="false" aria-label="Full screen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="tip">Full screen (F)</span></button>
+      <button class="vrbtn" id="vrBtn" disabled>Checking VR</button>
+    </div>
+    <section class="minimap panel" id="mini" aria-label="Route map">
+      <div class="hd"><span class="t">Antwerp to Genk</span><span><button class="linkbtn" id="miniOpen">Open map</button><button class="linkbtn" id="miniFold" aria-label="Fold map">Fold</button></span></div>
+      <canvas id="miniCv" width="600" height="340" aria-label="Route overview with the barge position"></canvas>
+      <div class="ft"><span id="miniKm">km 50.8</span><span>88 km · 6 locks · +55 m</span></div>
+    </section>
+  </div>
+
+  <section class="story panel" id="story" aria-live="polite">
+    <div class="in">
+      <div class="top">
+        <div class="meta"><span class="eyebrow" id="stepNo">Step 01 of 15</span><span class="tl" id="tlChip">Time-lapse ×20</span><span class="mini-title" id="miniTitle"></span></div>
+        <button class="collapse" id="storyFold" aria-label="Shrink story card" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      </div>
+      <h2 id="stepTitle">Under way on battery power</h2>
+      <p class="body" id="stepBody"></p>
+      <div class="status">
+        <div class="stat"><div class="k">On-board pack</div><div class="v"><b id="socV">44%</b><span id="socT">Pack A</span></div><div class="bar"><i id="socBar" style="width:44%"></i></div></div>
+        <div class="stat"><div class="k" id="st2k">Pack A ashore</div><div class="v"><span class="dot" id="st2d"></span><span id="st2v">On board</span></div><div class="bar"><i id="st2Bar" style="width:0%;background:var(--amber)"></i></div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="views">
+    <div class="seg panel" role="group" aria-label="Viewpoint" id="viewSeg"></div>
+    <div class="zoom panel" role="group" aria-label="Zoom">
+      <button class="ib" id="zIn" aria-label="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="ib" id="zOut" aria-label="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+      <button class="ib" id="zReset" aria-label="Reset view"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg></button>
+    </div>
+  </div>
+
+  <footer class="timeline panel">
+    <button class="play" id="play" aria-label="Pause"><svg viewBox="0 0 24 24" id="playIco"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+    <div class="track" id="track"><div class="chaps" id="chaps"></div><div class="tipbox" id="tipbox"></div></div>
+    <span class="time" id="time">0:00 / 2:06</span>
+    <button class="speed guide" id="guide" aria-pressed="true" title="Guided: the story waits for you at each key moment. Autoplay: it runs on its own.">Guided</button>
+    <button class="speed" id="speed" aria-label="Playback speed">1×</button>
+  </footer>
+</div>
+
+<section class="act panel" id="act" hidden aria-live="assertive">
+  <div class="eyebrow" id="actE">Your move</div>
+  <p id="actP"></p>
+  <button class="actbtn" id="actBtn">Start</button>
+  <span class="or" id="actOr">or press Space</span>
+</section>
+<section class="endc panel" id="endc" hidden role="dialog" aria-label="Journey complete">
+  <div class="eyebrow">Journey complete</div>
+  <h2>On to Genk with a full pack</h2>
+  <p>One swap of about 30 minutes at Kwaadmechelen replaced hours on a charger. Pack A stays ashore to charge for the next barge, and the e-barge carries on with 36 km and four more locks to go.</p>
+  <div class="row"><button class="actbtn" id="replay">Replay from the start</button><button class="btn" id="replaySwap">Watch the swap again</button><button class="btn" id="endMap">Route map</button></div>
+</section>
+<button class="restore panel" id="restore" aria-label="Show interface"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.6"/></svg><span>Show interface</span></button>
+
+<div class="info panel" id="info" hidden role="dialog" aria-label="Details">
+  <button class="ib x" id="infoX" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  <div class="eyebrow" id="infoE"></div><h3 id="infoH"></h3><p id="infoP"></p><dl id="infoD"></dl>
+</div>
+
+<div class="mapview" id="mapview" role="dialog" aria-label="Route map Antwerp to Genk">
+  <div class="mapstage">
+    <canvas id="mapCv"></canvas>
+    <div class="ctrl"><div class="pill panel" role="group" aria-label="Map style"><button id="stNight" aria-pressed="true">Night</button><button id="stSat" aria-pressed="false">Satellite</button></div><button class="btn" id="mapFit">Whole route</button></div>
+    <div class="scale" id="mapScale"></div>
+    <button class="mapx" id="mapX" aria-label="Close the map" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg><span>Close</span></button>
+    <div class="credit">Imagery © Digitaal Vlaanderen (Orthofoto 2024, open data), PDOK (CC BY 4.0) · Canal and ports © OpenStreetMap contributors · Levels from DHM Vlaanderen II</div>
+  </div>
+  <div class="side">
+    <div class="panel">
+      <div class="eyebrow">Pilot corridor</div>
+      <h2>Antwerp to Genk</h2>
+      <p>One battery pack per barge, swapped once at the Kwaadmechelen hub on the BCTN Meerhout quay. The canal climbs 55 m through six locks on the way to Genk.</p>
+      <div class="facts">
+        <div><b>88 km</b><span>Albert Canal</span></div>
+        <div><b>14 km</b><span>Port leg</span></div>
+        <div><b>6</b><span>Locks</span></div>
+        <div><b>+55 m</b><span>Climb</span></div>
+      </div>
+    </div>
+    <div class="panel profile"><div class="eyebrow">Water level above sea level (TAW)</div><svg id="profile" viewBox="0 0 320 150" role="img" aria-label="Canal water level profile"></svg></div>
+    <div class="panel"><div class="eyebrow" style="margin-bottom:6px">Places on the route</div><ul class="places" id="places"></ul></div>
+    <button class="btn" id="mapClose" style="align-self:flex-start">Back to the scene</button>
+  </div>
+</div>
+
+<div class="credits">Orthofoto 2024 and DHM Vlaanderen II © Digitaal Vlaanderen · © OpenStreetMap contributors · Concept visualisation by AImovation</div>
+<div id="load"><div class="c"><div class="eyebrow">AImovation for CMA CGM and NatPower Marine</div><h1>Albert Canal Battery Swap</h1><p>Loading terrain, imagery and models</p><div id="bar"><i></i></div><div id="loadTxt">0%</div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Sky.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
+<script>
+'use strict';
+/* ============================================================
+   0. Basics
+   ============================================================ */
+const V3=THREE.Vector3, D2R=Math.PI/180;
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)), lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
+const $=id=>document.getElementById(id);
+const IS_QUEST=/OculusBrowser|Quest/i.test(navigator.userAgent);
+const params=new URLSearchParams(location.search);
+const TEST=params.has('t');
+
+/* Geodesy: local frame around km 51.0 of the Albert Canal (same as the Unreal georeference).
+   X east, Z south, Y up in metres above the lower canal level (20.0 m TAW). */
+const LON0=5.08895, LAT0=51.10111, A_=6378137, E2=0.00669437999014, sl0=Math.sin(LAT0*D2R);
+const MLON=D2R*A_/Math.sqrt(1-E2*sl0*sl0)*Math.cos(LAT0*D2R), MLAT=D2R*A_*(1-E2)/Math.pow(1-E2*sl0*sl0,1.5);
+const ll=(lon,lat)=>new V3((lon-LON0)*MLON,0,-(lat-LAT0)*MLAT);
+const toLL=(x,z)=>[LON0+x/MLON, LAT0-z/MLAT];
+/* Canal centreline km 48.0 to 53.9 every 100 m (OpenStreetMap relation 1985576, chainage from Antwerp) */
+const PATH=[[5.0476671,51.1085833],[5.0490401,51.108327],[5.0504131,51.1080707],[5.0517861,51.1078144],[5.0531599,51.1075599],[5.0545432,51.1073266],[5.0559239,51.1070873],[5.0573034,51.1068455],[5.058683,51.1066037],[5.0600626,51.1063619],[5.0614421,51.1061201],[5.0628217,51.1058783],[5.0642013,51.1056365],[5.0655808,51.1053947],[5.0669604,51.1051528],[5.06834,51.104911],[5.0697194,51.1046689],[5.0710987,51.1044267],[5.072478,51.1041845],[5.0738574,51.1039423],[5.0752369,51.1037007],[5.0766165,51.1034591],[5.0779961,51.1032175],[5.0793757,51.1029759],[5.0807553,51.1027344],[5.0821349,51.1024928],[5.083501,51.1022233],[5.0848629,51.1019451],[5.0862248,51.1016669],[5.0875867,51.1013886],[5.0889486,51.1011104],[5.0903104,51.1008322],[5.0916723,51.1005539],[5.0930342,51.1002757],[5.0943961,51.0999975],[5.095758,51.0997192],[5.0971251,51.0994513],[5.0984935,51.0991861],[5.0998619,51.098921],[5.1012303,51.0986558],[5.1025988,51.0983906],[5.1039756,51.0981434],[5.1053538,51.0978989],[5.1067321,51.097655],[5.1081189,51.0974307],[5.1095057,51.0972064],[5.1109081,51.0970259],[5.1123146,51.0968569],[5.1137211,51.0966878],[5.1151276,51.0965188],[5.1165341,51.0963498],[5.1179394,51.0961769],[5.1193444,51.0960031],[5.1207494,51.0958293],[5.1221545,51.0956555],[5.1235595,51.0954818],[5.1249654,51.0953112],[5.1263716,51.0951411],[5.1277777,51.0949711],[5.1291702,51.0947623]];
+const KM0=48.0, CL=PATH.map(([a,b])=>ll(a,b));
+function kmPoint(km){ const f=clamp((km-KM0)*10,0,CL.length-1.001), i=Math.floor(f); return CL[i].clone().lerp(CL[i+1],f-i); }
+function kmTangent(km){ const f=clamp((km-KM0)*10,0,CL.length-1.001), i=Math.floor(f); return CL[i+1].clone().sub(CL[i]).normalize(); }
+function kmOf(p){ let best=1e18,k=KM0; for(let i=0;i<CL.length-1;i++){ const a=CL[i],b=CL[i+1],ab=b.clone().sub(a); const t=clamp(p.clone().sub(a).dot(ab)/ab.lengthSq(),0,1); const d=a.clone().addScaledVector(ab,t).distanceToSquared(p.clone().setY(0)); if(d<best){best=d;k=KM0+(i+t)/10;} } return k; }
+
+/* ============================================================
+   1. Renderer, scene, sky and light
+   ============================================================ */
+const canvas=$('gl');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',logarithmicDepthBuffer:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,IS_QUEST?1:1.75));
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.98;
+renderer.physicallyCorrectLights=false;
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate=true;
+renderer.xr.enabled=true; renderer.xr.setReferenceSpaceType('local-floor');
+window.__r=renderer;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(50,1,0.5,14000);
+const rig=new THREE.Group(); rig.add(camera); scene.add(rig);
+
+/* Sun from the south east, mid morning in summer: the 2024 orthophoto was flown with the same light,
+   so our shadows fall the same way as the shadows in the photo. */
+const SUN_DIR=new V3(0.43,0.74,0.51).normalize();
+const HORIZON=new THREE.Color('#cfdbe6');
+scene.fog=new THREE.Fog(HORIZON,1600,9500);
+const sky=new THREE.Sky(); sky.scale.setScalar(12000);
+{ const u=sky.material.uniforms; u.turbidity.value=4.2; u.rayleigh.value=1.25; u.mieCoefficient.value=0.004; u.mieDirectionalG.value=0.82; u.sunPosition.value.copy(SUN_DIR).multiplyScalar(1000); }
+sky.material.fog=false; sky.frustumCulled=false; scene.add(sky);
+const pmrem=new THREE.PMREMGenerator(renderer); let ENV=null;
+{ const s=new THREE.Scene(); const sk=new THREE.Sky(); sk.scale.setScalar(1000); const u=sk.material.uniforms; u.turbidity.value=4.2; u.rayleigh.value=1.25; u.mieCoefficient.value=0.004; u.mieDirectionalG.value=0.82; u.sunPosition.value.copy(SUN_DIR).multiplyScalar(100); s.add(sk);
+  ENV=pmrem.fromScene(s,0.02).texture; }
+const hemi=new THREE.HemisphereLight('#d9e5f1','#56603f',0.62); scene.add(hemi);
+const sun=new THREE.DirectionalLight('#fff3df',1.25); sun.castShadow=true;
+sun.shadow.mapSize.set(IS_QUEST?1024:4096,IS_QUEST?1024:4096);
+{ const c=sun.shadow.camera; c.left=-260; c.right=260; c.top=260; c.bottom=-260; c.near=10; c.far=2400; }
+sun.shadow.bias=-0.00035; sun.shadow.normalBias=0.6;
+scene.add(sun); scene.add(sun.target);
+function placeSun(focus){ // snap to shadow texels to avoid shimmering
+  const step=520/sun.shadow.mapSize.x; const f=focus.clone(); f.x=Math.round(f.x/step)*step; f.z=Math.round(f.z/step)*step; f.y=0;
+  sun.target.position.copy(f); sun.position.copy(f).addScaledVector(SUN_DIR,1200); sun.target.updateMatrixWorld(); }
+
+/* ============================================================
+   2. Procedural detail textures (grey multipliers, applied in world space)
+   ============================================================ */
+function noiseCanvas(N,fn){ const c=document.createElement('canvas'); c.width=c.height=N; const x=c.getContext('2d'); const im=x.createImageData(N,N);
+  for(let j=0;j<N;j++) for(let i=0;i<N;i++){ const v=fn(i,j); const k=(j*N+i)*4; im.data[k]=im.data[k+1]=im.data[k+2]=clamp(v,0,255); im.data[k+3]=255; }
+  x.putImageData(im,0,0); return c; }
+function vnoise(N,seed,oct){ // tileable value noise
+  const g=[]; let s=seed; const R=()=>{ s=(s*16807)%2147483647; return s/2147483647; };
+  for(let o=0;o<oct;o++){ const n=4<<o, a=[]; for(let i=0;i<n*n;i++) a.push(R()); g.push({n,a}); }
+  return (i,j)=>{ let v=0,amp=1,tot=0; for(const {n,a} of g){ const x=i/N*n, y=j/N*n, x0=Math.floor(x), y0=Math.floor(y), fx=smooth(x-x0), fy=smooth(y-y0);
+    const A=a[(y0%n)*n+(x0%n)], B=a[(y0%n)*n+((x0+1)%n)], C=a[((y0+1)%n)*n+(x0%n)], D=a[((y0+1)%n)*n+((x0+1)%n)];
+    v+=lerp(lerp(A,B,fx),lerp(C,D,fx),fy)*amp; tot+=amp; amp*=0.55; } return v/tot; };
+}
+const nz1=vnoise(256,7,6), nz2=vnoise(256,99,4);
+const TEX={};
+TEX.concrete=new THREE.CanvasTexture(noiseCanvas(256,(i,j)=>{ const n=nz1(i,j), st=Math.pow(nz2(i*0.25,j*3)%1,3), blot=Math.max(0,nz2(i,j)-0.62)*260; return 196+(n-0.5)*90-st*55-blot-(Math.random()*12); }));
+TEX.steel=new THREE.CanvasTexture(noiseCanvas(256,(i,j)=>230+(nz1(i,j)-0.5)*40+(nz2(i,j*0.2)-0.5)*20));
+TEX.ribs=new THREE.CanvasTexture(noiseCanvas(128,(i,j)=>{ const r=Math.sin(i/128*Math.PI*2*18); return 205+r*28+(nz1(i*2,j*2)-0.5)*30; }));
+for(const k in TEX){ TEX[k].wrapS=TEX[k].wrapT=THREE.RepeatWrapping; }
+function triplanar(mat,tex,scale,strength=1){
+  mat.onBeforeCompile=sh=>{
+    sh.uniforms.tTri={value:tex}; sh.uniforms.triS={value:scale}; sh.uniforms.triK={value:strength};
+    sh.vertexShader='varying vec3 vTriP; varying vec3 vTriN;\n'+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\n vec4 _wp=vec4(transformed,1.0);\n#ifdef USE_INSTANCING\n _wp=instanceMatrix*_wp;\n#endif\n vTriP=(modelMatrix*_wp).xyz; vTriN=normalize(mat3(modelMatrix)*objectNormal);');
+    sh.fragmentShader='uniform sampler2D tTri; uniform float triS; uniform float triK; varying vec3 vTriP; varying vec3 vTriN;\n'+sh.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n vec3 _b=pow(abs(normalize(vTriN)),vec3(4.0)); _b/=(_b.x+_b.y+_b.z);\n float _t=texture2D(tTri,vTriP.zy*triS).r*_b.x+texture2D(tTri,vTriP.xz*triS).r*_b.y+texture2D(tTri,vTriP.xy*triS).r*_b.z;\n diffuseColor.rgb*=mix(1.0,_t*1.18,triK);');
+  };
+  mat.customProgramCacheKey=()=>'tri'+tex.uuid+scale; mat.needsUpdate=true; return mat;
+}
+function waterNormal(){
+  const N=512, c=document.createElement('canvas'); c.width=c.height=N; const x=c.getContext('2d'), im=x.createImageData(N,N);
+  const h=new Float32Array(N*N), W=[]; let s=11; const R=()=>{ s=(s*16807)%2147483647; return s/2147483647; };
+  for(let i=0;i<22;i++) W.push([Math.floor(R()*10)+1,Math.floor(R()*10)-5,R()*6.28,0.4+R()]);
+  for(let j=0;j<N;j++) for(let i=0;i<N;i++){ let v=0; for(const w of W) v+=Math.sin((w[0]*i+w[1]*j)/N*6.2832+w[2])*w[3]/Math.hypot(w[0],w[1]); h[j*N+i]=v; }
+  for(let j=0;j<N;j++) for(let i=0;i<N;i++){ const dx=h[j*N+(i+1)%N]-h[j*N+(i+N-1)%N], dz=h[((j+1)%N)*N+i]-h[((j+N-1)%N)*N+i], k=(j*N+i)*4;
+    im.data[k]=128-dx*60; im.data[k+1]=128-dz*60; im.data[k+2]=255; im.data[k+3]=255; }
+  x.putImageData(im,0,0); const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;
+}
+const WATER_MAT=new THREE.MeshStandardMaterial({color:'#203029',roughness:0.18,metalness:0.0,normalMap:waterNormal(),normalScale:new THREE.Vector2(0.42,0.42),envMapIntensity:0.2});
+WATER_MAT.normalMap.repeat.set(1/26,1/26);
+WATER_MAT.onBeforeCompile=sh=>{ // world-space UVs so the ripples have the same scale everywhere
+  sh.vertexShader=sh.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\n#ifdef USE_NORMALMAP\n vUv=(uvTransform*vec3((modelMatrix*vec4(position,1.0)).xz,1.0)).xy;\n#endif');
+};
+
+/* ============================================================
+   3. Loading
+   ============================================================ */
+const manager=new THREE.LoadingManager();
+manager.onProgress=(u,l,t)=>{ if(TEST&&l%20===0) console.warn('LOAD '+l+'/'+t+' '+performance.now().toFixed(0)); const p=Math.round(100*l/t); $('bar').firstElementChild.style.width=p+'%'; $('loadTxt').textContent=p+'%  ·  '+l+' of '+t+' files'; };
+const gltfL=new THREE.GLTFLoader(manager), texL=new THREE.TextureLoader(manager), jsonL=new THREE.FileLoader(manager); jsonL.setResponseType('json');
+const D={}; const nodes={};
+const want=['scene/chunks','scene/height','scene/ground','scene/water','scene/objects','map/route','map/route_base'];
+want.forEach(k=>jsonL.load('assets/'+k+'.json',d=>{ D[k.split('/')[1]]=d; if(k==='scene/chunks') loadChunkTextures(d); }));
+const chunkTex={};
+function loadChunkTextures(d){ d.chunks.forEach(c=>{ const t=texL.load('assets/scene/chunks/'+c.f); t.encoding=THREE.sRGBEncoding; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; chunkTex[c.f]=t; }); }
+const mapImg={night:new Image(),sat:new Image()};
+['night','sat'].forEach(k=>{ const url='assets/map/'+(k==='night'?'route_base.jpg':'route_sat.jpg'); manager.itemStart(url); mapImg[k].onload=()=>manager.itemEnd(url); mapImg[k].onerror=()=>manager.itemError(url); mapImg[k].src=url; });
+const hub=new THREE.Group(), lock=new THREE.Group(), barge=new THREE.Group();
+scene.add(hub,lock,barge);
+function index(root,prefix){ root.traverse(o=>{ if(o.name){ const n=o.name.replace(/[._]?\d{3}$/,''); if(!nodes[prefix+n]) nodes[prefix+n]=o; } }); }
+const BARGE_URL=(IS_QUEST||params.has('lod'))?'assets/models/ebarge_lod.gltf.json':'assets/models/ebarge_hero.gltf.json';
+let bargeGLTF=null, lodGLTF=null;
+gltfL.load(BARGE_URL,g=>{ bargeGLTF=g; });
+gltfL.load('assets/models/ebarge_lod.gltf.json',g=>{ lodGLTF=g; });
+let hubGLTF=null, lockGLTF=null;
+gltfL.load('assets/models/hub.gltf.json',g=>{ hubGLTF=g; });
+gltfL.load('assets/models/lock.gltf.json',g=>{ lockGLTF=g; });
+let fontsReady=false; (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>{ fontsReady=true; hudDirty=true; });
+manager.onLoad=()=>{ try{ build(); }catch(e){ console.error(e); $('loadTxt').textContent='Error: '+e.message; return; }
+  const L=$('load'); L.style.opacity=0; setTimeout(()=>L.remove(),900); };
+
+/* ============================================================
+   4. Heightfield and terrain
+   ============================================================ */
+function decodeHF(j){ const bin=atob(j.h), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+  const i16=new Int16Array(u8.buffer), f=new Float32Array(i16.length); for(let i=0;i<f.length;i++) f[i]=i16[i]/100; return {x0:j.x0,z0:j.z0,dx:j.dx,nx:j.nx,nz:j.nz,d:f}; }
+/* The canal bed was carved into the survey grid cell by cell, which leaves a 4 m staircase cliff along the banks.
+   Soften it into a sloping bank: blur the grid only close to carved cells, so the waterline follows a smooth curve. */
+function smoothBanks(H){ const n=H.nx, m=H.nz, d=H.d, N=n*m; const carved=new Uint8Array(N);
+  for(let i=0;i<N;i++){ const v=d[i]; if(v===-4.5||v===5) carved[i]=1; }
+  const near=new Uint8Array(N), R=5;
+  for(let j=0;j<m;j++) for(let i=0;i<n;i++){ if(!carved[j*n+i]) continue; const nb=(i>0&&!carved[j*n+i-1])||(i<n-1&&!carved[j*n+i+1])||(j>0&&!carved[(j-1)*n+i])||(j<m-1&&!carved[(j+1)*n+i]); if(!nb) continue;
+    for(let b=Math.max(0,j-R);b<=Math.min(m-1,j+R);b++) for(let a=Math.max(0,i-R);a<=Math.min(n-1,i+R);a++) near[b*n+a]=1; }
+  const K=[1,4,6,4,1]; let src=d, tmp=new Float32Array(N), out=new Float32Array(N);
+  for(let pass=0;pass<2;pass++){
+    for(let j=0;j<m;j++) for(let i=0;i<n;i++){ const k=j*n+i; if(!near[k]){ tmp[k]=src[k]; continue; } let s=0,w=0; for(let q=-2;q<=2;q++){ const a=i+q; if(a<0||a>=n) continue; s+=src[j*n+a]*K[q+2]; w+=K[q+2]; } tmp[k]=s/w; }
+    for(let j=0;j<m;j++) for(let i=0;i<n;i++){ const k=j*n+i; if(!near[k]){ out[k]=tmp[k]; continue; } let s=0,w=0; for(let q=-2;q<=2;q++){ const b=j+q; if(b<0||b>=m) continue; s+=tmp[b*n+i]*K[q+2]; w+=K[q+2]; } out[k]=s/w; }
+    src=out.slice(); }
+  H.d=src; return H; }
+function hfAt(H,x,z){ const fx=clamp((x-H.x0)/H.dx,0,H.nx-1.001), fz=clamp((z-H.z0)/H.dx,0,H.nz-1.001), i=Math.floor(fx), j=Math.floor(fz), u=fx-i, v=fz-j, d=H.d, n=H.nx;
+  return (d[j*n+i]*(1-u)+d[j*n+i+1]*u)*(1-v)+(d[(j+1)*n+i]*(1-u)+d[(j+1)*n+i+1]*u)*v; }
+let HF,GF,F,lockBox,toLock=new THREE.Matrix4(),toHub=new THREE.Matrix4();
+const lockLocal=(x,z)=>new V3(x,0,z).applyMatrix4(toLock), hubLocal=(x,z)=>new V3(x,0,z).applyMatrix4(toHub);
+function inHub(x,z){ const p=hubLocal(x,z); return p.x>-88&&p.x<88&&p.z>-64&&p.z<1.6; }
+function inLock(x,z,m=0){ const p=lockLocal(x,z); return p.x>-114+m&&p.x<113.5-m&&p.z>-111+m&&p.z<20-m; }
+const qzF=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2];
+let SMALLW=null;   // small mapped water bodies on the banks (hydro station intake and outflow)
+function inPoly(x,z,P){ let c=false; for(let i=0,j=P.length-1;i<P.length;j=i++){ const a=P[i],b=P[j]; if(((a[1]>z)!==(b[1]>z))&&(x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])) c=!c; } return c; }
+function surfaceH(x,z){ if(inLock(x,z,1)) return -4.5; if(inHub(x,z)) return F.hub.quayTop;
+  { const p=lockLocal(x,z);
+    if(p.z>-112&&p.z<22&&p.x>-129&&p.x<=-113) return -4.5;
+    if(p.z>-102&&p.z<20&&p.x>-156&&p.x<=-129) return -4.5;   // open water in front of the lower lock heads
+    if(p.z>-112&&p.z<22&&p.x>=112.5&&p.x<140){ const h=hfAt(HF,x,z); if(h>11) return 11.6; if(p.x<142) return Math.min(h,5.5); } }
+  if(!SMALLW) SMALLW=D.water.lower.filter(q=>q.wkc).map(q=>({o:q.o,x0:Math.min(...q.o.map(p=>p[0]))-3,x1:Math.max(...q.o.map(p=>p[0]))+3,z0:Math.min(...q.o.map(p=>p[1]))-3,z1:Math.max(...q.o.map(p=>p[1]))+3}));
+  for(const q of SMALLW) if(x>q.x0&&x<q.x1&&z>q.z0&&z<q.z1&&inPoly(x,z,q.o)) return Math.min(hfAt(HF,x,z),-1.8);
+  if(x>594&&x<1006){ const d=z-qzF(x); if(d>0.4&&d<14) return Math.max(F.hub.quayTop,hfAt(HF,x,z)); if(d<=0.4&&d>-6) return -4.5; }
+  return hfAt(HF,x,z); }
+function groundH(x,z){ if(inHub(x,z)) return F.hub.quayTop; return hfAt(GF,x,z); }
+const terrainMeshes=[];
+/* Ground detail: the 2024 photo gives the colour, a procedural grass layer adds blades and tufts close to the camera,
+   and on steep banks (where a top-down photo smears) the ground switches to the local photo colour with grass laid on all three axes. */
+const GRASS=(()=>{ const N=512, c=document.createElement('canvas'); c.width=c.height=N; const x=c.getContext('2d');
+  const nz=vnoise(N,31,6), im=x.createImageData(N,N);
+  for(let j=0;j<N;j++) for(let i=0;i<N;i++){ const v=128+(nz(i,j)-0.5)*120, k=(j*N+i)*4; im.data[k]=im.data[k+1]=im.data[k+2]=v; im.data[k+3]=255; }
+  x.putImageData(im,0,0); let s=5; const R=()=>{ s=(s*16807)%2147483647; return s/2147483647; };
+  // tufts and bare patches: the scale that still reads from a drone 100 m away
+  for(let n=0;n<2600;n++){ const px=R()*N, py=R()*N, r=5+R()*R()*34, b=R()<0.55?20+R()*60:170+R()*70, a=0.25+R()*0.4;
+    for(const ox of [-N,0,N]) for(const oy of [-N,0,N]){ const X=px+ox, Y=py+oy; if(X<-r||X>N+r||Y<-r||Y>N+r) continue;
+      const g=x.createRadialGradient(X,Y,0,X,Y,r); g.addColorStop(0,`rgba(${b|0},${b|0},${b|0},${a})`); g.addColorStop(1,`rgba(${b|0},${b|0},${b|0},0)`); x.fillStyle=g; x.fillRect(X-r,Y-r,2*r,2*r); } }
+  x.lineCap='round';
+  for(let n=0;n<34000;n++){ const px=R()*N, py=R()*N, L=2+R()*6, a=R()*Math.PI*2, b=R()<0.5?40+R()*70:150+R()*90;
+    x.strokeStyle=`rgba(${b|0},${b|0},${b|0},${0.35+R()*0.45})`; x.lineWidth=0.7+R()*1.1;
+    for(const ox of [-N,0,N]) for(const oy of [-N,0,N]){ const X=px+ox, Y=py+oy; if(X<-10||X>N+10||Y<-10||Y>N+10) continue; x.beginPath(); x.moveTo(X,Y); x.lineTo(X+Math.cos(a)*L,Y+Math.sin(a)*L); x.stroke(); } }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); return t; })();
+const MACRO=(()=>{ const t=new THREE.CanvasTexture(noiseCanvas(256,(i,j)=>128+(nz2(i,j)-0.5)*150)); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t; })();
+const GROUND_U={tGrass:{value:GRASS},tMacro:{value:MACRO}};
+function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
+  m.onBeforeCompile=sh=>{ Object.assign(sh.uniforms,GROUND_U);
+    sh.vertexShader='varying vec3 vGP; varying vec3 vGN;\n'+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\n vGP=(modelMatrix*vec4(transformed,1.0)).xyz; vGN=normalize(mat3(modelMatrix)*objectNormal);');
+    sh.fragmentShader='uniform sampler2D tGrass; uniform sampler2D tMacro; varying vec3 vGP; varying vec3 vGN;\n'+sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+ {
+  vec3 gN=normalize(vGN); float slope=1.0-clamp(gN.y,0.0,1.0);
+  float dist=length(vGP-cameraPosition); float near=1.0-smoothstep(160.0,900.0,dist);
+  vec3 avg=mapTexelToLinear(texture2D(map,vUv,4.5)).rgb;
+  vec3 col=diffuseColor.rgb; float sum=col.r+col.g+col.b+1e-4; float sumA=avg.r+avg.g+avg.b+1e-4;
+  float green=max(smoothstep(0.355,0.43,col.g/sum),smoothstep(0.355,0.43,avg.g/sumA)*0.8);
+  float steep=smoothstep(0.16,0.42,slope);
+  vec3 bankCol=avg*vec3(0.94,1.04,0.9);
+  col=mix(col,bankCol,steep*0.8);
+  vec3 b=pow(abs(gN),vec3(4.0)); b/=(b.x+b.y+b.z);
+  float g1=texture2D(tGrass,vGP.zy*0.15).r*b.x+texture2D(tGrass,vGP.xz*0.15).r*b.y+texture2D(tGrass,vGP.xy*0.15).r*b.z;
+  float g2=texture2D(tGrass,vGP.zy*0.037).r*b.x+texture2D(tGrass,vGP.xz*0.037).r*b.y+texture2D(tGrass,vGP.xy*0.037).r*b.z;
+  float det=1.0+((g1*0.55+g2*0.45)*2.0-1.0)*1.7;
+  float mac=texture2D(tMacro,vGP.xz*0.009).r*2.0;
+  float amt=max(green,steep*0.9);
+  col*=mix(1.0,det,(0.75*amt+0.22)*near);
+  col*=mix(1.0,mac,0.22+0.18*amt);
+  col=mix(col,col*vec3(1.12,1.06,0.74),amt*near*smoothstep(0.5,0.7,g2)*0.7);
+  col=mix(col,col*vec3(0.78,0.92,0.8),amt*near*smoothstep(0.45,0.3,g1)*0.6);
+  diffuseColor.rgb=col;
+ }`);
+  };
+  m.customProgramCacheKey=()=>'ground1'; return m; }
+function buildTerrain(){
+  const vr=IS_QUEST;
+  for(const c of D.chunks.chunks){
+    const step=c.t==='hi'?(vr?6:4):c.t==='mid'?(vr?12:8):(vr?24:16);
+    const nx=Math.max(2,Math.round(c.w/step)), nz=Math.max(2,Math.round(c.h/step));
+    const pos=[],uv=[],idx=[];
+    for(let j=0;j<=nz;j++) for(let i=0;i<=nx;i++){ const x=c.x+c.w*i/nx, z=c.z+c.h*j/nz; pos.push(x,surfaceH(x,z),z); uv.push(i/nx,1-j/nz); }
+    for(let j=0;j<nz;j++) for(let i=0;i<nx;i++){ const a=j*(nx+1)+i,b=a+1,d=a+nx+1,e=d+1; idx.push(a,d,b,b,d,e); }
+    // skirt: hides cracks between chunks of different resolution
+    const ring=[]; for(let i=0;i<=nx;i++) ring.push(i); for(let j=1;j<=nz;j++) ring.push(j*(nx+1)+nx); for(let i=nx-1;i>=0;i--) ring.push(nz*(nx+1)+i); for(let j=nz-1;j>=1;j--) ring.push(j*(nx+1)); ring.push(0);
+    for(let k=0;k<ring.length-1;k++){ const a=ring[k],b=ring[k+1], base=pos.length/3;
+      pos.push(pos[a*3],pos[a*3+1]-5,pos[a*3+2], pos[b*3],pos[b*3+1]-5,pos[b*3+2]); uv.push(uv[a*2],uv[a*2+1],uv[b*2],uv[b*2+1]);
+      idx.push(a,base,b, b,base,base+1); }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.setIndex(idx); g.computeVertexNormals();
+    const m=new THREE.Mesh(g,groundMaterial(chunkTex[c.f]));
+    m.receiveShadow=true; m.castShadow=c.t!=='lo'; m.userData.chunk=c; scene.add(m); terrainMeshes.push(m);
+  }
+}
+function buildWater(){
+  const mk=(polys,y)=>{ for(const p of polys){ const sh=new THREE.Shape(p.o.map(([x,z])=>new THREE.Vector2(x,-z)));
+      for(const h of p.h) sh.holes.push(new THREE.Path(h.map(([x,z])=>new THREE.Vector2(x,-z))));
+      const g=new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI/2); g.translate(0,y,0);
+      const m=new THREE.Mesh(g,WATER_MAT); m.receiveShadow=true; scene.add(m); } };
+  mk(D.water.lower,0.0); mk(D.water.upper,10.0);
+  // water in the three lock-head channels between the chamber gates and the road bridge
+  for(const [z0,z1] of [[-13,13],[-69,-51],[-100.4,-82.4]]){ const g=new THREE.PlaneGeometry(16,z1-z0); g.rotateX(-Math.PI/2); g.translate(-121,0.0,(z0+z1)/2);
+    const m=new THREE.Mesh(g,WATER_MAT); m.receiveShadow=true; lock.add(m); }
+  // upper lock head: the strip between the upper gates and the upper canal is at the upper water level
+  { const g=new THREE.PlaneGeometry(30,136); g.rotateX(-Math.PI/2); g.translate(127,10.0,-45); const m=new THREE.Mesh(g,WATER_MAT); m.receiveShadow=true; lock.add(m); }
+  // lock heads: concrete walls between the channels, from the gates out to the road bridge
+  const headM=triplanar(new THREE.MeshStandardMaterial({color:'#8f8b82',roughness:0.92}),TEX.concrete,0.18,0.9); const hg=[];
+  for(const [z0,z1] of [[-112,-100.4],[-82.4,-69],[-51,-13],[13,22]]){ const g=new THREE.BoxGeometry(15.5,15.8,z1-z0); g.translate(-121.2,11.6-7.9,(z0+z1)/2); hg.push(g); }
+  const hm=new THREE.Mesh(THREE.BufferGeometryUtils.mergeBufferGeometries(hg),headM); hm.castShadow=hm.receiveShadow=true; lock.add(hm);
+}
+
+/* ============================================================
+   5. Built environment from the survey data
+   ============================================================ */
+const BRICK=['#9b5b45','#8a4f3d','#a8694f','#7d4a3a','#b07b5f','#c2a58a','#d8d0c4'], CLAD=['#b4b8bb','#a2a9ae','#c3c0b8','#8d959c','#cfcdc6','#7e868c'];
+function chunkFor(x,z){ for(const c of D.chunks.chunks) if(x>=c.x&&x<c.x+c.w&&z>=c.z&&z<c.z+c.h) return c; return null; }
+function buildBuildings(){
+  const walls={pos:[],col:[]}, roofs=new Map(); let rnd=7; const R=()=>{ rnd=(rnd*16807)%2147483647; return rnd/2147483647; };
+  const col=new THREE.Color(), push=(arr,c,...vs)=>{ for(const v of vs){ arr.pos.push(v.x,v.y,v.z); arr.col.push(c.r,c.g,c.b); } };
+  const roofOf=c=>{ if(!roofs.has(c.f)) roofs.set(c.f,{c,pos:[],uv:[]}); return roofs.get(c.f); };
+  const rpush=(r,...vs)=>{ for(const v of vs){ r.pos.push(v.x,v.y,v.z); r.uv.push((v.x-r.c.x)/r.c.w, 1-(v.z-r.c.z)/r.c.h); } };
+  for(const b of D.objects.buildings){
+    const f=b.f, n=f.length; let cx=0,cz=0; for(const [x,z] of f){cx+=x;cz+=z;} cx/=n; cz/=n;
+    const ch=chunkFor(cx,cz); if(!ch) continue;
+    const small=/house|detached|semi|terrace|residential|farm|barn|garage|shed/.test(b.t)||b.r==='gable';
+    const base=Math.min(b.b,groundH(cx,cz))-0.6, top=base+0.6+b.h, eave=b.r==='gable'?base+0.6+b.e:top;
+    const wc=col.set(small?BRICK[Math.floor(R()*BRICK.length)]:CLAD[Math.floor(R()*CLAD.length)]).clone();
+    const dark=wc.clone().multiplyScalar(0.72);
+    for(let i=0;i<n;i++){ const [x1,z1]=f[i],[x2,z2]=f[(i+1)%n]; const sh=0.86+0.14*Math.abs(Math.sin(Math.atan2(z2-z1,x2-x1)+0.5));
+      const c1=wc.clone().multiplyScalar(sh), c0=dark.clone().multiplyScalar(sh);
+      const a=new V3(x1,base,z1), bb=new V3(x2,base,z2), a2=new V3(x1,eave,z1), b2=new V3(x2,eave,z2);
+      walls.pos.push(a.x,a.y,a.z, bb.x,bb.y,bb.z, b2.x,b2.y,b2.z, a.x,a.y,a.z, b2.x,b2.y,b2.z, a2.x,a2.y,a2.z);
+      for(const c of [c0,c0,c1,c0,c1,c1]) walls.col.push(c.r,c.g,c.b); }
+    const r=roofOf(ch);
+    if(b.r==='gable'){
+      const q=b.q.map(([x,z])=>new V3(x,eave,z)), k=b.k.map(([x,z])=>new V3(x,top,z));
+      // the ridge runs between the midpoints of the two short sides; pair each long side with the ridge
+      const sides=b.long===0?[[0,1],[2,3]]:[[1,2],[3,0]];
+      for(const [i,j] of sides){ const A=q[i],B=q[j]; const kA=k[0].distanceTo(A)<k[1].distanceTo(A)?k[0]:k[1], kB=kA===k[0]?k[1]:k[0];
+        rpush(r,A,B,kB, A,kB,kA); }
+      const ends=b.long===0?[[1,2],[3,0]]:[[0,1],[2,3]];
+      for(const [i,j] of ends){ const A=q[i],B=q[j]; const kk=k[0].distanceTo(A)+k[0].distanceTo(B)<k[1].distanceTo(A)+k[1].distanceTo(B)?k[0]:k[1];
+        walls.pos.push(A.x,A.y,A.z,B.x,B.y,B.z,kk.x,kk.y,kk.z); for(let t=0;t<3;t++) walls.col.push(wc.r*0.9,wc.g*0.9,wc.b*0.9); }
+    } else {
+      let tri; try{ tri=THREE.ShapeUtils.triangulateShape(f.map(([x,z])=>new THREE.Vector2(x,z)),[]); }catch(e){ continue; }
+      for(const [i,j,k] of tri) rpush(r,new V3(f[i][0],top,f[i][1]),new V3(f[j][0],top,f[j][1]),new V3(f[k][0],top,f[k][1]));
+      // parapet edge
+      for(let i=0;i<n;i++){ const [x1,z1]=f[i],[x2,z2]=f[(i+1)%n]; const a=new V3(x1,top,z1),bb=new V3(x2,top,z2),a2=new V3(x1,top+0.5,z1),b2=new V3(x2,top+0.5,z2);
+        walls.pos.push(a.x,a.y,a.z,bb.x,bb.y,bb.z,b2.x,b2.y,b2.z,a.x,a.y,a.z,b2.x,b2.y,b2.z,a2.x,a2.y,a2.z); for(let t=0;t<6;t++) walls.col.push(wc.r*0.8,wc.g*0.8,wc.b*0.8); }
+    }
+  }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(walls.pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(walls.col,3)); g.computeVertexNormals();
+  const wm=new THREE.Mesh(g,triplanar(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.88,side:THREE.DoubleSide}),TEX.concrete,0.35,0.55)); wm.castShadow=wm.receiveShadow=true; scene.add(wm);
+  for(const r of roofs.values()){ const rg=new THREE.BufferGeometry(); rg.setAttribute('position',new THREE.Float32BufferAttribute(r.pos,3)); rg.setAttribute('uv',new THREE.Float32BufferAttribute(r.uv,2)); rg.computeVertexNormals();
+    const rm=new THREE.Mesh(rg,new THREE.MeshLambertMaterial({map:chunkTex[r.c.f],side:THREE.DoubleSide})); rm.castShadow=rm.receiveShadow=true; scene.add(rm); }
+}
+function buildContainers(){
+  const C=D.objects.containers, list=C.list; let n=0; for(const c of list) n+=c[3];
+  const g=new THREE.BoxGeometry(6.06,2.59,2.44);
+  const m=triplanar(new THREE.MeshStandardMaterial({color:'#ffffff',roughness:0.7,metalness:0.1,map:null}),TEX.ribs,0.9,0.75);
+  const im=new THREE.InstancedMesh(g,m,n); const M=new THREE.Matrix4(), q=new THREE.Quaternion().setFromAxisAngle(new V3(0,1,0),-C.yaw), s=new V3(1,1,1), p=new V3(), col=new THREE.Color();
+  let k=0, rnd=3; const R=()=>{ rnd=(rnd*16807)%2147483647; return rnd/2147483647; };
+  const pal=['#8d2b2b','#1e4f8a','#c9c9c4','#2f6b45','#b5651d','#5b5f66','#7a1f3d','#d8b24a','#28566e','#22324e'];
+  const CPAL=['#8e2a24','#a8481f','#c4621f','#c9a227','#6f7b2a','#2f6a3f','#2f6a3f','#1f6a6e','#1f5a8c','#1f4f8c','#3a3f7a','#6e2230'];
+  for(const [x,z,g0,lev,hex] of list){
+    for(let l=0;l<lev;l++){ p.set(x,g0+1.3+l*2.59,z); M.compose(p,q,s); im.setMatrixAt(k,M);
+      col.set(hex); const hsl={}; col.getHSL(hsl); // photo colours are sun-bleached: map them to real container paint
+      col.set(hsl.l>0.62&&hsl.s<0.18?(R()<0.6?'#d9d8d2':'#a4a8ab'):hsl.s<0.1?pal[Math.floor(R()*pal.length)]:CPAL[Math.floor(((hsl.h*360+15)%360)/30)]);
+      col.offsetHSL(0,0,(R()-0.5)*0.06);
+      im.setColorAt(k,col); k++; }
+  }
+  im.count=k; im.castShadow=im.receiveShadow=true; scene.add(im);
+}
+function buildQuayWall(){
+  const qz=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2]; const pts=[];
+  for(let X=596;X<=1004;X+=4) pts.push(new V3(X,0,qz(X)+0.4));
+  const pos=[],uv=[]; let u=0;
+  for(let i=0;i<pts.length-1;i++){ const a=pts[i],b=pts[i+1], L=a.distanceTo(b);
+    const quad=[[a,-4.6],[b,-4.6],[b,F.hub.quayTop+0.1],[a,-4.6],[b,F.hub.quayTop+0.1],[a,F.hub.quayTop+0.1]];
+    for(const [p,y] of quad){ pos.push(p.x,y,p.z); uv.push((p===a?u:u+L)/1.4,(y+4.6)/7); } u+=L; }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.computeVertexNormals();
+  const t=TEX.ribs.clone(); t.needsUpdate=true; t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:'#4a4f52',roughness:0.7,metalness:0.35,map:t,side:THREE.DoubleSide})); m.receiveShadow=true; scene.add(m);
+  // capping beam and fender line
+  const cap=[],fen=[];
+  for(let i=0;i<pts.length-1;i+=1){ const a=pts[i],b=pts[i+1]; const g1=new THREE.BoxGeometry(a.distanceTo(b)+0.05,0.5,1.2); const ang=Math.atan2(-(b.z-a.z),b.x-a.x);
+    g1.rotateY(ang); g1.translate((a.x+b.x)/2,F.hub.quayTop-0.05,(a.z+b.z)/2-0.5); cap.push(g1);
+    if(i%3===0){ const f=new THREE.BoxGeometry(0.5,2.6,0.45); f.rotateY(ang); f.translate(a.x,0.6,a.z-0.3); fen.push(f); } }
+  const cm=new THREE.Mesh(THREE.BufferGeometryUtils.mergeBufferGeometries(cap),triplanar(new THREE.MeshStandardMaterial({color:'#9b978d',roughness:0.9}),TEX.concrete,0.3,0.8)); cm.castShadow=cm.receiveShadow=true; scene.add(cm);
+  const fm=new THREE.Mesh(THREE.BufferGeometryUtils.mergeBufferGeometries(fen),new THREE.MeshStandardMaterial({color:'#1d1f21',roughness:0.85})); fm.castShadow=true; scene.add(fm);
+}
+function buildBridges(){
+  const deckM=triplanar(new THREE.MeshStandardMaterial({color:'#b9b6ae',roughness:0.85}),TEX.concrete,0.3,0.7);
+  const steelM=new THREE.MeshStandardMaterial({color:'#e9ebe8',roughness:0.45,metalness:0.4});
+  const railM=new THREE.MeshStandardMaterial({color:'#5c646c',roughness:0.5,metalness:0.6});
+  const geos={deck:[],steel:[],rail:[]};
+  const box=(arr,a,b,w,h,y0)=>{ const d=b.clone().sub(a), L=Math.hypot(d.x,d.z); if(L<0.05) return; const g=new THREE.BoxGeometry(L,h,w); const m=new THREE.Matrix4();
+    const mid=a.clone().add(b).multiplyScalar(0.5); const ang=Math.atan2(-(b.z-a.z),b.x-a.x); const pitch=Math.atan2(b.y-a.y,L);
+    m.compose(new V3(mid.x,(a.y+b.y)/2+y0,mid.z),new THREE.Quaternion().setFromEuler(new THREE.Euler(0,ang,pitch,'YXZ')),new V3(1,1,1)); g.applyMatrix4(m); arr.push(g); };
+  const beam=(arr,a,b,w)=>{ const d=b.clone().sub(a), L=d.length(); if(L<0.05) return; const g=new THREE.BoxGeometry(w,L,w); g.translate(0,L/2,0);
+    g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0,1,0),d.normalize()))); g.translate(a.x,a.y,a.z); arr.push(g); };
+  for(const br of D.objects.bridges){
+    const P=br.p.map(([x,z])=>new V3(x,0,z)); const upperReach=P[0].x>1347;
+    const lvl=upperReach?10.2:0; const over=br.d.map((d,i)=>{ const p=P[i]; return hfAt(HF,p.x,p.z)<=lvl-4; });
+    const ov=br.d.filter((d,i)=>over[i]).sort((a,b)=>a-b);
+    let deck=ov.length?ov[Math.floor(ov.length*0.25)]:br.deck; if(deck<lvl+8.5) deck=lvl+10.3; // the survey predates the new 9.1 m bridges
+    const arch=ov.length&&ov[ov.length-1]>deck+6&&/secondary|primary|tertiary/.test(br.kind);
+    const pts=P.map((p,i)=>{ const g=hfAt(GF,p.x,p.z); return new V3(p.x,Math.max(g+0.2,over[i]?deck:Math.min(deck,Math.max(g+0.2,deck-0))),p.z); });
+    // ramps: blend towards the ground away from the water
+    let first=over.indexOf(true), last=over.lastIndexOf(true); if(first<0){ first=0; last=pts.length-1; }
+    for(let i=0;i<pts.length;i++){ if(i<first||i>last){ const dist=(i<first?first-i:i-last)*P[0].distanceTo(P[1]); const g=hfAt(GF,pts[i].x,pts[i].z); pts[i].y=Math.max(g+0.25,deck-dist*0.045); } }
+    for(let i=0;i<pts.length-1;i++){ box(geos.deck,pts[i],pts[i+1],br.w,1.4,-0.7);
+      const d=pts[i+1].clone().sub(pts[i]); const nrm=new V3(-d.z,0,d.x).normalize().multiplyScalar(br.w/2-0.15);
+      box(geos.rail,pts[i].clone().add(nrm),pts[i+1].clone().add(nrm),0.18,1.1,0.55); box(geos.rail,pts[i].clone().sub(nrm),pts[i+1].clone().sub(nrm),0.18,1.1,0.55); }
+    // abutments and piers at the water's edge
+    for(const i of [first,last]){ const p=pts[i]; const q=pts[Math.min(i+1,pts.length-1)].clone().sub(pts[Math.max(i-1,0)]); const ang=Math.atan2(-q.z,q.x);
+      const g=new THREE.BoxGeometry(3.2,deck+3,br.w+1.5); g.rotateY(ang); g.translate(p.x,(deck+3)/2-4,p.z); geos.deck.push(g); }
+    if(arch){ const A=pts[first],B=pts[last]; const span=A.distanceTo(B), rise=Math.min(24,0.17*span);
+      const d=B.clone().sub(A); const nrm=new V3(-d.z,0,d.x).normalize();
+      for(const side of [-1,1]){ const off=nrm.clone().multiplyScalar(side*(br.w/2+0.6)); let prev=null;
+        for(let s=0;s<=24;s++){ const t=s/24; const p=A.clone().lerp(B,t).add(off); p.y=deck+0.6+rise*4*t*(1-t);
+          if(prev) beam(geos.steel,prev,p,1.2); prev=p;
+          if(s>0&&s<24&&s%2===0){ const lo=p.clone(); lo.y=deck+0.4; beam(geos.steel,lo,p,0.14); } }
+        box(geos.steel,A.clone().add(off).setY(deck+0.2),B.clone().add(off).setY(deck+0.2),1.2,1.6,0); }
+      for(let s=2;s<=22;s+=4){ const t=s/24; const p=A.clone().lerp(B,t); const y=deck+0.6+rise*4*t*(1-t); const a=p.clone().add(nrm.clone().multiplyScalar(br.w/2+0.6)).setY(y), b=p.clone().sub(nrm.clone().multiplyScalar(br.w/2+0.6)).setY(y); if(y>deck+6) beam(geos.steel,a,b,0.6); }
+    }
+    br._deck=deck; br._mid=pts[Math.round((first+last)/2)];
+  }
+  const add=(arr,mat)=>{ if(!arr.length) return; const g=THREE.BufferGeometryUtils.mergeBufferGeometries(arr.map(x=>x.toNonIndexed())); const m=new THREE.Mesh(g,mat); m.castShadow=m.receiveShadow=true; scene.add(m); };
+  add(geos.deck,deckM); add(geos.steel,steelM); add(geos.rail,railM);
+}
+/* Trees: one billboard per surveyed tree top (canopy model DHM Vlaanderen II), painted crowns in a small atlas */
+function treeAtlas(){
+  const S=256, c=document.createElement('canvas'); c.width=c.height=S*2; const x=c.getContext('2d'); let sd=5; const R=()=>{ sd=(sd*16807)%2147483647; return sd/2147483647; };
+  const greens=['#1f3018','#26391c','#2e4321','#374f27','#43602f','#527039','#638246'];
+  const leafy=(ox,oy,cx,cy,rx,ry,lobes,n,rmin,rmax)=>{ // irregular crown: several lobes, each a cloud of leaf clusters, lit from the upper right
+    const L=[]; for(let i=0;i<lobes;i++){ const a=R()*Math.PI*2, r=0.25+R()*0.45; L.push([cx+Math.cos(a)*rx*r*0.8, cy+Math.sin(a)*ry*r*0.8-ry*0.1, rx*(0.45+R()*0.25), ry*(0.42+R()*0.25)]); }
+    L.push([cx,cy,rx*0.7,ry*0.7]);
+    for(let i=0;i<n;i++){ const l=L[Math.floor(R()*L.length)]; const a=R()*Math.PI*2, rr=Math.sqrt(R()); const px=l[0]+Math.cos(a)*l[2]*rr, py=l[1]+Math.sin(a)*l[3]*rr;
+      const light=clamp(0.42+(cy-py)/(2*ry)*0.75+(px-cx)/(2*rx)*0.3+(R()-0.5)*0.35,0,0.999); x.fillStyle=greens[Math.floor(light*greens.length)];
+      x.globalAlpha=0.92; x.beginPath(); x.arc(ox+px,oy+py,rmin+R()*(rmax-rmin),0,7); x.fill(); } x.globalAlpha=1; };
+  const trunk=(ox,oy,cx,top,w)=>{ x.fillStyle='#3d3226'; x.beginPath(); x.moveTo(ox+cx-w/2,oy+S); x.lineTo(ox+cx-w*0.3,oy+top); x.lineTo(ox+cx+w*0.3,oy+top); x.lineTo(ox+cx+w/2,oy+S); x.fill(); };
+  trunk(0,0,128,170,13); leafy(0,0,128,116,112,100,6,900,5,11);
+  trunk(S,0,128,185,11); leafy(S,0,128,130,92,90,5,700,5,10);
+  trunk(0,S,128,226,9); leafy(0,S,128,120,42,112,4,620,4,8);
+  x.fillStyle='#3d3226'; x.fillRect(S+124,S+205,8,51);
+  for(let k=0;k<9;k++){ const y=S+22+k*21, w=14+k*11; for(let j=0;j<60;j++){ const t=R(); const px=S+128+(R()-0.5)*2*w*t, py=y-18+t*40; x.fillStyle=greens[Math.floor(clamp(0.25+(px-S-128)/(4*w)+R()*0.25,0,0.999)*5)]; x.beginPath(); x.arc(px,py,3+R()*4,0,7); x.fill(); } }
+  const t=new THREE.CanvasTexture(c); t.anisotropy=4; return t;
+}
+function buildTrees(){
+  const T=D.objects.trees; const n=T.length/5;
+  const geo=new THREE.InstancedBufferGeometry(); const pl=new THREE.PlaneGeometry(1,1); pl.translate(0,0.5,0);
+  geo.index=pl.index; geo.attributes.position=pl.attributes.position; geo.attributes.uv=pl.attributes.uv;
+  const pos=new Float32Array(n*3), size=new Float32Array(n*2), vari=new Float32Array(n*2); let k=0;
+  for(let i=0;i<n;i++){ const X=T[i*5], Z=T[i*5+1], G=T[i*5+2], H=T[i*5+3]; if(inHub(X,Z)||inLock(X,Z,-12)) continue;
+    const h=(Math.sin(X*12.9898+Z*78.233)*43758.5453)%1, hh=Math.abs(h);
+    let v=T[i*5+4]?3:(H>17&&hh<0.35?2:(H<9?1:0));
+    const w=v===2?clamp(H*0.3,3,7):v===3?clamp(H*0.42,3,9):clamp(H*0.62,3.5,15);
+    pos[k*3]=X; pos[k*3+1]=Math.min(G,hfAt(HF,X,Z))-0.3; pos[k*3+2]=Z; size[k*2]=w*1.08; size[k*2+1]=H*1.05+0.6; vari[k*2]=v; vari[k*2+1]=0.8+hh*0.22; k++; }
+  geo.setAttribute('aPos',new THREE.InstancedBufferAttribute(pos.subarray(0,k*3),3));
+  geo.setAttribute('aSize',new THREE.InstancedBufferAttribute(size.subarray(0,k*2),2));
+  geo.setAttribute('aVar',new THREE.InstancedBufferAttribute(vari.subarray(0,k*2),2));
+  geo.instanceCount=k;
+  const mat=new THREE.ShaderMaterial({ fog:true, uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{tMap:{value:treeAtlas()},uLight:{value:new THREE.Color('#f4f6ea')}}]),
+    vertexShader:`attribute vec3 aPos; attribute vec2 aSize; attribute vec2 aVar; varying vec2 vUv; varying float vTint;
+      #include <fog_pars_vertex>
+      void main(){ vec3 toC=cameraPosition-aPos; toC.y=0.0; vec3 right=normalize(vec3(toC.z,0.0,-toC.x)+1e-5);
+        vec3 p=aPos+right*(position.x*aSize.x)+vec3(0.0,position.y*aSize.y,0.0);
+        float v=aVar.x; vec2 cell=vec2(mod(v,2.0),1.0-floor(v/2.0)); vUv=(uv+cell)*0.5; vTint=aVar.y;
+        vec4 mvPosition=modelViewMatrix*vec4(p,1.0); gl_Position=projectionMatrix*mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader:`uniform sampler2D tMap; uniform vec3 uLight; varying vec2 vUv; varying float vTint;
+      #include <fog_pars_fragment>
+      void main(){ vec4 c=texture2D(tMap,vUv); if(c.a<0.5) discard; vec3 col=pow(c.rgb,vec3(2.2))*uLight*vTint*1.05;
+        gl_FragColor=vec4(col,1.0);
+        #include <tonemapping_fragment>
+        #include <encodings_fragment>
+        #include <fog_fragment>
+      }` });
+  const m=new THREE.Mesh(geo,mat); m.frustumCulled=false; scene.add(m);
+}
+const turbines=[];
+function buildTurbines(){
+  const white=new THREE.MeshStandardMaterial({color:'#eef0ee',roughness:0.42,metalness:0.05});
+  const bladeG=(()=>{ const s=new THREE.Shape(); s.moveTo(0,-1.6); s.quadraticCurveTo(3.6,8,1.1,46); s.lineTo(0.2,47); s.quadraticCurveTo(-0.6,10,-1.0,-1.6); s.lineTo(0,-1.6);
+    const g=new THREE.ExtrudeGeometry(s,{depth:0.6,bevelEnabled:false,curveSegments:8}); g.translate(0,0,-0.3); return g; })();
+  for(const t of D.objects.turbines){
+    const grp=new THREE.Group(); grp.position.set(t.x,t.g,t.z);
+    const H=t.hub, Rr=t.rotor/2;
+    const tower=new THREE.Mesh(new THREE.CylinderGeometry(1.45,2.4,H,24,1,true),white); tower.position.y=H/2; grp.add(tower);
+    const yaw=new THREE.Group(); yaw.position.y=H; yaw.rotation.y=135*D2R; grp.add(yaw);
+    const nac=new THREE.Mesh(new THREE.BoxGeometry(3.6,3.8,11),white); nac.position.set(0,0.6,1.8); yaw.add(nac);
+    const rotor=new THREE.Group(); rotor.position.set(0,0.4,-4.4); yaw.add(rotor);
+    const spinner=new THREE.Mesh(new THREE.SphereGeometry(1.9,16,10),white); spinner.scale.set(1,1,1.5); rotor.add(spinner);
+    for(let i=0;i<3;i++){ const b=new THREE.Mesh(bladeG,white); b.scale.setScalar(Rr/47); b.rotation.z=i*2*Math.PI/3; rotor.add(b); }
+    grp.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
+    rotor.userData.speed=0.9+((t.x*13)%7)/20; turbines.push(rotor); scene.add(grp);
+  }
+}
+function buildPower(){
+  const P=D.objects.pylons, L=D.objects.lines; const parts=[]; const steel=new THREE.MeshStandardMaterial({color:'#7d858b',roughness:0.6,metalness:0.55});
+  const dirOf={};
+  for(const l of L){ for(let i=0;i<l.n.length;i++){ const a=P[l.n[Math.max(0,i-1)]], b=P[l.n[Math.min(l.n.length-1,i+1)]]; if(a&&b) dirOf[l.n[i]]=Math.atan2(b[1]-a[1],b[0]-a[0]); } }
+  const bar=(a,b,w)=>{ const d=b.clone().sub(a), L=d.length(); const g=new THREE.BoxGeometry(w,L,w); g.translate(0,L/2,0);
+    g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0,1,0),d.normalize()))); g.translate(a.x,a.y,a.z); parts.push(g); };
+  const arms={};
+  for(const id in P){ const [x,z,g,h0,kind]=P[id]; const h=clamp(h0,22,60); const ang=dirOf[id]||0; const ca=Math.cos(ang), sa=Math.sin(ang);
+    const loc=(u,v,y)=>new V3(x+u*ca-v*sa,g+y,z+u*sa+v*ca); // u along the line, v across
+    const b0=3.6, t0=1.1;
+    const legs=[[-1,-1],[1,-1],[1,1],[-1,1]];
+    for(const [su,sv] of legs) bar(loc(su*b0,sv*b0,0),loc(su*t0,sv*t0,h),0.32);
+    for(const f of [0.18,0.38,0.58,0.78]){ const y1=h*f, y2=h*(f+0.2), w1=lerp(b0,t0,f), w2=lerp(b0,t0,f+0.2);
+      for(let k=0;k<4;k++){ const [su,sv]=legs[k],[tu,tv]=legs[(k+1)%4]; bar(loc(su*w1,sv*w1,y1),loc(tu*w2,tv*w2,y2),0.16); } }
+    const armY=[h*0.62,h*0.78,h*0.93], armL=[9.5,11.5,8];
+    arms[id]=[];
+    armY.forEach((y,i)=>{ const w=lerp(b0,t0,y/h); bar(loc(0,-armL[i],y),loc(0,armL[i],y),0.4); arms[id].push(loc(0,-armL[i]+0.6,y-2.2),loc(0,armL[i]-0.6,y-2.2)); });
+    arms[id].push(loc(0,0,h+1.5));
+  }
+  if(parts.length){ const g=THREE.BufferGeometryUtils.mergeBufferGeometries(parts.map(p=>p.toNonIndexed())); const m=new THREE.Mesh(g,steel); m.castShadow=true; scene.add(m); }
+  const wires=[];
+  for(const l of L){ for(let i=0;i<l.n.length-1;i++){ const A=arms[l.n[i]], B=arms[l.n[i+1]]; if(!A||!B) continue;
+      for(let k=0;k<A.length;k++){ const a=A[k], b=B[k]; const span=a.distanceTo(b), sag=span*0.028; let prev=a;
+        for(let s=1;s<=12;s++){ const t=s/12; const p=a.clone().lerp(b,t); p.y-=sag*4*t*(1-t); wires.push(prev.x,prev.y,prev.z,p.x,p.y,p.z); prev=p; } } } }
+  const wg=new THREE.BufferGeometry(); wg.setAttribute('position',new THREE.Float32BufferAttribute(wires,3));
+  scene.add(new THREE.LineSegments(wg,new THREE.LineBasicMaterial({color:'#2d3238',transparent:true,opacity:0.55})));
+}
+
+/* ============================================================
+   6. The swap hub, the lock, the barges
+   ============================================================ */
+const CONCRETE_NAMES=/Concrete|Hub_Office|Lock_Wall|Quay/i;
+function upgradeMaterials(root){
+  root.traverse(o=>{ if(!o.isMesh) return; o.castShadow=true; o.receiveShadow=true;
+    const ms=Array.isArray(o.material)?o.material:[o.material];
+    const out=ms.map(m=>{ let n=m.name||'';
+      if(/water/i.test(n)||/^Water_/.test(o.name)) return WATER_MAT;
+      if(/glass/i.test(n)||/glass/i.test(o.name)){ const g=m.clone(); g.transparent=true; g.opacity=0.32; g.roughness=0.04; g.metalness=0.2; g.depthWrite=false; g.envMapIntensity=1.4; return g; }
+      const c=m.clone(); c.envMapIntensity=0.32; if(CONCRETE_NAMES.test(n)||/Lock_walls|Lock_gate_towers|Quay_structure|Lock_wall_fittings/.test(o.name)) c.color.multiplyScalar(0.68).lerp(new THREE.Color('#9a958a'),0.25);
+      if(CONCRETE_NAMES.test(n)||/Lock_walls|Lock_gate_towers|Quay_structure|Lock_wall_fittings/.test(o.name)){ c.roughness=0.9; c.metalness=0; triplanar(c,TEX.concrete,0.18,0.85); }
+      else if(/Steel|Black|Rail|Gate|Crane|Red|Blue|Yellow|Teal/i.test(n)){ c.roughness=Math.min(c.roughness,0.55); triplanar(c,TEX.steel,0.25,0.5); }
+      return c; });
+    o.material=Array.isArray(o.material)?out:out[0]; });
+}
+let realCranes=[], traffic=null, moored=null;
+function buildModels(){
+  F=D.objects.frames;
+  hub.position.set(F.hub.x,F.hub.quayTop-1.8+0.04,F.hub.z); hub.rotation.y=F.hub.ry;
+  lock.position.set(1347.07,0,410.34); lock.rotation.y=-14.4*D2R;
+  scene.updateMatrixWorld(true);
+  toHub.copy(hub.matrixWorld).invert(); toLock.copy(lock.matrixWorld).invert();
+  upgradeMaterials(hubGLTF.scene); upgradeMaterials(lockGLTF.scene); upgradeMaterials(bargeGLTF.scene);
+  hub.add(hubGLTF.scene); index(hubGLTF.scene,'h:');
+  lock.add(lockGLTF.scene); index(lockGLTF.scene,'l:');
+  barge.add(bargeGLTF.scene); index(bargeGLTF.scene,'b:');
+  // the road bridge over the lower lock heads: no piers standing in the three navigation openings
+  lock.updateMatrixWorld(true);
+  lock.traverse(o=>{ if(!o.isMesh||!/Lock_bridge_downstream/.test(o.name)) return; const g=o.geometry, P=g.attributes.position;
+    const m=new THREE.Matrix4().multiplyMatrices(toLock,o.matrixWorld), v=new V3();
+    const L=i=>v.fromBufferAttribute(P,i).applyMatrix4(m).clone();
+    const open=z=>(z>-13.5&&z<13.5)||(z>-69.5&&z<-50.5)||(z>-100.9&&z<-81.9);
+    const idx=g.index?Array.from(g.index.array):[...Array(P.count).keys()], keep=[];
+    for(let k=0;k<idx.length;k+=3){ const a=L(idx[k]), b=L(idx[k+1]), c=L(idx[k+2]);
+      const below=Math.max(a.y,b.y,c.y)<12.3, zc=(a.z+b.z+c.z)/3; if(below&&open(zc)) continue; keep.push(idx[k],idx[k+1],idx[k+2]); }
+    if(keep.length<idx.length){ g.setIndex(keep); } });
+  ['h:Site_grass','l:Water_Approach_Lower','l:Water_Approach_Upper','b:Battery_B'].forEach(n=>{ if(nodes[n]) nodes[n].visible=false; });
+  scene.updateMatrixWorld(true);
+  lockBox=new THREE.Box3(); const inv=toLock;
+  lock.traverse(o=>{ if(o.isMesh&&!/Water_Approach/.test(o.name)){ o.geometry.computeBoundingBox(); lockBox.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld).applyMatrix4(inv)); } });
+  // the two real rail-mounted gantry cranes of BCTN Meerhout, built from the same crane model
+  for(const [x,z] of F.realCranes){ const g=new THREE.Group(); g.position.set(x,hub.position.y,z); g.rotation.y=F.hub.ry;
+    for(const n of ['h:Crane_structure','h:Crane_trolley','h:Crane_spreader']){ const c=nodes[n].clone(true); g.add(c); if(n==='h:Crane_spreader') c.position.y+=6; }
+    scene.add(g); realCranes.push(g); }
+  // a moored barge at the western berth and a passing barge, both from the light model with neutral boxes
+  const neutral=(root,seed)=>{ const pal=['#5b6b78','#8a3b34','#3d6650','#b8b4a8','#2f4f6f','#8b6a3a']; let s=seed; root.traverse(o=>{ if(o.isMesh){ const ms=Array.isArray(o.material)?o.material:[o.material];
+      o.material=ms.map(m=>{ if(/Box_|Reefer|Text|CMA_Red|Hull_CMA/i.test(m.name)){ const c=m.clone(); s=(s*16807)%2147483647; c.color.set(/Hull/.test(m.name)?'#2b2f33':pal[s%pal.length]); c.map=null; return c; } return m; }); if(o.material.length===1) o.material=o.material[0];
+      if(/Battery_|BATTERY|Batt/.test(o.name)) o.visible=false; o.castShadow=true; o.receiveShadow=true; } }); return root; };
+  moored=neutral(THREE.SkeletonUtils?lodGLTF.scene.clone(true):lodGLTF.scene.clone(true),11);
+  const qd=new V3(F.quayDir[0],0,F.quayDir[1]); const qz=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2];
+  { const sx=748, sz=qz(sx)-7.2; moored.position.set(sx,-3.0,sz); moored.rotation.y=Math.atan2(qd.x,qd.z); scene.add(moored); }
+  traffic=neutral(lodGLTF.scene.clone(true),29); scene.add(traffic);
+}
+
+/* ============================================================
+   7. Timeline: the same story as the Unreal Level Sequence
+   ============================================================ */
+const T_END=126, KEEL=-3.0;
+let DOCK_LOCAL;   // barge pose in the hub frame: stern 21 m west of the crane, bow east
+function bargeAt(km,latN,y=KEEL){ const c=kmPoint(km), t=kmTangent(km); const n=new V3(t.z,0,-t.x); return {p:c.add(n.multiplyScalar(latN)).setY(y), ry:Math.atan2(-t.x,-t.z)}; }
+function hubPose(x,z){ const v=new V3(x,0,z).applyMatrix4(hub.matrixWorld); v.y=KEEL; return {p:v, ry:hub.rotation.y+Math.PI/2}; }
+function lockAt(xl,y=KEEL){ const v=new V3(xl,0,0).applyMatrix4(lock.matrixWorld); v.y=y; return {p:v, ry:lock.rotation.y-Math.PI/2}; }
+let BK=[];
+function makeBargeKeys(){
+  DOCK_LOCAL={x:21.4,z:6.9};
+  const dock=hubPose(DOCK_LOCAL.x,DOCK_LOCAL.z);
+  const raw=[[0,bargeAt(50.72,-24)],[8,bargeAt(51.45,-30)],[13.5,hubPose(78,15)],[17,dock],[46.5,dock],[51.5,hubPose(-24,21)],
+    [60,lockAt(-300)],[70,lockAt(-235)],[79,lockAt(-85)],[84,lockAt(-85)],[104,lockAt(-85,KEEL+10)],[110,lockAt(-85,KEEL+10)],[125,lockAt(330,KEEL+10)]];
+  let prev=null; BK=raw.map(([t,k])=>{ let r=k.ry; if(prev!==null){ while(r-prev>Math.PI)r-=2*Math.PI; while(r-prev<-Math.PI)r+=2*Math.PI; } prev=r; return {t,p:k.p.clone(),r}; });
+}
+function hermite(keys,t,get){
+  if(t<=keys[0].t) return get(keys[0]); const L=keys.length; if(t>=keys[L-1].t) return get(keys[L-1]);
+  let i=0; while(keys[i+1].t<t) i++;
+  const k0=keys[i], k1=keys[i+1], dt=k1.t-k0.t, u=(t-k0.t)/dt;
+  const tan=j=>{ if(j<=0||j>=L-1) return 0; const a=get(keys[j-1]), b=get(keys[j]), c=get(keys[j+1]); if(Math.abs(b-a)<1e-6||Math.abs(c-b)<1e-6) return 0; if((b-a)*(c-b)<0) return 0; return (c-a)/(keys[j+1].t-keys[j-1].t); };
+  const m0=tan(i)*dt, m1=tan(i+1)*dt, u2=u*u, u3=u2*u;
+  return (2*u3-3*u2+1)*get(k0)+(u3-2*u2+u)*m0+(-2*u3+3*u2)*get(k1)+(u3-u2)*m1;
+}
+const SKraw=[[17,0,640,680],[19,'ax','ay',1400],[21,'ax','ay','pz'],[21.6,'ax','ay','pz'],[23.5,'ax','ay',1400],[26.5,1350,-2400,1400],[28.5,1350,-2400,494.6],[29.2,1350,-2400,494.6],
+  [30.8,1350,-2400,1400],[33.5,-1350,-2400,1400],[35.5,-1350,-2400,494.6],[36.2,-1350,-2400,494.6],[37.8,-1350,-2400,1400],[41,'ax','ay',1400],[43,'ax','ay','pz'],[43.6,'ax','ay','pz'],[45,'ax','ay',1400],[47,0,640,1400]];
+let SK=[];
+const keysOf=a=>a.map(([t,v])=>({t,v}));
+const GD=keysOf([[0,23],[79,23],[84,0]]), WC=keysOf([[0,0],[84,0],[104,10]]), GU=keysOf([[0,0],[104,0],[109,17]]);
+let BA,BH1,qA_hub,qH1,pA_barge,qA_barge,base={};
+const LED={low:new THREE.Color('#ff4a3d'),chg:new THREE.Color('#f0a43a'),full:new THREE.Color('#3fd79f')};
+function setLED(b,c){ b.traverse(o=>{ if(o.isMesh&&/LED/i.test(o.name)){ if(!o.userData.own){ o.material=o.material.clone(); o.userData.own=1; } o.material.color.copy(c); if(o.material.emissive) o.material.emissive.copy(c); o.material.emissiveIntensity=2.2; } }); }
+function put(obj,parent,pos,quat){ if(obj.parent!==parent) parent.add(obj); obj.position.copy(pos); obj.quaternion.copy(quat); }
+function setupSwap(){
+  const hubRoot=nodes['h:Crane_structure'].parent; base.hubRoot=hubRoot;
+  BA=nodes['b:Battery_A']; BH1=nodes['h:Hub_Battery_1']; base.BAparent=BA.parent;
+  pA_barge=BA.position.clone(); qA_barge=BA.quaternion.clone(); base.h1p=BH1.position.clone(); qH1=BH1.quaternion.clone();
+  const dockQ=new THREE.Quaternion().setFromAxisAngle(new V3(0,1,0),Math.PI/2);
+  // pack A expressed in the hub frame while the barge is alongside
+  const bargeRootInHub=new V3(DOCK_LOCAL.x,KEEL-hub.position.y,DOCK_LOCAL.z);
+  const aWorldLocal=pA_barge.clone().applyQuaternion(barge.children[0].quaternion).add(barge.children[0].position);
+  const aL=aWorldLocal.applyQuaternion(dockQ).add(bargeRootInHub);
+  qA_hub=dockQ.clone().multiply(barge.children[0].quaternion.clone()).multiply(qA_barge);
+  base.qH1_barge=dockQ.clone().multiply(barge.children[0].quaternion.clone()).invert().multiply(qH1);
+  const pz=aL.y+2.591+0.005;
+  SK=SKraw.map(([t,x,y,z])=>({t, x:x==='ax'?aL.x:x/100, z:y==='ay'?aL.z:y/100, y:z==='pz'?pz:z/100}));
+  base.gant=nodes['h:Crane_structure'].position.clone(); base.trol=nodes['h:Crane_trolley'].position.clone();
+  ['h:Crane_sign_1','h:Crane_sign_-1'].forEach(n=>{ if(nodes[n]) base[n]=nodes[n].position.clone(); });
+  base.gd=nodes['l:Gate_PushTow_Down'].position.y; base.gu=nodes['l:Gate_PushTow_Up'].position.y; base.wc=nodes['l:Water_Chamber_PushTow'].position.y;
+}
+function applyTime(t){
+  const x=hermite(BK,t,k=>k.p.x), y=hermite(BK,t,k=>k.p.y), z=hermite(BK,t,k=>k.p.z), r=hermite(BK,t,k=>k.r);
+  barge.position.set(x,y,z); barge.rotation.set(0,r,0);
+  const sx=hermite(SK,t,k=>k.x), sy=hermite(SK,t,k=>k.y), sz=hermite(SK,t,k=>k.z);
+  nodes['h:Crane_structure'].position.x=base.gant.x+sx;
+  ['h:Crane_sign_1','h:Crane_sign_-1'].forEach(n=>{ if(nodes[n]) nodes[n].position.x=base[n].x+sx; });
+  nodes['h:Crane_trolley'].position.set(sx,base.trol.y,sz);
+  nodes['h:Crane_spreader'].position.set(sx,sy,sz);
+  nodes['l:Gate_PushTow_Down'].position.y=base.gd+hermite(GD,t,k=>k.v); nodes['l:Gate_PushTow_Up'].position.y=base.gu+hermite(GU,t,k=>k.v); nodes['l:Water_Chamber_PushTow'].position.y=base.wc+hermite(WC,t,k=>k.v);
+  const spr=nodes['h:Crane_spreader'];
+  if(t<21.6){ put(BA,base.BAparent,pA_barge,qA_barge); setLED(BA,LED.low);} else if(t<29.2){ put(BA,spr,new V3(0,-2.591,0),qA_hub); setLED(BA,LED.low);} else { put(BA,base.hubRoot,new V3(13.5,2.3,-24),qA_hub); setLED(BA,LED.chg);}
+  if(t<36.2){ put(BH1,base.hubRoot,base.h1p,qH1);} else if(t<43.6){ put(BH1,spr,new V3(0,-2.591,0),qH1);} else { put(BH1,base.BAparent,pA_barge,base.qH1_barge);} setLED(BH1,LED.full);
+  // passing traffic on the north side of the canal, heading west
+  if(traffic){ const km=52.05-(t/T_END)*3.3; const p=bargeAt(km,30); traffic.position.copy(p.p); traffic.rotation.y=p.ry+Math.PI; }
+}
+
+/* ============================================================
+   7b. Battery highlights: glowing frame, light beam, sonar ring and a tag in the headset
+   ============================================================ */
+const BOX={h:new V3(1.217+0.16,(2.581-0.12)/2+0.16,(3.034+2.909)/2+0.16), c:new V3(0,(2.581+0.12)/2,(2.909-3.034)/2)};
+const BCOL={low:new THREE.Color('#ff3b30'),chg:new THREE.Color('#ffb21e'),full:new THREE.Color('#22f08f')};
+const fxTime={value:0}, FX=[];
+const beamGeo=new THREE.CylinderGeometry(1.5,2.6,52,32,1,true); beamGeo.translate(0,26,0);
+const ringGeo=new THREE.RingGeometry(0.8,1,64); ringGeo.rotateX(-Math.PI/2);
+function fxShell(){ return new THREE.ShaderMaterial({uniforms:{c:{value:new THREE.Color()},k:{value:1},h:{value:BOX.h},time:fxTime},
+  vertexShader:'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+  fragmentShader:'uniform vec3 c; uniform float k; uniform vec3 h; uniform float time; varying vec3 vP;\nvoid main(){ vec3 d=h-abs(vP); float m1=min(d.x,min(d.y,d.z)), m3=max(d.x,max(d.y,d.z)), m2=d.x+d.y+d.z-m1-m3;\n float e=1.0-smoothstep(0.05,0.32,m2); float p=0.82+0.18*sin(time*4.0);\n gl_FragColor=vec4(mix(c,vec3(1.0),e*0.25),(0.22+0.78*e)*k*p); }',
+  transparent:true,depthWrite:false,depthTest:false,side:THREE.DoubleSide,fog:false}); }
+function fxBeam(){ return new THREE.ShaderMaterial({uniforms:{c:{value:new THREE.Color()},k:{value:1},time:fxTime},
+  vertexShader:'varying float vY; varying vec3 vN; varying vec3 vV; void main(){ vY=uv.y; vec4 mv=modelViewMatrix*vec4(position,1.0); vN=normalize(normalMatrix*normal); vV=normalize(-mv.xyz); gl_Position=projectionMatrix*mv; }',
+  fragmentShader:'uniform vec3 c; uniform float k; uniform float time; varying float vY; varying vec3 vN; varying vec3 vV;\nvoid main(){ float core=pow(abs(dot(normalize(vN),normalize(vV))),1.1); float fade=pow(1.0-vY,1.15);\n float band=0.72+0.28*sin(vY*42.0-time*5.0);\n gl_FragColor=vec4(mix(c,vec3(1.0),0.3*core*core),min(1.0,fade*(0.12+core*0.85)*band*k)); }',
+  transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:false}); }
+function fxRing(){ return new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,depthWrite:false,depthTest:false,side:THREE.DoubleSide,fog:false,toneMapped:false}); }
+function makeTag(){ const c=document.createElement('canvas'); c.width=512; c.height=200; const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding;
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,transparent:true,toneMapped:false,fog:false})); s.renderOrder=19; s.visible=false; scene.add(s); return {c,t,s,key:''}; }
+function drawTag(tag,name,pct,state,col){ const key=name+pct+state; if(key===tag.key) return; tag.key=key; const c=tag.c.getContext('2d'); c.clearRect(0,0,512,200);
+  c.fillStyle='rgba(8,32,66,.96)'; rr(c,6,6,500,188,26); c.fill(); c.strokeStyle='rgba(255,255,255,.35)'; c.lineWidth=4; c.stroke();
+  c.fillStyle='#ffffff'; c.font='700 50px Arial,sans-serif'; c.fillText(name,30,66); c.textAlign='right'; c.fillStyle=col; c.font='700 58px Arial,sans-serif'; c.fillText(pct+'%',482,68); c.textAlign='left';
+  c.fillStyle='#ffffff'; c.font='400 36px Arial,sans-serif'; c.fillText(state,30,124); c.fillStyle='rgba(255,255,255,.16)'; c.fillRect(30,148,452,18); c.fillStyle=col; c.fillRect(30,148,452*pct/100,18); tag.t.needsUpdate=true; }
+function addFX(node,o){ if(!node) return null; const f={node,o};
+  f.shell=new THREE.Mesh(new THREE.BoxGeometry(BOX.h.x*2,BOX.h.y*2,BOX.h.z*2),fxShell()); f.shell.position.copy(BOX.c); f.shell.renderOrder=12; f.shell.userData.pick=f; node.add(f.shell);
+  if(o.beam){ f.beam=new THREE.Mesh(beamGeo,fxBeam()); f.beam.position.set(BOX.c.x,2.6,BOX.c.z); f.beam.renderOrder=11; f.beam.frustumCulled=false; node.add(f.beam);
+    f.ring=new THREE.Mesh(ringGeo,fxRing()); f.ring.position.set(BOX.c.x,2.65,BOX.c.z); f.ring.renderOrder=13; node.add(f.ring); f.tag=makeTag(); }
+  FX.push(f); return f; }
+let fxA,fxC;
+function buildBatteryFX(){
+  fxA=addFX(BA,{beam:true,name:'Pack A'}); fxC=addFX(BH1,{beam:true,name:'Pack C'});
+  addFX(nodes['h:Hub_Battery_2'],{dim:true}); addFX(nodes['h:Hub_Battery_3'],{dim:true});
+}
+function packAPct(t){ return t<29.2?socAt(t):packAState(t).p; }
+function packCPct(t){ return t<43.6?100:socAt(t); }
+const pctCol=p=>p<30?'#ff3b30':p<60?'#ffb21e':'#22f08f';
+function updateBatteryFX(t,dt){
+  fxTime.value+=dt; const fps=VIEWS[cam.v].type==='fps', xr=renderer.xr.isPresenting;
+  const st=[{f:fxA,col:t<29.2?BCOL.low:BCOL.chg,k:t<60?1:0.5,beam:t<47,pct:packAPct(t),state:packAState(t).v},
+            {f:fxC,col:BCOL.full,k:t>=10?1:0.5,beam:t>=11,pct:packCPct(t),state:t<36.2?'Fully charged':t<43.6?'On the crane':'Powering the barge'}];
+  for(const f of FX){ if(f.o.dim){ f.shell.material.uniforms.c.value.copy(BCOL.full); f.shell.material.uniforms.k.value=0.42; } }
+  const head=camera.getWorldPosition(new V3());
+  for(const s of st){ const f=s.f; if(!f) continue; f.shell.material.uniforms.c.value.copy(s.col); f.shell.material.uniforms.k.value=s.k;
+    const showBeam=s.beam&&!fps; f.beam.visible=f.ring.visible=showBeam;
+    if(showBeam){ f.beam.material.uniforms.c.value.copy(s.col); const d=head.distanceTo(f.node.getWorldPosition(_fxv)); f.beam.material.uniforms.k.value=clamp(0.7+d/600,0.7,1.1);
+      const ph=(fxTime.value*0.55)%1; const sc=1.6+ph*9; f.ring.scale.set(sc,1,sc); f.ring.material.color.copy(s.col); f.ring.material.opacity=(1-ph)*0.85; }
+    const tag=f.tag; tag.s.visible=xr&&labelsOn&&s.k>=1&&(f===fxA?t<60:t>=11);
+    if(tag.s.visible){ const pct=Math.round(s.pct); drawTag(tag,f.o.name,pct,s.state,pctCol(pct)); const top=f.node.localToWorld(_fxv.set(BOX.c.x,2.9,BOX.c.z)); const d=head.distanceTo(top);
+      const w=clamp(d*0.085,1.2,60); tag.s.scale.set(w,w*200/512,1); tag.s.position.copy(top).add(new V3(0,w*0.32+d*0.012,0)); }
+  }
+}
+const _fxv=new V3();
+/* screen rectangle of a battery, used to keep label boxes off it */
+const _bc=[new V3(),new V3(),new V3(),new V3(),new V3(),new V3(),new V3(),new V3()];
+function battRect(node,W,H){ if(!node) return null; let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; let k=0;
+  for(const sx of [-1,1]) for(const sy of [-1,1]) for(const sz of [-1,1]){ const v=_bc[k++].set(BOX.c.x+sx*BOX.h.x,BOX.c.y+sy*BOX.h.y,BOX.c.z+sz*BOX.h.z); node.localToWorld(v); v.project(camera);
+    if(v.z>1) return null; const x=(v.x*0.5+0.5)*W, y=(-v.y*0.5+0.5)*H; x0=Math.min(x0,x); x1=Math.max(x1,x); y0=Math.min(y0,y); y1=Math.max(y1,y); }
+  if(x1<0||x0>W||y1<0||y0>H) return null; return {x0,x1,y0,y1}; }
+
+/* ============================================================
+   8. Story
+   ============================================================ */
+const CH=[
+ {t:0,  tl:20, h:'Under way on battery power', b:'The CMA CGM e-barge heads east from Antwerp with 180 TEU. It runs on one leased 20 ft battery pack of 1.96 MWh, now down to about 44% after 50 km.'},
+ {t:8,  tl:20, h:'Approaching BCTN Meerhout', b:'The swap point is the existing BCTN container terminal at Meerhout, canal km 51.9. NatPower Marine adds a charging station at the east end of its 330 m quay.'},
+ {t:13.5,tl:10, h:'Coming alongside', b:'The barge berths bow east, its battery bay lined up under the swap crane, so it can carry straight on to the lock afterwards.'},
+ {t:19, tl:30, h:'Lifting out the spent pack', b:'The crane locks onto pack A in the battery bay behind the steel bulkhead and lifts it clear of the hold.'},
+ {t:23.5,tl:30, h:'Spent pack to the charger', b:'Pack A crosses the quay to the docking station.'},
+ {t:29.2,tl:30, h:'Charging ashore', b:'Grid power, the solar canopy and on-site storage recharge pack A in about 2.5 hours, ready for the next barge. Operators lease packs as a service and never own them.'},
+ {t:30.8,tl:30, h:'Collecting a charged pack', b:'The crane picks up pack C, already full.'},
+ {t:37.8,tl:30, h:'Charged pack on board', b:'Pack C drops into the same slot and connects to the fixed power, data and fire-safety lines.'},
+ {t:44, tl:10, h:'Swap complete', b:'Around 30 minutes alongside instead of hours on a charger. The barge casts off with a full pack.'},
+ {t:51.5,tl:20, h:'Heading for the lock', b:'Kwaadmechelen lock is 400 m upstream. The lower lift gate of the push-tow chamber is raised.'},
+ {t:70, tl:20, h:'Into the chamber', b:'The barge slides under the lower gate into the 200 m chamber.'},
+ {t:79, tl:45, h:'Lower gate closes', b:'The gate drops behind the stern and seals the chamber.'},
+ {t:84, tl:45, h:'Rising ten metres', b:'Water flows in until the chamber matches the upper reach, 10.1 m higher. The barge rises with it.'},
+ {t:104,tl:30, h:'Upper gate opens', b:'With the levels equal, the upper gate lifts.'},
+ {t:110,tl:20, h:'On to Genk', b:'36 km and four more locks to the Genk east hub at Genk Cargo Connect, with a full pack and a healthy reserve.'}
+];
+const chapIdx=t=>{ let i=0; CH.forEach((c,j)=>{ if(t>=c.t) i=j; }); return i; };
+const SOC_KM=1.117; // %/km: 1.93 MWh design energy over 88 km, on a 1.96 MWh pack
+function socAt(t){ const km=kmOf(barge.position); if(t<43.6) return clamp(44-(km-50.72)*SOC_KM,0,100); return clamp(100-(km-51.95)*SOC_KM,0,100); }
+function packAState(t){ if(t<21.6) return {v:'On board',c:'var(--low)',p:0}; if(t<29.2) return {v:'On the crane',c:'var(--low)',p:0};
+  const p=clamp(42+(t-29.2)/(T_END-29.2)*40,0,100); return {v:'Charging '+Math.round(p)+'%',c:'var(--amber)',p}; }
+
+/* ============================================================
+   9. Camera views with orbit and zoom
+   ============================================================ */
+const VIEWS=[
+ {id:'follow',name:'Follow',  vr:'Drone',     type:'orbit', target:followTarget, rel:true, az:-0.62, el:0.36, dist:175, min:28, max:1400},
+ {id:'bridge',name:'Wheelhouse',vr:'Wheelhouse',type:'fps',  eye:()=>barge.localToWorld(new V3(0,13.9,-17.4)), yaw:0, pitch:-0.13, fov:62},
+ {id:'quay',  name:'Quay',    vr:'Quay',      type:'orbit', target:()=>hub.localToWorld(new V3(0,7,-8)), rel:false, az:-2.75, el:0.30, dist:125, min:18, max:900},
+ {id:'lock',  name:'Lock',    vr:'Lock',      type:'orbit', target:()=>lock.localToWorld(new V3(-10,8,-18)), rel:false, az:-0.9, el:0.5, dist:300, min:30, max:1500},
+ {id:'over',  name:'Overview',vr:'Overview',  type:'orbit', target:()=>new V3(1050,0,330), rel:false, az:-2.6, el:0.62, dist:1500, min:250, max:5200}
+];
+/* the drone looks ahead of the barge, and swings over to the crane while the packs are swapped */
+function followTarget(){ const b=barge.localToWorld(new V3(0,5,-60)); const t=tNow;
+  const w=smooth((t-13.5)/4)*(1-smooth((t-44.5)/4)); if(w>0&&nodes['h:Crane_spreader']){ const sp=wp(nodes['h:Crane_spreader'],0,0,0); sp.y=Math.min(sp.y,8); b.lerp(sp,w*0.85); } return b; }
+const cam={v:0,az:0,el:0,dist:0,yaw:0,pitch:0,fov:50, g:{az:0,el:0,dist:0,yaw:0,pitch:0,fov:50}, tgt:new V3(), init:false};
+function setView(i,keep){
+  const v=VIEWS[i]; cam.v=i;
+  if(!keep){ if(v.type==='orbit'){ cam.g.az=v.az; cam.g.el=v.el; cam.g.dist=v.dist; cam.g.fov=50; } else { cam.g.yaw=v.yaw; cam.g.pitch=v.pitch; cam.g.fov=v.fov; } }
+  cam.snap=true;
+  document.querySelectorAll('#viewSeg button').forEach((b,j)=>b.setAttribute('aria-pressed',j===i));
+  if(renderer.xr.isPresenting) placeVR(); hudDirty=true;
+}
+function zoom(f){ const v=VIEWS[cam.v]; if(v.type==='orbit') cam.g.dist=clamp(cam.g.dist*f,v.min,v.max); else cam.g.fov=clamp(cam.g.fov*f,18,85); }
+function bargeHeading(){ return barge.rotation.y; }
+function updateCamera(dt){
+  const v=VIEWS[cam.v]; const k=cam.snap?1:1-Math.exp(-dt*7);
+  for(const key of ['az','el','dist','yaw','pitch','fov']) cam[key]=lerp(cam[key],cam.g[key],k);
+  if(v.type==='orbit'){
+    const tg=v.target(); cam.tgt.lerp(tg,cam.snap?1:1-Math.exp(-dt*5));
+    const az=cam.az+(v.rel?bargeHeading():0);
+    // in the lock the drone climbs so it looks over the road bridge into the chamber
+    const el=Math.min(1.45,cam.el+(v.id==='follow'?0.36*smooth((tNow-56)/7)*(1-smooth((tNow-108)/6)):0));
+    const p=new V3(Math.sin(az)*Math.cos(el),Math.sin(el),Math.cos(az)*Math.cos(el)).multiplyScalar(cam.dist).add(cam.tgt);
+    const floor=surfaceH(p.x,p.z)+4; if(p.y<floor) p.y=floor;
+    camera.position.copy(p); camera.lookAt(cam.tgt);
+  } else {
+    const e=v.eye(); camera.position.copy(e); camera.rotation.set(cam.pitch,bargeHeading()+cam.yaw,0,'YXZ');
+  }
+  if(Math.abs(camera.fov-cam.fov)>0.01){ camera.fov=cam.fov; camera.updateProjectionMatrix(); }
+  cam.snap=false;
+}
+/* pointer: drag to orbit or look, wheel or pinch to zoom, double click to reset */
+const pointers=new Map(); let pinch0=0;
+canvas.addEventListener('pointerdown',e=>{ pointers.set(e.pointerId,{x:e.clientX,y:e.clientY}); canvas.setPointerCapture(e.pointerId); canvas.classList.add('drag'); hideInfo(); if(pointers.size===2){ const [a,b]=[...pointers.values()]; pinch0=Math.hypot(a.x-b.x,a.y-b.y); } });
+canvas.addEventListener('pointermove',e=>{ if(!pointers.has(e.pointerId)) return; const p=pointers.get(e.pointerId); const dx=e.clientX-p.x, dy=e.clientY-p.y; p.x=e.clientX; p.y=e.clientY;
+  if(pointers.size===2){ const [a,b]=[...pointers.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); if(pinch0>0){ zoom(pinch0/d); } pinch0=d; return; }
+  const v=VIEWS[cam.v]; if(v.type==='orbit'){ cam.g.az-=dx*0.0055; cam.g.el=clamp(cam.g.el+dy*0.0045,0.04,1.48); } else { cam.g.yaw-=dx*0.0035*cam.fov/58; cam.g.pitch=clamp(cam.g.pitch-dy*0.0035*cam.fov/58,-1.2,1.0); } });
+const endPtr=e=>{ pointers.delete(e.pointerId); if(!pointers.size) canvas.classList.remove('drag'); pinch0=0; };
+canvas.addEventListener('pointerup',endPtr); canvas.addEventListener('pointercancel',endPtr);
+const ray=new THREE.Raycaster(), _m=new THREE.Vector2(); let downAt=null, hoverT=0;
+function pickBatt(e){ if(!FX.length) return null; const r=canvas.getBoundingClientRect(); _m.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1); ray.setFromCamera(_m,camera);
+  const h=ray.intersectObjects(FX.map(f=>f.shell),false); return h.length?h[0].object.userData.pick:null; }
+canvas.addEventListener('pointerdown',e=>{ downAt={x:e.clientX,y:e.clientY}; });
+canvas.addEventListener('pointerup',e=>{ if(!downAt||Math.hypot(e.clientX-downAt.x,e.clientY-downAt.y)>6||pointers.size) { downAt=null; return; } downAt=null;
+  const f=pickBatt(e); if(!f) return; if(waiting&&waiting.batt){ act(); return; }
+  const L=LABELS.find(l=>l.batt&&l.batt()===f.node); const info=L?L.info:{e:'Battery as a service',h:'Charged pack in the docking station',p:'A full pack waiting ashore for the next barge. Packs are leased per use and never owned by the operator.',d:[['Energy','1.96 MWh'],['State','100%']]};
+  showInfo(info,{getBoundingClientRect:()=>({left:e.clientX,top:e.clientY,width:0,height:0})}); });
+canvas.addEventListener('pointermove',e=>{ if(pointers.size) return; const n=performance.now(); if(n-hoverT<90) return; hoverT=n; canvas.classList.toggle('pick',!!pickBatt(e)); });
+canvas.addEventListener('wheel',e=>{ e.preventDefault(); zoom(Math.exp(e.deltaY*0.0012)); },{passive:false});
+canvas.addEventListener('dblclick',()=>setView(cam.v,false));
+$('zIn').onclick=()=>zoom(0.78); $('zOut').onclick=()=>zoom(1.28); $('zReset').onclick=()=>setView(cam.v,false);
+const seg=$('viewSeg'); VIEWS.forEach((v,i)=>{ const b=document.createElement('button'); b.textContent=v.name; b.setAttribute('aria-pressed','false'); b.onclick=()=>setView(i); seg.appendChild(b); });
+
+/* ============================================================
+   10. Labels (HTML on screen, sprites in the headset) and info cards
+   ============================================================ */
+const LABELS=[];
+const wp=(o,dx=0,dy=0,dz=0)=>o?o.getWorldPosition(new V3()).add(new V3(dx,dy,dz)):new V3();
+function addLabel(o){ const el=document.createElement('div'); el.className='lbl'+(o.minor?' minor':'')+(o.batt?' batt':'');
+  el.innerHTML='<div class="card" role="button" tabindex="0"><div class="n"></div><div class="s"></div>'+(o.pct?'<div class="bb"><i></i></div>':'')+'</div><div class="stem"></div><div class="pin"></div>';
+  el.querySelector('.card').addEventListener('click',ev=>{ ev.stopPropagation(); if(o.info) showInfo(o.info,el); });
+  el.querySelector('.card').addEventListener('keydown',ev=>{ if(ev.key==='Enter'&&o.info) showInfo(o.info,el); });
+  $('labels').appendChild(el); o.el=el; o.k=''; LABELS.push(o); return o; }
+function buildLabels(){
+  const spr=nodes['h:Crane_spreader'];
+  addLabel({id:'barge',n:'CMA CGM e-barge',s:'135 m · 180 TEU · battery electric',col:'#fff',from:0,to:126,hide:['bridge'],when:t=>t<13.5||(t>=46&&t<60)||t>=110,at:()=>barge.localToWorld(new V3(0,13,-100)),
+    info:{e:'The vessel',h:'CMA CGM e-barge',p:'A container barge built for the Albert Canal, carrying CMA CGM boxes between Antwerp and Genk on swappable battery power.',d:[['Length','135 m'],['Beam','11.45 m'],['Draught','3.0 m'],['Capacity','180 TEU'],['Battery bay','2 slots, 1 in use'],['Pack','20 ft · 1.96 MWh']]}});
+  addLabel({id:'packA',max:1400,batt:()=>BA,n:'Pack A',s:t=>packAState(t).v,pct:packAPct,col:t=>t<29.2?'var(--low)':'var(--amber)',from:0,to:47,at:()=>wp(BA,0,3.4,0),
+    info:{e:'Battery as a service',h:'Swappable battery pack',p:'A 20 ft container battery leased per use. Packs are pooled at the hubs and charged ashore, so the barge never waits for a charge.',d:[['Energy','1.96 MWh'],['Charge time','about 2.5 h'],['Swap time','about 15 min per pack'],['Rule','CESNI ES-TRIN 10.11, fixed slot behind a steel bulkhead']]}});
+  addLabel({id:'packC',max:1400,batt:()=>BH1,n:'Pack C',s:t=>t<36.2?'Fully charged':t<43.6?'On the crane':'Powering the barge',pct:packCPct,col:'var(--full)',from:13.5,to:126,when:t=>t<79||t>=104,at:()=>wp(BH1,0,3.4,0),
+    info:{e:'Battery as a service',h:'Charged pack',p:'Each hub keeps charged packs in its docking station so a barge can leave with a full one straight away.',d:[['Energy','1.96 MWh'],['State','100%']]}});
+  addLabel({id:'crane',max:950,n:'Swap crane',s:'Lifts the 20 ft packs',from:19,to:23.5,at:()=>wp(spr,0,18,0),
+    info:{e:'NatPower Marine hub',h:'Swap crane',p:'A rail-mounted gantry over the berth moves packs between the barge and the docking station.',d:[['Span','21 m over the water'],['Moves','20 per hour at BCTN']]}});
+  addLabel({id:'dock',max:950,n:'Charging station',s:'Grid, solar and site storage',from:23.5,to:30.8,at:()=>hub.localToWorld(new V3(0,7.5,-24)),
+    info:{e:'NatPower Marine hub',h:'Docking and charging station',p:'Four slots charge packs from a 5 MW grid connection, a solar canopy and a battery energy storage system that smooths the load.',d:[['Grid','5 MW'],['Charger','1 MW per pack'],['Slots','4']]}});
+  addLabel({id:'bctn',n:'BCTN Meerhout',s:'Container terminal · 330 m quay',minor:true,from:0,to:126,when:(t,v)=>v==='over',at:()=>new V3(720,30,330),
+    info:{e:'Existing terminal',h:'BCTN Meerhout',p:'An inland container terminal of the Inland Terminals Group on the south bank, just downstream of Kwaadmechelen lock. The swap hub is planned at the east end of its quay.',d:[['Quay','330 m'],['Cranes','2 rail-mounted gantries'],['Canal km','51.9']]}});
+  addLabel({id:'lock',n:'Kwaadmechelen lock',s:'3 chambers · lift 10.1 m',from:51.5,to:79,at:()=>lock.localToWorld(new V3(0,32,-26)),
+    info:{e:'Albert Canal',h:'Kwaadmechelen lock',p:'The third of six lock complexes between Antwerp and Genk. Lift gates hang from concrete towers at each end of the chambers.',d:[['Chambers','push-tow plus two barge chambers'],['Lift','10.1 m (20.0 to 30.2 m TAW)'],['Canal km','52.3 to 52.5']]}});
+  addLabel({id:'gd',max:950,n:t=>t<79.2?'Lower gate':'Lower gate closing',s:'',from:76,to:84,at:()=>wp(nodes['l:Gate_PushTow_Down'],0,26,0)});
+  addLabel({id:'wl',max:950,n:t=>'Chamber filling +'+Math.max(0,hermite(WC,t,k=>k.v)).toFixed(1)+' m',s:'',col:'var(--water)',from:84,to:104,at:()=>lock.localToWorld(new V3(60,(nodes['l:Water_Chamber_PushTow'].position.y)+2,0))});
+  addLabel({id:'gu',max:950,n:t=>t<104.2?'Upper gate':'Upper gate opening',s:'',from:102,to:112,at:()=>wp(nodes['l:Gate_PushTow_Up'],0,22,0)});
+  if(D.objects.turbines.length){ const t0=D.objects.turbines.reduce((a,b)=>Math.hypot(a.x-1000,a.z-330)<Math.hypot(b.x-1000,b.z-330)?a:b);
+    addLabel({id:'wind',n:'Wind turbines',s:'Local renewable supply',minor:true,from:0,to:126,when:(t,v)=>v==='over',at:()=>new V3(t0.x,t0.g+t0.hub+t0.rotor/2+6,t0.z),
+      info:{e:'Around the canal',h:'Wind turbines',p:'Fourteen turbines stand along this stretch of the Albert Canal, part of the renewable supply a corridor charging network can draw on.',d:[['In this scene','14'],['Hub height','about 65 to 100 m']]}}); }
+  const beam=(arr,a,b,w)=>{ const d=b.clone().sub(a), L=d.length(); if(L<0.05) return; const g=new THREE.BoxGeometry(w,L,w); g.translate(0,L/2,0);
+    g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0,1,0),d.normalize()))); g.translate(a.x,a.y,a.z); arr.push(g); };
+  for(const br of D.objects.bridges){ if(!br.name||!br._mid) continue;
+    addLabel({id:'br'+br.name,n:br.name+' bridge',s:'Clearance '+Math.max(0,br._deck-1.2-(br._mid.x>1347?10.2:0)).toFixed(1)+' m',minor:true,from:0,to:126,when:(t,v)=>v==='over',at:()=>br._mid.clone().setY(br._deck+(br.kind==='cycleway'?3:9))}); }
+}
+let labelsOn=true;
+const _v=new V3(); let _ui=null, _uiT=0;
+function uiRects(){ if(document.body.classList.contains('hidden-ui')) return []; const n=performance.now(); if(_ui&&n-_uiT<400) return _ui; _uiT=n;
+  _ui=['.brand','.toolrow','#mini','#story','#viewSeg','.zoom','.timeline','#act','#endc'].map(q=>document.querySelector(q)).filter(e=>e&&!e.hidden&&e.getClientRects().length)
+    .map(e=>{ const r=e.getBoundingClientRect(); return {x0:r.left-6,x1:r.right+6,y0:r.top-6,y1:r.bottom+6}; }).filter(r=>r.x1-r.x0>20); return _ui; }
+function updateLabels(t){
+  const W=window.innerWidth, H=window.innerHeight, vid=VIEWS[cam.v].id; const vis=[];
+  for(const L of LABELS){
+    const on=labelsOn&&!renderer.xr.isPresenting&&t>=L.from&&t<L.to&&!(L.hide&&L.hide.includes(vid))&&(!L.when||L.when(t,vid));
+    if(!on){ if(L.el.style.display!=='none') L.el.style.display='none'; continue; }
+    const p=L.at(); _v.copy(p).project(camera);
+    const dist=camera.position.distanceTo(p);
+    let x=(_v.x*0.5+0.5)*W, y=(-_v.y*0.5+0.5)*H, br=null;
+    if(L.batt){ br=battRect(L.batt(),W,H); if(br){ x=(br.x0+br.x1)/2; y=br.y0-3; } }
+    if((L.batt&&!br)||_v.z>1||_v.x<-1.2||_v.x>1.2||_v.y<-1.2||_v.y>1.2||(L.minor&&dist>1800)||dist>(L.max||4200)){ L.el.style.display='none'; continue; }
+    L.el.style.display='';
+    L._x=x; L._y=y; L._d=dist; L._br=br; vis.push(L);
+    L.el.style.opacity=String(clamp(1.4-dist/(L.minor?1600:3600),0.35,1));
+    const n=typeof L.n==='function'?L.n(t):L.n, s=typeof L.s==='function'?L.s(t):L.s, c=typeof L.col==='function'?L.col(t):(L.col||'var(--brass)');
+    const pc=L.pct?Math.round(L.pct(t)):null;
+    const key=n+'|'+s+'|'+c+'|'+pc; if(key!==L.k){ L.k=key; L.el.querySelector('.n').innerHTML='<span class="dot" style="background:'+c+'"></span>'+n+(pc!==null?'<b class="pc" style="color:'+pctCol(pc)+'">'+pc+'%</b>':''); L.el.querySelector('.s').textContent=s; L.el.querySelector('.pin').style.background=c; if(L.batt) L.el.querySelector('.stem').style.background=c;
+      if(pc!==null){ const bi=L.el.querySelector('.bb i'); bi.style.width=pc+'%'; bi.style.background=pctCol(pc); } L._w=0; }
+  }
+  // place the nearest and most important first, lift later ones above anything they would cover
+  vis.sort((a,b)=>((!!b.batt)-(!!a.batt))||((!!a.minor)-(!!b.minor))||(a._d-b._d)); const placed=[];
+  const ui=uiRects();
+  // the batteries themselves are obstacles: no label box may sit on top of them
+  for(const n of [BA,BH1]){ const r=battRect(n,W,H); if(r) placed.push({x0:r.x0-6,x1:r.x1+6,y0:r.y0-6,y1:r.y1+6}); }
+  for(const L of vis){ const card=L.el.firstChild; if(!L._w){ L._w=card.offsetWidth; L._h=card.offsetHeight; }
+    let lift=0;
+    const st0=L.batt?44:L.minor?24:32; let dx=0, ok=false;
+    const ov=(r,p)=>r.x0<p.x1&&r.x1>p.x0&&r.y0<p.y1&&r.y1>p.y0;
+    const fits=(ddx,lf)=>{ const r={x0:L._x+ddx-L._w/2-4,x1:L._x+ddx+L._w/2+4,y1:L._y-st0-lf,y0:0}; r.y0=r.y1-L._h-4;
+      if(r.x0<8||r.x1>W-8||r.y0<8) return {r,hit:{y0:r.y0,edge:1}};
+      const u=ui.find(p=>ov(r,p)); if(u) return {r,hit:{y0:r.y0,ui:1}}; return {r,hit:placed.find(p=>ov(r,p))}; };
+    for(let tries=0;tries<8&&!ok;tries++){
+      for(const ddx of (tries<3?[0,-L._w*0.42,L._w*0.42]:[0])){ const {r,hit}=fits(ddx,lift); if(!hit){ placed.push(r); L._r=r; dx=ddx; ok=true; break; } }
+      if(!ok){ const {r,hit}=fits(0,lift); if(hit.ui||hit.edge) break; lift+=r.y1-hit.y0+2; } }
+    if(!ok&&!L.batt){ L.el.style.display='none'; L._r=null; continue; }
+    if(L._dx!==dx){ L._dx=dx; card.style.transform=dx?`translateX(${dx.toFixed(0)}px)`:''; }
+    if(!ok) L._r=null;
+    L.el.querySelector('.stem').style.height=((L.batt?36:L.minor?16:24)+lift)+'px';
+    L.el.style.transform=`translate(${L._x.toFixed(1)}px,${L._y.toFixed(1)}px) translate(-50%,-100%)`; }
+  // never let a label sit under the action prompt
+  const ab=$('act'); if(!ab.hidden){ const a=ab.getBoundingClientRect(); for(const L of vis){ const r=L._r; if(r&&r.x0<a.right&&r.x1>a.left&&r.y0<a.bottom&&r.y1>a.top) L.el.style.display='none'; } }
+}
+function showInfo(info,anchor){
+  $('infoE').textContent=info.e; $('infoH').textContent=info.h; $('infoP').textContent=info.p;
+  $('infoD').innerHTML=(info.d||[]).map(([k,v])=>'<dt>'+k+'</dt><dd>'+v+'</dd>').join('');
+  const box=$('info'); box.hidden=false; const r=anchor?anchor.getBoundingClientRect():{left:innerWidth/2,top:innerHeight/2,width:0};
+  const w=box.offsetWidth, h=box.offsetHeight; let x=r.left+r.width/2-w/2, y=r.top-h-12; if(y<70) y=r.top+r.height+12;
+  box.style.left=clamp(x,16,innerWidth-w-16)+'px'; box.style.top=clamp(y,16,innerHeight-h-16)+'px'; }
+function hideInfo(){ $('info').hidden=true; }
+$('infoX').onclick=hideInfo;
+
+/* ============================================================
+   11. Story card, timeline and status
+   ============================================================ */
+let tNow=0, paused=false, speed=1, started=false, last=0, hudDirty=true, lastStep=-1;
+/* Guided mode: the story waits at each key moment until the viewer acts. At the end it stops, it never loops. */
+const CP=[
+ {t:0,    btn:'Start the journey',       p:'The e-barge is 1.2 km downstream of the swap hub. Pack A, its only battery, is down to 44%.'},
+ {t:17,   btn:'Start the battery swap',  p:'The barge is alongside with its battery bay right under the swap crane. Pack A is at 43%.', batt:true},
+ {t:29.3, btn:'Bring the charged pack',  p:'Pack A is on the charger ashore. Pack C, fully charged, is waiting in the docking station.', batt:true},
+ {t:44.2, btn:'Cast off for the lock',   p:'Pack C is connected. The barge leaves with a full battery after about 30 minutes alongside.'},
+ {t:79,   btn:'Close the lower gate',    p:'The barge is inside the 200 m push-tow chamber of Kwaadmechelen lock.'},
+ {t:84,   btn:'Fill the chamber',        p:'The chamber is sealed. Filling it lifts the barge 10.1 m to the upper reach.'},
+ {t:104,  btn:'Open the upper gate',     p:'The water in the chamber now matches the upper reach.'}
+];
+let guided=true, cpNext=0, waiting=null, ended=false;
+function arrive(cp){ waiting=cp; $('actP').textContent=cp.p; $('actBtn').textContent=cp.btn; $('actE').textContent='Your move · '+(CP.indexOf(cp)+1)+' of '+CP.length;
+  $('actOr').textContent=cp.batt?'or click the glowing battery, or press Space':'or press Space'; $('act').hidden=false; document.body.classList.add('waiting'); hudDirty=true; }
+function act(){ if(!waiting) return; waiting=null; cpNext++; $('act').hidden=true; document.body.classList.remove('waiting'); if(paused) setPaused(false); hudDirty=true; }
+function finish(){ ended=true; waiting=null; $('act').hidden=true; document.body.classList.remove('waiting'); $('endc').hidden=false; hudDirty=true; }
+function replay(t=0){ $('endc').hidden=true; seek(t); if(paused) setPaused(false); }
+$('actBtn').onclick=act; $('replay').onclick=()=>replay(0); $('replaySwap').onclick=()=>replay(13.5); $('endMap').onclick=()=>{ $('endc').hidden=true; openMap(); };
+$('guide').onclick=()=>{ guided=!guided; const g=$('guide'); g.setAttribute('aria-pressed',guided); g.textContent=guided?'Guided':'Autoplay'; if(!guided&&waiting) act(); else if(guided) cpNext=CP.findIndex(c=>c.t>=tNow-0.05); if(cpNext<0) cpNext=CP.length; };
+function primary(){ if(waiting) act(); else if(ended) replay(0); else setPaused(!paused); }
+const chaps=$('chaps');
+CH.forEach((c,i)=>{ const end=i<CH.length-1?CH[i+1].t:T_END; const b=document.createElement('button'); b.className='chap'; b.style.setProperty('--w',(end-c.t).toFixed(2)); b.setAttribute('aria-label','Step '+(i+1)+': '+c.h); b.innerHTML='<i></i>';
+  b.onclick=e=>{ e.stopPropagation(); seek(c.t+0.01); }; chaps.appendChild(b); });
+function seek(t){ tNow=clamp(t,0,T_END-0.01); hudDirty=true; ended=false; $('endc').hidden=true; waiting=null; $('act').hidden=true; document.body.classList.remove('waiting');
+  cpNext=CP.findIndex(c=>c.t>=tNow-0.05); if(cpNext<0) cpNext=CP.length; }
+const track=$('track'), tip=$('tipbox');
+let scrubbing=false;
+const tAt=e=>{ const r=chaps.getBoundingClientRect(); return clamp((e.clientX-r.left)/r.width,0,1)*T_END; };
+track.addEventListener('pointerdown',e=>{ scrubbing=true; track.setPointerCapture(e.pointerId); seek(tAt(e)); });
+track.addEventListener('pointermove',e=>{ const t=tAt(e); const r=chaps.getBoundingClientRect(); tip.style.left=(e.clientX-track.getBoundingClientRect().left)+'px'; tip.textContent='Step '+(chapIdx(t)+1)+' · '+CH[chapIdx(t)].h; if(scrubbing) seek(t); });
+track.addEventListener('pointerup',()=>scrubbing=false);
+const setPaused=p=>{ paused=p; $('play').setAttribute('aria-label',p?'Play':'Pause');
+  $('playIco').innerHTML=p?'<path d="M8 5v14l11-7z"/>':'<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>'; };
+$('play').onclick=primary;
+$('speed').onclick=()=>{ speed=speed===1?2:speed===2?0.5:1; $('speed').textContent=(speed===0.5?'½':speed)+'×'; };
+$('storyFold').onclick=()=>{ const s=$('story'); const m=!s.classList.contains('min'); s.classList.toggle('min',m); $('storyFold').setAttribute('aria-expanded',!m); $('storyFold').setAttribute('aria-label',m?'Expand story card':'Shrink story card'); };
+const fmt=t=>{ t=Math.floor(t); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); };
+function updateHUD(t){
+  const i=chapIdx(t), c=CH[i];
+  if(i!==lastStep){ lastStep=i; $('stepNo').textContent='Step '+String(i+1).padStart(2,'0')+' of '+CH.length; $('stepTitle').textContent=c.h; $('stepBody').textContent=c.b; $('miniTitle').textContent=c.h;
+    $('tlChip').textContent='Time-lapse ×'+c.tl; }
+  [...chaps.children].forEach((b,j)=>{ const s=CH[j].t, e=j<CH.length-1?CH[j+1].t:T_END; b.firstChild.style.width=(clamp((t-s)/(e-s),0,1)*100)+'%'; });
+  $('time').textContent=fmt(t)+' / '+fmt(T_END);
+  const soc=socAt(t); $('socV').textContent=Math.round(soc)+'%'; $('socT').textContent=t<43.6?'Pack A':'Pack C';
+  const sb=$('socBar'); sb.style.width=soc+'%'; sb.style.background=soc<50?'var(--amber)':'var(--full)';
+  const a=packAState(t); $('st2v').textContent=a.v; $('st2d').style.background=a.c; $('st2Bar').style.width=a.p+'%';
+  if(t>=79){ $('st2k').textContent='Lock chamber'; const lv=hermite(WC,t,k=>k.v); $('st2v').textContent=(t<84?'Sealing':'+'+lv.toFixed(1)+' m'); $('st2d').style.background='var(--water)'; $('st2Bar').style.width=(lv/10*100)+'%'; $('st2Bar').style.background='var(--water)'; }
+  else { $('st2k').textContent='Pack A ashore'; $('st2Bar').style.background='var(--amber)'; }
+  $('miniKm').textContent='km '+kmOf(barge.position).toFixed(1);
+}
+
+/* ============================================================
+   12. Route map (mini, full screen, and the headset panel)
+   ============================================================ */
+let MB, mapStyle='night';
+const merc=lat=>Math.log(Math.tan(Math.PI/4+lat*D2R/2));
+function mapXY(lon,lat){ return [(lon-MB.lonW)/(MB.lonE-MB.lonW)*MB.w, (merc(MB.latN)-merc(lat))/(merc(MB.latN)-merc(MB.latS))*MB.h]; }
+function routeKmLL(km){ const R=D.route, K=R.km; let i=1; while(i<K.length-1&&K[i]<km) i++; const t=clamp((km-K[i-1])/(K[i]-K[i-1]),0,1); const a=R.canal[i-1], b=R.canal[i]; return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t]; }
+const MAPC={pilot:'#ffffff', done:'#7cc8ff', rest:'rgba(255,255,255,.28)', port:'#7cc8ff', lock:'#5bb8e6', hub:'#7cc8ff'};
+function drawRoute(ctx,view,opt){
+  // view: {cx,cy,s} in base-image pixels → canvas
+  const W=ctx.canvas.width, H=ctx.canvas.height, s=view.s;
+  const P=(lon,lat)=>{ const [x,y]=mapXY(lon,lat); return [(x-view.cx)*s+W/2,(y-view.cy)*s+H/2]; };
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#061a33'; ctx.fillRect(0,0,W,H);
+  if(opt.base) ctx.drawImage(opt.base,0,0); else { const img=mapImg[opt.style||'night']; ctx.imageSmoothingQuality='high'; ctx.drawImage(img,(0-view.cx)*s+W/2,(0-view.cy)*s+H/2,MB.w*s,MB.h*s); }
+  const R=D.route, dpr=opt.dpr||1, kmNow=opt.km;
+  const line=(pts,col,w,dash)=>{ ctx.beginPath(); pts.forEach((p,i)=>{ const [x,y]=P(p[0],p[1]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.strokeStyle=col; ctx.lineWidth=w*dpr; ctx.setLineDash(dash?dash.map(d=>d*dpr):[]); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke(); ctx.setLineDash([]); };
+  const sub=(a,b)=>{ const out=[routeKmLL(a)]; R.km.forEach((k,i)=>{ if(k>a&&k<b) out.push(R.canal[i]); }); out.push(routeKmLL(b)); return out; };
+  // glow under the pilot route
+  line(sub(R.pilotEnd,R.km[R.km.length-1]),MAPC.rest,2.2);
+  line(sub(0,R.pilotEnd),'rgba(6,26,51,.75)',7.5);
+  line(sub(0,R.pilotEnd),MAPC.pilot,3.2);
+  line(sub(0,kmNow),MAPC.done,3.6);
+  line(R.port.coords,'rgba(6,26,51,.75)',6.5); line(R.port.coords,MAPC.port,2.6,[5,5]);
+  // km ticks
+  ctx.font=`500 ${10.5*dpr}px Arial,sans-serif`; ctx.textAlign='center';
+  if(s>0.18) for(const t of R.ticks){ if(t.km===0) continue; const [x,y]=P(t.ll[0],t.ll[1]); ctx.fillStyle='rgba(6,26,51,.8)'; ctx.beginPath(); ctx.arc(x,y,2.2*dpr,0,7); ctx.fill(); ctx.fillStyle='rgba(255,255,255,.75)'; if(s>0.3) ctx.fillText(t.km+'',x,y-7*dpr); }
+  // towns
+  ctx.textAlign='left';
+  for(const [n,lo,la,big] of R.towns){ if(!opt.full) break; if(!big&&s<0.32) continue; const [x,y]=P(lo,la); ctx.font=`${big?600:500} ${(big?12.5:11)*dpr}px Arial,sans-serif`; ctx.fillStyle='rgba(6,26,51,.75)'; ctx.fillText(n,x+1*dpr,y+1*dpr); ctx.fillStyle=big?'rgba(255,255,255,.92)':'rgba(255,255,255,.7)'; ctx.fillText(n,x,y); }
+  // locks
+  for(const L of R.locks.concat(R.portLocks.map(p=>({name:p.name,ll:p.ll,port:true})))){ const [x,y]=P(L.ll[0],L.ll[1]); ctx.fillStyle='#061a33'; ctx.fillRect(x-4.5*dpr,y-4.5*dpr,9*dpr,9*dpr); ctx.fillStyle=MAPC.lock; ctx.fillRect(x-3*dpr,y-3*dpr,6*dpr,6*dpr);
+    if(opt.full&&s>0.42){ ctx.font=`500 ${11*dpr}px Arial,sans-serif`; ctx.fillStyle='rgba(6,26,51,.8)'; const tx=L.port?'Port locks':L.name+' lock'; ctx.fillText(tx,x+8*dpr+1,y+14*dpr+1); ctx.fillStyle='#bfe3f5'; ctx.fillText(tx,x+8*dpr,y+14*dpr); } }
+  // terminals
+  for(const T of R.terminals){ if(!opt.full&&!T.main&&T.kind==='deepsea') continue; const [x,y]=P(T.ll[0],T.ll[1]); ctx.fillStyle='#061a33'; ctx.fillRect(x-4*dpr,y-4*dpr,8*dpr,8*dpr); ctx.fillStyle=T.main?'#ffffff':'rgba(255,255,255,.75)'; ctx.fillRect(x-2.6*dpr,y-2.6*dpr,5.2*dpr,5.2*dpr);
+    if(opt.full&&(T.main||s>0.5)){ ctx.font=`500 ${11*dpr}px Arial,sans-serif`; ctx.fillStyle='rgba(6,26,51,.8)'; ctx.fillText(T.name,x+8*dpr+1,y-6*dpr+1); ctx.fillStyle='rgba(255,255,255,.9)'; ctx.fillText(T.name,x+8*dpr,y-6*dpr); } }
+  // hubs
+  for(const Hh of R.hubs){ const [x,y]=P(Hh.ll[0],Hh.ll[1]); const act=opt.sel===Hh.id;
+    ctx.beginPath(); ctx.arc(x,y,(act?11:8.5)*dpr,0,7); ctx.fillStyle='rgba(6,26,51,.85)'; ctx.fill(); ctx.lineWidth=2.4*dpr; ctx.strokeStyle=MAPC.hub; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x,y,3*dpr,0,7); ctx.fillStyle=MAPC.hub; ctx.fill();
+    ctx.font=`600 ${(opt.full?13:11)*dpr}px Arial,sans-serif`; const label=opt.full?Hh.name:Hh.name.split(' ')[0]; const tw=ctx.measureText(label).width;
+    const lx=clamp(x-tw/2,8*dpr,W-tw-8*dpr), ly=opt.full?y-15*dpr:(y>H*0.6?y-14*dpr:y+24*dpr); ctx.fillStyle='rgba(6,26,51,.82)'; ctx.fillRect(lx-6*dpr,ly-13*dpr,tw+12*dpr,18*dpr); ctx.fillStyle='#ffffff'; ctx.fillText(label,lx,ly); }
+  // barge marker
+  const [bx,by]=P(...routeKmLL(kmNow)); const pulse=(performance.now()/900)%1;
+  ctx.beginPath(); ctx.arc(bx,by,(6+pulse*12)*dpr,0,7); ctx.strokeStyle=`rgba(124,200,255,${(1-pulse)*0.8})`; ctx.lineWidth=2*dpr; ctx.stroke();
+  ctx.beginPath(); ctx.arc(bx,by,5.5*dpr,0,7); ctx.fillStyle='#ffffff'; ctx.fill(); ctx.lineWidth=2.5*dpr; ctx.strokeStyle='#7cc8ff'; ctx.stroke();
+  // in-scene span bracket
+  if(opt.full){ line(sub(R.sceneSpan[0],R.sceneSpan[1]),'rgba(91,184,230,.9)',6); }
+}
+const mini={cv:$('miniCv'),view:null};
+function miniView(){ const [x0,y0]=mapXY(4.25,51.31), [x1,y1]=mapXY(5.53,50.92); const W=mini.cv.width,H=mini.cv.height; const s=Math.min(W/(x1-x0),H/(y1-y0))*0.96; return {cx:(x0+x1)/2,cy:(y0+y1)/2,s}; }
+let miniOn=true; $('miniFold').onclick=()=>{ const m=$('mini'); m.classList.toggle('collapsed'); $('miniFold').textContent=m.classList.contains('collapsed')?'Show':'Fold'; };
+$('tMap').onclick=()=>{ miniOn=!miniOn; $('mini').hidden=!miniOn; $('tMap').setAttribute('aria-pressed',miniOn); };
+/* full-screen map */
+const big={cv:$('mapCv'),view:null,sel:null,open:false,drag:null};
+function openMap(){ $('mapview').classList.add('open'); big.open=true; sizeBig(); fitWhole(); hideInfo(); }
+function closeMap(){ $('mapview').classList.remove('open'); big.open=false; }
+$('miniOpen').onclick=openMap; mini.cv.onclick=openMap; $('mapClose').onclick=closeMap; $('mapX').onclick=closeMap;
+function sizeBig(){ const r=big.cv.getBoundingClientRect(), d=Math.min(2,devicePixelRatio||1); big.cv.width=Math.max(10,r.width*d); big.cv.height=Math.max(10,r.height*d); big.dpr=d; }
+function fitWhole(){ const [x0,y0]=mapXY(4.22,51.33),[x1,y1]=mapXY(5.54,50.91); const s=Math.min(big.cv.width/(x1-x0),big.cv.height/(y1-y0))*0.95; big.view={cx:(x0+x1)/2,cy:(y0+y1)/2,s}; big.goal=null; }
+function flyTo(lon,lat,s){ const [x,y]=mapXY(lon,lat); big.goal={cx:x,cy:y,s}; }
+$('mapFit').onclick=()=>{ const v=big.view; fitWhole(); const g=big.view; big.view=v; big.goal=g; big.sel=null; };
+['stNight','stSat'].forEach(id=>$(id).onclick=()=>{ mapStyle=id==='stNight'?'night':'sat'; $('stNight').setAttribute('aria-pressed',mapStyle==='night'); $('stSat').setAttribute('aria-pressed',mapStyle==='sat'); });
+big.cv.addEventListener('pointerdown',e=>{ big.drag={x:e.clientX,y:e.clientY}; big.cv.setPointerCapture(e.pointerId); big.goal=null; });
+big.cv.addEventListener('pointermove',e=>{ if(!big.drag) return; const d=big.dpr; big.view.cx-=(e.clientX-big.drag.x)*d/big.view.s; big.view.cy-=(e.clientY-big.drag.y)*d/big.view.s; big.drag={x:e.clientX,y:e.clientY}; });
+big.cv.addEventListener('pointerup',()=>big.drag=null);
+big.cv.addEventListener('wheel',e=>{ e.preventDefault(); big.goal=null; const r=big.cv.getBoundingClientRect(), d=big.dpr; const mx=(e.clientX-r.left)*d, my=(e.clientY-r.top)*d;
+  const wx=(mx-big.cv.width/2)/big.view.s+big.view.cx, wy=(my-big.cv.height/2)/big.view.s+big.view.cy; const ns=clamp(big.view.s*Math.exp(-e.deltaY*0.0015),0.12,3.2);
+  big.view.s=ns; big.view.cx=wx-(mx-big.cv.width/2)/ns; big.view.cy=wy-(my-big.cv.height/2)/ns; },{passive:false});
+function buildPlaces(){
+  const R=D.route, items=[];
+  R.hubs.forEach(h=>items.push({km:h.km,cls:'hub',n:h.name,s:h.role+' · '+h.status,ll:h.ll,id:h.id}));
+  R.locks.forEach(l=>items.push({km:l.km,cls:'lock',n:l.name+' lock',s:'Lift '+l.lift.toFixed(1)+' m',ll:l.ll}));
+  R.terminals.filter(t=>t.kind==='inland'||t.main).forEach(t=>items.push({km:t.kind==='deepsea'?-14.2:(t.name.includes('Genk')?88.2:51.9),cls:'term',n:t.name,s:t.op+(t.main?' · CMA CGM terminal to confirm':''),ll:t.ll}));
+  items.sort((a,b)=>a.km-b.km);
+  $('places').innerHTML=items.map((it,i)=>`<li><button data-i="${i}"><span class="sym ${it.cls}"></span><span><span class="nm">${it.n}</span><span class="sb">${it.s}</span></span><span class="km">${it.km<0?'port':'km '+it.km.toFixed(1)}</span></button></li>`).join('');
+  $('places').querySelectorAll('button').forEach(b=>b.onclick=()=>{ const it=items[+b.dataset.i]; big.sel=it.id||null; flyTo(it.ll[0],it.ll[1],1.6);
+    if(it.id==='kwaad'){ closeMap(); setView(2); } });
+  // water level profile
+  const svg=$('profile'), W=320,H=150, px=k=>14+k/90*(W-24), py=h=>H-20-h/65*(H-34);
+  let d=''; R.levels.forEach((l,i)=>{ const k0=l[0], k1=i<R.levels.length-1?R.levels[i+1][0]:90; d+=(i?'L':'M')+px(k0).toFixed(1)+' '+py(l[1]).toFixed(1)+' L'+px(k1).toFixed(1)+' '+py(l[1]).toFixed(1)+' '; });
+  let g=`<g stroke="rgba(168,180,195,.18)">${[0,20,40,60].map(h=>`<line x1="14" x2="${W-10}" y1="${py(h)}" y2="${py(h)}"/>`).join('')}</g>`;
+  g+=[0,20,40,60].map(h=>`<text x="${W-8}" y="${py(h)-3}" fill="#c5d3e4" font-family="Arial" font-size="9" text-anchor="end">${h} m</text>`).join('');
+  g+=`<path d="${d}" fill="none" stroke="#5bb8e6" stroke-width="2"/>`;
+  g+=R.locks.map(l=>`<line x1="${px(l.km)}" x2="${px(l.km)}" y1="${H-20}" y2="${py(0)+2}" stroke="rgba(91,184,230,.0)"/>`).join('');
+  g+=R.hubs.map(h=>`<circle cx="${px(h.km)}" cy="${H-12}" r="4.5" fill="#061a33" stroke="#7cc8ff" stroke-width="2"/>`).join('');
+  g+=[0,22,44,66,88].map(k=>`<text x="${px(k)}" y="${H-1}" fill="#c5d3e4" font-family="Arial" font-size="9" text-anchor="middle">${k}</text>`).join('');
+  g+=`<circle id="profB" r="4" fill="#ffffff" stroke="#7cc8ff" stroke-width="2"/>`;
+  svg.innerHTML=g; svg._px=px; svg._py=py;
+}
+function drawMaps(km){
+  if(!MB) return;
+  if(miniOn&&!$('mini').classList.contains('collapsed')){ if(!mini.view){ mini.view=miniView(); mini.base=document.createElement('canvas'); mini.base.width=mini.cv.width; mini.base.height=mini.cv.height;
+      const v=mini.view, bc=mini.base.getContext('2d'); bc.imageSmoothingQuality='high'; bc.drawImage(mapImg.night,(0-v.cx)*v.s+bc.canvas.width/2,(0-v.cy)*v.s+bc.canvas.height/2,MB.w*v.s,MB.h*v.s); }
+    drawRoute(mini.cv.getContext('2d'),mini.view,{km,style:'night',dpr:2,base:mini.base}); }
+  if(big.open){ if(big.goal){ const v=big.view,g=big.goal; v.cx=lerp(v.cx,g.cx,0.12); v.cy=lerp(v.cy,g.cy,0.12); v.s=lerp(v.s,g.s,0.12); if(Math.abs(v.s-g.s)<0.002) big.goal=null; }
+    drawRoute(big.cv.getContext('2d'),big.view,{km,style:mapStyle,dpr:big.dpr,full:true,sel:big.sel});
+    const kmPer=(MB.lonE-MB.lonW)*MLON/1000/MB.w; const pxPerKm=big.view.s/kmPer/big.dpr; const nice=[1,2,5,10,20]; const k=nice.find(n=>n*pxPerKm>70)||20; $('mapScale').innerHTML=`<span style="display:inline-block;width:${(k*pxPerKm).toFixed(0)}px;height:3px;background:#ffffff;vertical-align:middle;margin-right:6px"></span>${k} km`;
+    const pb=document.getElementById('profB'); if(pb){ const svg=$('profile'); const lv=D.route.levels.filter(l=>l[0]<=km).pop()[1]; pb.setAttribute('cx',svg._px(km)); pb.setAttribute('cy',svg._py(lv)); } }
+}
+addEventListener('resize',()=>{ if(big.open) sizeBig(); });
+
+/* ============================================================
+   13. Headset: views, caption panel, map panel, controllers
+   ============================================================ */
+const vrC=document.createElement('canvas'); vrC.width=1280; vrC.height=600; const vctx=vrC.getContext('2d');
+const vrTex=new THREE.CanvasTexture(vrC); vrTex.encoding=THREE.sRGBEncoding; vrTex.anisotropy=4;
+const vrPanel=new THREE.Mesh(new THREE.PlaneGeometry(1.12,0.525),new THREE.MeshBasicMaterial({map:vrTex,transparent:true,depthTest:false,fog:false,toneMapped:false}));
+vrPanel.renderOrder=20; vrPanel.visible=false; scene.add(vrPanel);
+const vrMapC=document.createElement('canvas'); vrMapC.width=1200; vrMapC.height=680;
+const vrMapTex=new THREE.CanvasTexture(vrMapC); vrMapTex.encoding=THREE.sRGBEncoding;
+const vrMap=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.51),new THREE.MeshBasicMaterial({map:vrMapTex,transparent:true,depthTest:false,fog:false,toneMapped:false}));
+vrMap.renderOrder=20; vrMap.visible=false; scene.add(vrMap);
+let vrCaptions=true, vrMapOn=false, vrDolly=0;
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function wrapText(c,text,maxW){ const out=[]; let cur=''; text.split(' ').forEach(w=>{ const t=cur?cur+' '+w:w; if(c.measureText(t).width>maxW&&cur){out.push(cur);cur=w;}else cur=t; }); if(cur)out.push(cur); return out; }
+function drawVRPanel(t){
+  const c=vctx, W=1280, H=600; c.clearRect(0,0,W,H);
+  c.fillStyle='rgba(8,32,66,0.95)'; rr(c,4,4,W-8,H-8,34); c.fill(); c.strokeStyle='rgba(255,255,255,0.25)'; c.lineWidth=3; c.stroke();
+  const i=chapIdx(t), ch=CH[i];
+  if(ended){ c.fillStyle='#7cc8ff'; c.font='700 30px Arial,sans-serif'; c.fillText('Journey complete',56,82); c.fillStyle='#ffffff';
+    c.font='700 66px Arial,sans-serif'; c.fillText('On to Genk with a full pack',52,170);
+    c.font='400 36px Arial,sans-serif'; c.fillStyle='#ffffff'; wrapText(c,'One swap of about 30 minutes at Kwaadmechelen replaced hours on a charger. Pack A stays behind to charge for the next barge.',W-112).slice(0,3).forEach((l,k)=>c.fillText(l,56,240+k*50));
+    vrPrompt(c,W,'Pull the trigger to replay'); vrTex.needsUpdate=true; return; }
+  c.fillStyle='#7cc8ff'; c.font='700 28px Arial,sans-serif'; c.fillText('Step '+(i+1)+' of '+CH.length+'      Time-lapse ×'+ch.tl,56,78);
+  c.fillStyle='#ffffff'; c.font='700 62px Arial,sans-serif'; c.fillText(ch.h,52,160);
+  c.font='400 35px Arial,sans-serif'; c.fillStyle='#ffffff'; wrapText(c,ch.b,W-112).slice(0,4).forEach((l,k)=>c.fillText(l,56,222+k*48));
+  if(waiting){ vrPrompt(c,W,'Pull the trigger: '+waiting.btn); vrTex.needsUpdate=true; return; }
+  const soc=socAt(t); c.fillStyle='rgba(255,255,255,.14)'; c.fillRect(56,478,520,12); c.fillStyle=soc<30?'#ff3b30':soc<60?'#ffb21e':'#22f08f'; c.fillRect(56,478,520*soc/100,12);
+  c.fillStyle='#c5d3e4'; c.font='700 26px Arial,sans-serif'; c.fillText('Pack on board: '+(t<43.6?'A':'C'),56,462); c.fillStyle='#ffffff'; c.font='700 34px Arial,sans-serif'; c.fillText(Math.round(soc)+'%',600,492);
+  c.fillStyle='#c5d3e4'; c.font='400 25px Arial,sans-serif'; c.fillText('Trigger: next view ('+VIEWS[cam.v].vr+')   ·   Stick: zoom and turn   ·   A/X: map   ·   B/Y: captions   ·   Grip: pause',56,560);
+  vrTex.needsUpdate=true;
+}
+function vrPrompt(c,W,txt){ c.font='700 40px Arial,sans-serif'; const w=c.measureText(txt).width+80; const x=(W-w)/2, y=440;
+  const a=0.88+0.12*Math.sin(performance.now()/260); c.fillStyle='rgba(255,255,255,'+a+')'; rr(c,x,y,w,96,48); c.fill();
+  c.fillStyle='#061a33'; c.textAlign='center'; c.fillText(txt,W/2,y+62); c.textAlign='left'; }
+function placeVR(){
+  const v=VIEWS[cam.v]; vrDolly=0;
+  if(v.type==='fps'){ barge.add(rig); rig.position.set(0,9.65,-15.6); rig.rotation.set(0,0,0); }
+  else { scene.add(rig); const tg=v.target(); const az=v.az+(v.rel?bargeHeading():0); const d=Math.min(v.dist,v.id==='over'?700:160);
+    rig.position.set(tg.x+Math.sin(az)*d, Math.max(surfaceH(tg.x+Math.sin(az)*d,tg.z+Math.cos(az)*d)+2,tg.y+Math.sin(v.el)*d*0.6), tg.z+Math.cos(az)*d);
+    rig.rotation.set(0,Math.atan2(rig.position.x-tg.x,rig.position.z-tg.z),0); }
+}
+function vrFollow(dt){ const v=VIEWS[cam.v]; if(v.id!=='follow') return; const tg=v.target(); const az=v.az+bargeHeading(); const d=150+vrDolly;
+  const goal=new V3(tg.x+Math.sin(az)*d, tg.y+Math.sin(v.el)*d*0.55, tg.z+Math.cos(az)*d); rig.position.lerp(goal,1-Math.exp(-dt*0.8));
+  rig.rotation.y=lerp(rig.rotation.y,Math.atan2(rig.position.x-tg.x,rig.position.z-tg.z),1-Math.exp(-dt*0.8)); }
+function placePanels(dt){
+  const head=new V3(), q=new THREE.Quaternion(); camera.getWorldPosition(head); camera.getWorldQuaternion(q);
+  const f=new V3(0,0,-1).applyQuaternion(q); f.y=0; if(f.lengthSq()<1e-4) return; f.normalize();
+  const goal=head.clone().addScaledVector(f,1.55); goal.y=head.y-0.48;
+  vrPanel.position.lerp(goal,1-Math.exp(-dt*2.2)); vrPanel.lookAt(head.x,head.y+0.25,head.z);
+  const right=new V3(-f.z,0,f.x); const mg=head.clone().addScaledVector(f,1.4).addScaledVector(right,-0.85); mg.y=head.y-0.12;
+  vrMap.position.lerp(mg,1-Math.exp(-dt*2.2)); vrMap.lookAt(head.x,head.y,head.z);
+}
+let snapReady=true; const btnPrev={};
+function pollXR(dt){ const s=renderer.xr.getSession(); if(!s) return;
+  for(const src of s.inputSources){ const gp=src.gamepad; if(!gp) continue; const h=src.handedness;
+    const ax=gp.axes[2]||0, ay=gp.axes[3]||0;
+    if(Math.abs(ax)>0.7&&snapReady){ rig.rotation.y-=Math.sign(ax)*Math.PI/6; snapReady=false; } if(Math.abs(ax)<0.3&&Math.abs(ay)<0.3) snapReady=true;
+    if(Math.abs(ay)>0.2&&VIEWS[cam.v].type!=='fps'){ const fwd=new V3(0,0,-1).applyQuaternion(camera.getWorldQuaternion(new THREE.Quaternion())); vrDolly+=ay*dt*60; if(VIEWS[cam.v].id!=='follow') rig.position.addScaledVector(fwd,-ay*dt*45); }
+    const b4=gp.buttons[4]&&gp.buttons[4].pressed, b5=gp.buttons[5]&&gp.buttons[5].pressed;
+    const k=h+'4', k2=h+'5';
+    if(b4&&!btnPrev[k]){ vrMapOn=!vrMapOn; vrMap.visible=vrMapOn; } if(b5&&!btnPrev[k2]){ vrCaptions=!vrCaptions; vrPanel.visible=vrCaptions; }
+    btnPrev[k]=b4; btnPrev[k2]=b5; }
+}
+for(let i=0;i<2;i++){ const c=renderer.xr.getController(i); c.addEventListener('select',()=>{ if(waiting) act(); else if(ended) replay(0); else setView((cam.v+1)%VIEWS.length); }); c.addEventListener('squeeze',()=>setPaused(!paused)); rig.add(c); }
+const vrBtn=$('vrBtn');
+const framed=(()=>{ try{ return window.top!==window.self; }catch(e){ return true; } })();
+function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
+  // inside a frame the headset browser may block VR: offer the page on its own
+  if(framed&&IS_QUEST){ vrBtn.disabled=false; vrBtn.textContent='Open for VR'; vrBtn.onclick=()=>window.open(location.href,'_blank'); } }
+(async()=>{ if(!navigator.xr){ vrUnavailable('Open this page in the Meta Quest browser'); return; }
+  try{ if(!await navigator.xr.isSessionSupported('immersive-vr')){ vrUnavailable('VR is not available here'); return; } }catch(e){ vrUnavailable('VR is blocked in this frame'); return; }
+  vrBtn.disabled=false; vrBtn.textContent='Enter VR';
+  vrBtn.onclick=async()=>{ const cur=renderer.xr.getSession(); if(cur){ cur.end(); return; }
+    let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ if(framed){ window.open(location.href,'_blank'); } else { vrBtn.textContent='VR failed: '+e.name; } return; }
+    try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(1); }catch(e){}
+    sun.shadow.mapSize.set(1024,1024); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
+    await renderer.xr.setSession(s); vrBtn.textContent='Exit VR'; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; placeVR(); hudDirty=true;
+    s.addEventListener('end',()=>{ vrBtn.textContent='Enter VR'; vrPanel.visible=false; vrMap.visible=false; scene.add(rig); rig.position.set(0,0,0); rig.rotation.set(0,0,0); camera.position.set(0,0,0); setView(cam.v,true); }); };
+})();
+
+/* ============================================================
+   14. Global controls
+   ============================================================ */
+function setHidden(h){ document.body.classList.toggle('hidden-ui',h); $('tHide').setAttribute('aria-pressed',h); if(h) hideInfo(); }
+$('tHide').onclick=()=>setHidden(true); $('restore').onclick=()=>setHidden(false);
+$('tLabels').onclick=()=>{ labelsOn=!labelsOn; $('tLabels').setAttribute('aria-pressed',labelsOn); };
+$('tFull').onclick=async()=>{ try{ if(!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); }catch(e){} };
+document.addEventListener('fullscreenchange',()=>$('tFull').setAttribute('aria-pressed',!!document.fullscreenElement));
+addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT') return; const k=e.key.toLowerCase();
+  if(k===' '||(k==='enter'&&(waiting||ended)&&e.target===document.body)){ primary(); e.preventDefault(); } else if(k==='h') setHidden(!document.body.classList.contains('hidden-ui'));
+  else if(k==='l') $('tLabels').click(); else if(k==='m') (big.open?closeMap():openMap()); else if(k==='f') $('tFull').click();
+  else if(k==='escape'){ if(big.open) closeMap(); else hideInfo(); }
+  else if(k==='+'||k==='=') zoom(0.8); else if(k==='-') zoom(1.25);
+  else if(k==='arrowright') seek(CH[Math.min(CH.length-1,chapIdx(tNow)+1)].t+0.01); else if(k==='arrowleft') seek(CH[Math.max(0,chapIdx(tNow)-(tNow-CH[chapIdx(tNow)].t<1.5?1:0))].t+0.01);
+  else if(/^[1-5]$/.test(k)) setView(+k-1); });
+
+/* ============================================================
+   15. Build and loop
+   ============================================================ */
+function matSig(m){ const c=x=>x?x.getHexString():'-', t=x=>x?x.uuid:'-';
+  return [m.type,c(m.color),c(m.emissive),m.emissiveIntensity,t(m.map),t(m.normalMap),t(m.roughnessMap),t(m.envMap),m.envMapIntensity,(m.roughness||0).toFixed(2),(m.metalness||0).toFixed(2),m.transparent,(m.opacity).toFixed(2),m.side,m.vertexColors,m.depthWrite,m.customProgramCacheKey?m.customProgramCacheKey():'',m.toneMapped].join('/'); }
+function mergeStatic(root,dyn,skip){
+  root.updateMatrixWorld(true); const inv=root.matrixWorld.clone().invert(), groups=new Map(), drop=[];
+  const isDyn=o=>{ if(skip&&skip(o)) return true; for(let p=o;p&&p!==root;p=p.parent){ if(dyn.test(p.name||'')||!p.visible||(skip&&skip(p))) return true; } return false; };
+  root.traverse(o=>{ if(!o.isMesh||o.isInstancedMesh||o.isSkinnedMesh||Array.isArray(o.material)||isDyn(o)) return;
+    const g=o.geometry; if(g.groups&&g.groups.length>1) return;
+    const key=matSig(o.material)+'|'+(g.index?'i':'n')+'|'+Object.keys(g.attributes).sort().map(k=>k+g.attributes[k].itemSize).join(',')+'|'+o.castShadow+o.receiveShadow;
+    if(!groups.has(key)) groups.set(key,{m:o.material,list:[],cs:o.castShadow,rs:o.receiveShadow}); groups.get(key).list.push(o); });
+  let before=0, after=0;
+  for(const [k,G] of groups){ before+=G.list.length; if(G.list.length<2){ after++; continue; }
+    const geos=G.list.map(o=>{ const g=o.geometry.clone(); for(const a in g.morphAttributes) delete g.morphAttributes[a]; g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld)); return g; });
+    let mg=null; try{ mg=THREE.BufferGeometryUtils.mergeBufferGeometries(geos,false); }catch(e){ mg=null; }
+    if(!mg){ after+=G.list.length; continue; }
+    const m=new THREE.Mesh(mg,G.m); m.castShadow=true; m.receiveShadow=true; m.name='merged'; root.add(m); G.list.forEach(o=>drop.push(o)); after++; }
+  drop.forEach(o=>{ o.parent&&o.parent.remove(o); });
+  if(TEST) console.warn('MERGE '+(root.name||'')+' '+before+' -> '+after);
+}
+function build(){
+  const T0=performance.now(), tm=n=>{ if(TEST) console.warn('BUILD '+n+' '+(performance.now()-T0).toFixed(0)+'ms'); };
+  HF=smoothBanks(decodeHF(D.height)); GF=decodeHF(D.ground); MB=D.route_base; tm('hf');
+  buildModels(); tm('models'); buildTerrain(); tm('terrain'); buildWater(); buildTrees(); tm('trees'); buildBuildings(); tm('buildings'); buildContainers(); buildQuayWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
+  // sky reflections only where they belong: water, glass and the painted barge
+  WATER_MAT.envMap=ENV; WATER_MAT.envMapIntensity=0.16; WATER_MAT.needsUpdate=true;
+  scene.traverse(o=>{ if(!o.isMesh) return; (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m&&m.isMeshStandardMaterial&&m.transparent){ m.envMap=ENV; m.envMapIntensity=1.0; m.needsUpdate=true; } }); });
+  barge.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m.isMeshStandardMaterial&&!m.transparent){ m.envMap=ENV; m.envMapIntensity=0.35; m.needsUpdate=true; } }); });
+  makeBargeKeys(); setupSwap(); buildBatteryFX(); buildLabels(); buildPlaces(); tm('labels');
+  // fewer draw calls for the headset: merge every part that never moves, per material
+  const DYN=/Crane_|Hub_Battery|Battery_|Gate_|Water_Chamber|_LED|HL/;
+  mergeStatic(lock,DYN); mergeStatic(hub,DYN); mergeStatic(barge,DYN); realCranes.forEach(g=>mergeStatic(g,/^$/)); if(moored) mergeStatic(moored,/^$/); if(traffic) mergeStatic(traffic,/^$/);
+  { const models=new Set([hub,lock,barge,moored,traffic,rig,sky,...realCranes]); const rot=new Set(turbines);
+    mergeStatic(scene,/^merged$/,o=>models.has(o)||rot.has(o)||(o.material&&(o.material.isShaderMaterial||o.material.isSpriteMaterial||(o.material.map&&o.material.isMeshLambertMaterial)))); }
+  tm('merged');
+  setView(0); applyTime(0); started=true; last=performance.now();
+  if(TEST){ seek(parseFloat(params.get('t'))); if(params.has('cp')){ const c=CP.find(c=>Math.abs(c.t-tNow)<0.05); if(c){ cpNext=CP.indexOf(c); arrive(c); } } else if(params.has('end')){ tNow=T_END; finish(); } setPaused(true); if(params.has('v')) setView(+params.get('v')); if(params.has('d')) cam.g.dist=+params.get('d'); if(params.has('az')) cam.g.az=+params.get('az'); if(params.has('el')) cam.g.el=+params.get('el'); if(params.has('hide')) setHidden(true); if(params.has('min')) $('storyFold').click(); if(params.has('map')) openMap(); }
+}
+function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+addEventListener('resize',resize); resize();
+let xrFrame=0;
+renderer.setAnimationLoop(now=>{
+  if(!started){ renderer.render(scene,camera); return; }
+  const dt=clamp((now-last)/1000,0,0.1); last=now;
+  if(!paused&&!waiting&&!ended){ let nt=tNow+dt*speed;
+    if(guided&&cpNext<CP.length&&nt>=CP[cpNext].t){ nt=CP[cpNext].t; arrive(CP[cpNext]); }
+    if(nt>=T_END){ nt=T_END; finish(); }
+    tNow=nt; }
+  applyTime(tNow); updateBatteryFX(tNow,dt);
+  const xr=renderer.xr.isPresenting;
+  renderer.shadowMap.autoUpdate=!xr; if(xr&&((++xrFrame)%3===0)) renderer.shadowMap.needsUpdate=true;
+  if(xr){ pollXR(dt); vrFollow(dt); placePanels(dt); vrPanel.visible=vrCaptions||!!waiting||ended; if((waiting||ended)&&Math.floor(now/120)!==Math.floor((now-dt*1000)/120)) hudDirty=true; if(Math.floor(now/250)!==Math.floor((now-dt*1000)/250)||hudDirty){ if(vrPanel.visible) drawVRPanel(tNow); if(vrMapOn&&MB){ drawRoute(vrMapC.getContext('2d'),(()=>{ const [x0,y0]=mapXY(4.25,51.31),[x1,y1]=mapXY(5.53,50.92); return {cx:(x0+x1)/2,cy:(y0+y1)/2,s:Math.min(1200/(x1-x0),680/(y1-y0))*0.95}; })(),{km:kmOf(barge.position),style:'night',dpr:2,full:true}); vrMapTex.needsUpdate=true; } hudDirty=false; } }
+  else updateCamera(dt);
+  for(const r of turbines) r.rotation.z+=dt*r.userData.speed;
+  WATER_MAT.normalMap.offset.x+=dt*0.006; WATER_MAT.normalMap.offset.y+=dt*0.0035;
+  placeSun(VIEWS[cam.v].type==='orbit'?cam.tgt:barge.position);
+  if(!xr){ updateLabels(tNow); updateHUD(tNow); }
+  if(Math.floor(now/100)!==Math.floor((now-dt*1000)/100)) drawMaps(kmOf(barge.position));
+  renderer.render(scene,camera);
+});
+</script>
