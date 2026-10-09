@@ -458,7 +458,7 @@ const manager=new THREE.LoadingManager();
 manager.onProgress=(u,l,t)=>{ if(TEST&&l%20===0) console.warn('LOAD '+l+'/'+t+' '+performance.now().toFixed(0)); const p=Math.round(100*l/t); $('bar').firstElementChild.style.width=p+'%'; $('loadTxt').textContent=p+'%  ·  '+l+' of '+t+' files'; };
 const gltfL=new THREE.GLTFLoader(manager), texL=new THREE.TextureLoader(manager), jsonL=new THREE.FileLoader(manager); jsonL.setResponseType('json');
 const D={}; const nodes={};
-const want=['scene/chunks','scene/height','scene/ground','scene/water','scene/objects','map/route','map/route_base'];
+const want=['scene/chunks','scene/height','scene/height_core','scene/ground','scene/water','scene/objects','map/route','map/route_base'];
 want.forEach(k=>jsonL.load('assets/'+k+'.json',d=>{ D[k.split('/')[1]]=d; if(k==='scene/chunks') loadChunkTextures(d); }));
 const chunkTex={};
 function loadChunkTextures(d){ d.chunks.forEach(c=>{ const t=texL.load('assets/scene/chunks/'+c.f); t.encoding=THREE.sRGBEncoding; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; chunkTex[c.f]=t; }); }
@@ -497,6 +497,10 @@ function smoothBanks(H){ const n=H.nx, m=H.nz, d=H.d, N=n*m; const carved=new Ui
     for(let j=0;j<m;j++) for(let i=0;i<n;i++){ const k=j*n+i; if(!near[k]){ out[k]=tmp[k]; continue; } let s=0,w=0; for(let q=-2;q<=2;q++){ const b=j+q; if(b<0||b>=m) continue; s+=tmp[b*n+i]*K[q+2]; w+=K[q+2]; } out[k]=s/w; }
     src=out.slice(); }
   H.d=src; return H; }
+let HC=null;
+function hAt(x,z){ const a=hfAt(HF,x,z); if(!HC) return a;
+  const ex=Math.min(x-HC.x0,HC.x0+(HC.nx-1)*HC.dx-x), ez=Math.min(z-HC.z0,HC.z0+(HC.nz-1)*HC.dx-z), e=Math.min(ex,ez);
+  if(e<=0) return a; const b=hfAt(HC,x,z); return e>=30?b:lerp(a,b,smooth(e/30)); }
 function hfAt(H,x,z){ const fx=clamp((x-H.x0)/H.dx,0,H.nx-1.001), fz=clamp((z-H.z0)/H.dx,0,H.nz-1.001), i=Math.floor(fx), j=Math.floor(fz), u=fx-i, v=fz-j, d=H.d, n=H.nx;
   return (d[j*n+i]*(1-u)+d[j*n+i+1]*u)*(1-v)+(d[(j+1)*n+i]*(1-u)+d[(j+1)*n+i+1]*u)*v; }
 let HF,GF,F,lockBox,toLock=new THREE.Matrix4(),toHub=new THREE.Matrix4();
@@ -510,11 +514,11 @@ function surfaceH(x,z){ if(inLock(x,z,1)) return -4.5; if(inHub(x,z)) return F.h
   { const p=lockLocal(x,z);
     if(p.z>-112&&p.z<22&&p.x>-129&&p.x<=-113) return -4.5;
     if(p.z>-102&&p.z<20&&p.x>-156&&p.x<=-129) return -4.5;   // open water in front of the lower lock heads
-    if(p.z>-112&&p.z<22&&p.x>=112.5&&p.x<140){ const h=hfAt(HF,x,z); if(h>11) return 11.6; if(p.x<142) return Math.min(h,5.5); } }
+    if(p.z>-112&&p.z<22&&p.x>=112.5&&p.x<140){ const h=hAt(x,z); if(h>11) return 11.6; if(p.x<142) return Math.min(h,5.5); } }
   if(!SMALLW) SMALLW=D.water.lower.filter(q=>q.wkc).map(q=>({o:q.o,x0:Math.min(...q.o.map(p=>p[0]))-3,x1:Math.max(...q.o.map(p=>p[0]))+3,z0:Math.min(...q.o.map(p=>p[1]))-3,z1:Math.max(...q.o.map(p=>p[1]))+3}));
-  for(const q of SMALLW) if(x>q.x0&&x<q.x1&&z>q.z0&&z<q.z1&&inPoly(x,z,q.o)) return Math.min(hfAt(HF,x,z),-1.8);
-  if(x>594&&x<1006){ const d=z-qzF(x); if(d>0.4&&d<14) return Math.max(F.hub.quayTop,hfAt(HF,x,z)); if(d<=0.4&&d>-6) return -4.5; }
-  return hfAt(HF,x,z); }
+  for(const q of SMALLW) if(x>q.x0&&x<q.x1&&z>q.z0&&z<q.z1&&inPoly(x,z,q.o)) return Math.min(hAt(x,z),-1.8);
+  if(x>594&&x<1006){ const d=z-qzF(x); if(d>0.4&&d<14) return Math.max(F.hub.quayTop,hAt(x,z)); if(d<=0.4&&d>-6) return -4.5; }
+  return hAt(x,z); }
 function groundH(x,z){ if(inHub(x,z)) return F.hub.quayTop; return hfAt(GF,x,z); }
 const terrainMeshes=[];
 /* Ground detail: the 2024 photo gives the colour, a procedural grass layer adds blades and tufts close to the camera,
@@ -564,7 +568,7 @@ function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
 function buildTerrain(){
   const vr=IS_QUEST;
   for(const c of D.chunks.chunks){
-    const step=c.t==='hi'?(vr?6:4):c.t==='mid'?(vr?12:8):(vr?24:16);
+    const step=c.core?(vr?3:2):c.t==='hi'?(vr?6:4):c.t==='mid'?(vr?12:8):(vr?24:16);
     const nx=Math.max(2,Math.round(c.w/step)), nz=Math.max(2,Math.round(c.h/step));
     const pos=[],uv=[],idx=[];
     for(let j=0;j<=nz;j++) for(let i=0;i<=nx;i++){ const x=c.x+c.w*i/nx, z=c.z+c.h*j/nz; pos.push(x,surfaceH(x,z),z); uv.push(i/nx,1-j/nz); }
@@ -688,7 +692,7 @@ function buildBridges(){
     g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0,1,0),d.normalize()))); g.translate(a.x,a.y,a.z); arr.push(g); };
   for(const br of D.objects.bridges){
     const P=br.p.map(([x,z])=>new V3(x,0,z)); const upperReach=P[0].x>1347;
-    const lvl=upperReach?10.2:0; const over=br.d.map((d,i)=>{ const p=P[i]; return hfAt(HF,p.x,p.z)<=lvl-4; });
+    const lvl=upperReach?10.2:0; const over=br.d.map((d,i)=>{ const p=P[i]; return hAt(p.x,p.z)<=lvl-4; });
     const ov=br.d.filter((d,i)=>over[i]).sort((a,b)=>a-b);
     let deck=ov.length?ov[Math.floor(ov.length*0.25)]:br.deck; if(deck<lvl+8.5) deck=lvl+10.3; // the survey predates the new 9.1 m bridges
     const arch=ov.length&&ov[ov.length-1]>deck+6&&/secondary|primary|tertiary/.test(br.kind);
@@ -743,7 +747,7 @@ function buildTrees(){
     const h=(Math.sin(X*12.9898+Z*78.233)*43758.5453)%1, hh=Math.abs(h);
     let v=T[i*5+4]?3:(H>17&&hh<0.35?2:(H<9?1:0));
     const w=v===2?clamp(H*0.3,3,7):v===3?clamp(H*0.42,3,9):clamp(H*0.62,3.5,15);
-    pos[k*3]=X; pos[k*3+1]=Math.min(G,hfAt(HF,X,Z))-0.3; pos[k*3+2]=Z; size[k*2]=w*1.08; size[k*2+1]=H*1.05+0.6; vari[k*2]=v; vari[k*2+1]=0.8+hh*0.22; k++; }
+    pos[k*3]=X; pos[k*3+1]=Math.min(G,hAt(X,Z))-0.3; pos[k*3+2]=Z; size[k*2]=w*1.08; size[k*2+1]=H*1.05+0.6; vari[k*2]=v; vari[k*2+1]=0.8+hh*0.22; k++; }
   geo.setAttribute('aPos',new THREE.InstancedBufferAttribute(pos.subarray(0,k*3),3));
   geo.setAttribute('aSize',new THREE.InstancedBufferAttribute(size.subarray(0,k*2),2));
   geo.setAttribute('aVar',new THREE.InstancedBufferAttribute(vari.subarray(0,k*2),2));
@@ -1461,7 +1465,7 @@ function mergeStatic(root,dyn,skip){
 }
 function build(){
   const T0=performance.now(), tm=n=>{ if(TEST) console.warn('BUILD '+n+' '+(performance.now()-T0).toFixed(0)+'ms'); };
-  HF=smoothBanks(decodeHF(D.height)); GF=decodeHF(D.ground); MB=D.route_base; tm('hf');
+  HF=smoothBanks(decodeHF(D.height)); if(D.height_core) HC=smoothBanks(decodeHF(D.height_core)); GF=decodeHF(D.ground); MB=D.route_base; tm('hf');
   buildModels(); tm('models'); buildTerrain(); tm('terrain'); buildWater(); buildTrees(); tm('trees'); buildBuildings(); tm('buildings'); buildContainers(); buildQuayWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
   // sky reflections only where they belong: water, glass and the painted barge
   WATER_MAT.envMap=ENV; WATER_MAT.envMapIntensity=0.16; WATER_MAT.needsUpdate=true;
