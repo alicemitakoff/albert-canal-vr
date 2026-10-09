@@ -181,6 +181,22 @@ body.hidden-ui .chrome,body.hidden-ui #labels{opacity:0;visibility:hidden}
 #vrBig small{font:400 20px var(--sans);color:#33475f}
 #vrBig[hidden]{display:none}
 body.quest #act{display:none}
+/* live data panel */
+.live{width:320px;max-width:calc(100vw - 32px);padding:10px 12px 10px;pointer-events:auto}
+.live .hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.live .t{font:700 16px/1.1 var(--sans);color:var(--ivory);display:flex;align-items:center;gap:8px}
+.live .lt{font:400 13px var(--sans);color:var(--mist)}
+.ldot{width:9px;height:9px;border-radius:50%;background:#22f08f;box-shadow:0 0 0 0 rgba(34,240,143,.6);animation:lp 1.6s ease-out infinite;display:inline-block}
+.ldot.off{background:#ffb21e;animation:none}
+@keyframes lp{0%{box-shadow:0 0 0 0 rgba(34,240,143,.55)}80%{box-shadow:0 0 0 9px rgba(34,240,143,0)}100%{box-shadow:0 0 0 0 rgba(34,240,143,0)}}
+.lrow{display:flex;justify-content:space-between;gap:10px;margin-top:8px;font:400 14px/1.3 var(--sans)}
+.lk{color:var(--mist)} .lv{color:var(--ivory);font-weight:700;text-align:right}
+.lbar{height:6px;border-radius:3px;background:rgba(255,255,255,.14);margin-top:7px;overflow:hidden}
+.lbar i{display:block;height:100%;width:0;background:#22f08f;transition:width .6s}
+.lsrc{margin-top:7px;font:400 12px var(--sans);color:var(--faint)}
+.live.collapsed .lbody{display:none}
+@media (max-width:820px){ .live{width:240px} }
+@media (max-width:560px){ .live{display:none} }
 /* guided checkpoints and the end card */
 .act{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);transform:translateX(-50%);width:min(400px,calc(100vw - 32px));padding:14px 18px 18px;text-align:center;border:1px solid var(--hair);z-index:4;pointer-events:auto}
 .act[hidden],.endc[hidden]{display:none}
@@ -250,6 +266,15 @@ body.hidden-ui .restore{display:flex}
       <div class="hd"><span class="t">Antwerp to Genk</span><span><button class="linkbtn" id="miniOpen">Open map</button><button class="linkbtn" id="miniFold" aria-label="Fold map">Fold</button></span></div>
       <canvas id="miniCv" width="600" height="340" aria-label="Route overview with the barge position"></canvas>
       <div class="ft"><span id="miniKm">km 50.8</span><span>88 km · 6 locks · +55 m</span></div>
+    </section>
+    <section class="live panel" id="live" aria-label="Live data">
+      <div class="hd"><span class="t"><i class="ldot"></i>Live now <span id="liveT" class="lt">connecting…</span></span><button class="linkbtn" id="liveFold">Fold</button></div>
+      <div class="lbody">
+        <div class="lrow"><span class="lk">Weather at the lock</span><span class="lv" id="liveW">…</span></div>
+        <div class="lrow"><span class="lk">Belgian grid, renewables</span><span class="lv" id="liveG">…</span></div>
+        <div class="lbar"><i id="liveBar"></i></div>
+        <div class="lsrc">Open‑Meteo · Elia open data · refreshed every 5 min</div>
+      </div>
     </section>
   </div>
 
@@ -786,7 +811,7 @@ function buildTurbines(){
     const spinner=new THREE.Mesh(new THREE.SphereGeometry(1.9,16,10),white); spinner.scale.set(1,1,1.5); rotor.add(spinner);
     for(let i=0;i<3;i++){ const b=new THREE.Mesh(bladeG,white); b.scale.setScalar(Rr/47); b.rotation.z=i*2*Math.PI/3; rotor.add(b); }
     grp.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
-    rotor.userData.speed=0.9+((t.x*13)%7)/20; turbines.push(rotor); scene.add(grp);
+    rotor.userData.speed=0.9+((t.x*13)%7)/20; rotor.userData.radius=(t.rotor||80)/2; turbines.push(rotor); scene.add(grp);
   }
 }
 function buildPower(){
@@ -1125,7 +1150,7 @@ function buildLabels(){
 let labelsOn=true;
 const _v=new V3(); let _ui=null, _uiT=0;
 function uiRects(){ if(document.body.classList.contains('hidden-ui')) return []; const n=performance.now(); if(_ui&&n-_uiT<400) return _ui; _uiT=n;
-  _ui=['.brand','.toolrow','#mini','#story','#viewSeg','.zoom','.timeline','#act','#endc'].map(q=>document.querySelector(q)).filter(e=>e&&!e.hidden&&e.getClientRects().length)
+  _ui=['.brand','.toolrow','#mini','#live','#story','#viewSeg','.zoom','.timeline','#act','#endc'].map(q=>document.querySelector(q)).filter(e=>e&&!e.hidden&&e.getClientRects().length)
     .map(e=>{ const r=e.getBoundingClientRect(); return {x0:r.left-6,x1:r.right+6,y0:r.top-6,y1:r.bottom+6}; }).filter(r=>r.x1-r.x0>20); return _ui; }
 function updateLabels(t){
   const W=window.innerWidth, H=window.innerHeight, vid=VIEWS[cam.v].id; const vis=[];
@@ -1355,8 +1380,9 @@ function drawVRPanel(t){
     c.font='400 36px Arial,sans-serif'; c.fillStyle='#ffffff'; wrapText(c,'One swap of about 30 minutes at Kwaadmechelen replaced hours on a charger. Pack A stays behind to charge for the next barge.',W-112).slice(0,3).forEach((l,k)=>c.fillText(l,56,240+k*50));
     vrPrompt(c,W,'Pull the trigger to replay'); vrTex.needsUpdate=true; return; }
   c.fillStyle='#7cc8ff'; c.font='700 28px Arial,sans-serif'; c.fillText('Step '+(i+1)+' of '+CH.length+'      Time-lapse ×'+ch.tl,56,78);
-  c.fillStyle='#ffffff'; c.font='700 62px Arial,sans-serif'; c.fillText(ch.h,52,160);
-  c.font='400 35px Arial,sans-serif'; c.fillStyle='#ffffff'; wrapText(c,ch.b,W-112).slice(0,4).forEach((l,k)=>c.fillText(l,56,222+k*48));
+  { const L=liveSummary(); if(L.t){ c.textAlign='right'; c.font='700 24px Arial,sans-serif'; c.fillStyle='#22f08f'; c.fillText('● LIVE '+L.t.slice(0,5),W-56,78); c.font='400 22px Arial,sans-serif'; c.fillStyle='#c5d3e4'; c.fillText([L.w,L.g?'grid renewables '+L.g:''].filter(Boolean).join('   ·   ').replace(/ · /g,', '),W-56,112); c.textAlign='left'; } }
+  c.fillStyle='#ffffff'; c.font='700 62px Arial,sans-serif'; c.fillText(ch.h,52,170);
+  c.font='400 35px Arial,sans-serif'; c.fillStyle='#ffffff'; wrapText(c,ch.b,W-112).slice(0,4).forEach((l,k)=>c.fillText(l,56,230+k*48));
   if(waiting){ vrPrompt(c,W,'Pull the trigger: '+waiting.btn); vrTex.needsUpdate=true; return; }
   const soc=socAt(t); c.fillStyle='rgba(255,255,255,.14)'; c.fillRect(56,478,520,12); c.fillStyle=soc<30?'#ff3b30':soc<60?'#ffb21e':'#22f08f'; c.fillRect(56,478,520*soc/100,12);
   c.fillStyle='#c5d3e4'; c.font='700 26px Arial,sans-serif'; c.fillText('Pack on board: '+(t<43.6?'A':'C'),56,462); c.fillStyle='#ffffff'; c.font='700 34px Arial,sans-serif'; c.fillText(Math.round(soc)+'%',600,492);
@@ -1443,6 +1469,39 @@ addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT') return; const k=e
   else if(/^[1-5]$/.test(k)) setView(+k-1); });
 
 /* ============================================================
+   14b. Live data: weather at the lock (Open-Meteo) and the Belgian grid (Elia), every 5 minutes
+   ============================================================ */
+const LIVE={ok:false};
+const compass=d=>['N','NE','E','SE','S','SW','W','NW'][Math.round(((d%360)+360)%360/45)%8];
+async function liveJSON(u){ const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw new Error(r.status); return r.json(); }
+async function refreshLive(){
+  const E='https://opendata.elia.be/api/explore/v2.1/catalog/datasets/';
+  const [w,wind,sun,load]=await Promise.allSettled([
+    liveJSON('https://api.open-meteo.com/v1/forecast?latitude=51.099&longitude=5.105&current=temperature_2m,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation,is_day&wind_speed_unit=ms&timezone=Europe%2FBrussels'),
+    liveJSON(E+'ods086/records?where=realtime%20is%20not%20null&order_by=datetime%20desc&limit=20&select=datetime,realtime'),
+    liveJSON(E+'ods087/records?where=realtime%20is%20not%20null%20and%20region%3D%22Belgium%22&order_by=datetime%20desc&limit=1&select=datetime,realtime'),
+    liveJSON(E+'ods001/records?where=totalload%20is%20not%20null&order_by=datetime%20desc&limit=1&select=datetime,totalload')]);
+  if(w.status==='fulfilled'){ const c=w.value.current; LIVE.temp=c.temperature_2m; LIVE.wind=c.wind_speed_10m; LIVE.dir=c.wind_direction_10m; LIVE.cloud=c.cloud_cover; LIVE.rain=c.precipitation; LIVE.time=c.time; LIVE.ok=true; }
+  if(wind.status==='fulfilled'&&wind.value.results.length){ const R=wind.value.results, t0=R[0].datetime; LIVE.windMW=R.filter(r=>r.datetime===t0).reduce((a,r)=>a+r.realtime,0); LIVE.gridTime=t0; }
+  if(sun.status==='fulfilled'&&sun.value.results.length) LIVE.solarMW=sun.value.results[0].realtime;
+  if(load.status==='fulfilled'&&load.value.results.length) LIVE.loadMW=load.value.results[0].totalload;
+  // the wind turbines turn at the measured wind speed (stopped below 3 m/s cut-in, tip speed ratio about 7)
+  if(LIVE.wind!=null) for(const r of turbines){ const R=r.userData.radius||45; r.userData.speed=LIVE.wind<3?0.05:Math.min(1.6,7*Math.min(LIVE.wind,13)/R); }
+  drawLive(); hudDirty=true;
+}
+function liveSummary(){ const out={};
+  if(LIVE.temp!=null) out.w=Math.round(LIVE.temp)+'°C · wind '+LIVE.wind.toFixed(1)+' m/s '+compass(LIVE.dir)+(LIVE.rain>0?' · rain':LIVE.cloud>70?' · cloudy':LIVE.cloud<25?' · clear':'');
+  const ren=(LIVE.windMW||0)+(LIVE.solarMW||0);
+  if(LIVE.windMW!=null){ out.g=(ren/1000).toFixed(1)+' GW'+(LIVE.loadMW?' · '+Math.round(100*ren/LIVE.loadMW)+'% of demand':''); out.share=LIVE.loadMW?Math.min(100,100*ren/LIVE.loadMW):null; }
+  if(LIVE.time) out.t=LIVE.time.slice(11,16)+' Brussels';
+  return out; }
+function drawLive(){ const s=liveSummary();
+  $('liveW').textContent=s.w||'not available'; $('liveG').textContent=s.g||'not available'; $('liveT').textContent=s.t||'offline';
+  $('liveBar').style.width=(s.share||0)+'%'; document.querySelector('#live .ldot').classList.toggle('off',!LIVE.ok); }
+$('liveFold').onclick=()=>{ const m=$('live'); m.classList.toggle('collapsed'); $('liveFold').textContent=m.classList.contains('collapsed')?'Show':'Fold'; };
+function startLive(){ refreshLive().catch(()=>drawLive()); setInterval(()=>refreshLive().catch(()=>{}),300000); }
+
+/* ============================================================
    15. Build and loop
    ============================================================ */
 function matSig(m){ const c=x=>x?x.getHexString():'-', t=x=>x?x.uuid:'-';
@@ -1478,7 +1537,7 @@ function build(){
   { const models=new Set([hub,lock,barge,moored,traffic,rig,sky,...realCranes]); const rot=new Set(turbines);
     mergeStatic(scene,/^merged$/,o=>models.has(o)||rot.has(o)||(o.material&&(o.material.isShaderMaterial||o.material.isSpriteMaterial||(o.material.map&&o.material.isMeshLambertMaterial)))); }
   tm('merged');
-  setView(0); applyTime(0); started=true; last=performance.now();
+  setView(0); applyTime(0); started=true; last=performance.now(); if(!TEST||params.has('live')) startLive();
   if(TEST){ seek(parseFloat(params.get('t'))); if(params.has('cp')){ const c=CP.find(c=>Math.abs(c.t-tNow)<0.05); if(c){ cpNext=CP.indexOf(c); arrive(c); } } else if(params.has('end')){ tNow=T_END; finish(); } setPaused(true); if(params.has('v')) setView(+params.get('v')); if(params.has('d')) cam.g.dist=+params.get('d'); if(params.has('az')) cam.g.az=+params.get('az'); if(params.has('el')) cam.g.el=+params.get('el'); if(params.has('hide')) setHidden(true); if(params.has('min')) $('storyFold').click(); if(params.has('map')) openMap(); }
 }
 function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
