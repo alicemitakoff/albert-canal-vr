@@ -332,6 +332,13 @@ body.hidden-ui .restore{display:flex}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Sky.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
+<div id="diag" style="position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:50;display:none;padding:18px 20px;border-radius:14px;background:#5a0f12;color:#fff;font:400 18px/1.45 Arial,sans-serif;box-shadow:0 10px 40px rgba(0,0,0,.5)"></div>
+<script>
+window.__diag=function(msg){ try{ const d=document.getElementById('diag'); d.style.display='block'; d.innerHTML='<b>Something went wrong</b><br>'+String(msg).replace(/</g,'&lt;')+'<br><span style="opacity:.75;font-size:15px">Please read this message to Claude.</span>'; }catch(e){} };
+window.addEventListener('error',e=>window.__diag((e.message||'Error')+(e.filename?' ('+e.filename.split('/').pop()+':'+e.lineno+')':'')));
+window.addEventListener('unhandledrejection',e=>window.__diag('Promise: '+(e.reason&&(e.reason.message||e.reason.name)||e.reason)));
+setTimeout(()=>{ const L=document.getElementById('load'); if(L&&L.isConnected) window.__diag('Still loading after 3 minutes: '+(document.getElementById('loadTxt')||{}).textContent); },180000);
+</script>
 <script>
 'use strict';
 /* ============================================================
@@ -461,7 +468,8 @@ let hubGLTF=null, lockGLTF=null;
 gltfL.load('assets/models/hub.gltf.json',g=>{ hubGLTF=g; });
 gltfL.load('assets/models/lock.gltf.json',g=>{ lockGLTF=g; });
 let fontsReady=false; (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>{ fontsReady=true; hudDirty=true; });
-manager.onLoad=()=>{ try{ build(); }catch(e){ console.error(e); $('loadTxt').textContent='Error: '+e.message; return; }
+manager.onError=u=>window.__diag('Could not load '+u);
+manager.onLoad=()=>{ try{ build(); }catch(e){ console.error(e); $('loadTxt').textContent='Error: '+e.message; window.__diag('Build: '+e.message); return; }
   const L=$('load'); L.style.opacity=0; setTimeout(()=>L.remove(),900); };
 
 /* ============================================================
@@ -1348,7 +1356,7 @@ function vrPrompt(c,W,txt){ c.font='700 40px Arial,sans-serif'; const w=c.measur
   const a=0.88+0.12*Math.sin(performance.now()/260); c.fillStyle='rgba(255,255,255,'+a+')'; rr(c,x,y,w,96,48); c.fill();
   c.fillStyle='#061a33'; c.textAlign='center'; c.fillText(txt,W/2,y+62); c.textAlign='left'; }
 function placeVR(){
-  const v=VIEWS[cam.v]; vrDolly=0;
+  const v=VIEWS[cam.v]; vrDolly=0; panelSnap=true;
   if(v.type==='fps'){ barge.add(rig); rig.position.set(0,9.65,-15.6); rig.rotation.set(0,0,0); }
   else { scene.add(rig); const tg=v.target(); const az=v.az+(v.rel?bargeHeading():0); const d=Math.min(v.dist,v.id==='over'?700:160);
     rig.position.set(tg.x+Math.sin(az)*d, Math.max(surfaceH(tg.x+Math.sin(az)*d,tg.z+Math.cos(az)*d)+2,tg.y+Math.sin(v.el)*d*0.6), tg.z+Math.cos(az)*d);
@@ -1357,13 +1365,19 @@ function placeVR(){
 function vrFollow(dt){ const v=VIEWS[cam.v]; if(v.id!=='follow') return; const tg=v.target(); const az=v.az+bargeHeading(); const d=150+vrDolly;
   const goal=new V3(tg.x+Math.sin(az)*d, tg.y+Math.sin(v.el)*d*0.55, tg.z+Math.cos(az)*d); rig.position.lerp(goal,1-Math.exp(-dt*0.8));
   rig.rotation.y=lerp(rig.rotation.y,Math.atan2(rig.position.x-tg.x,rig.position.z-tg.z),1-Math.exp(-dt*0.8)); }
+let panelSnap=true, snapN=0;
+/* the caption panel and the map ride with the viewer (children of the rig) and only follow head turns */
 function placePanels(dt){
-  const head=new V3(), q=new THREE.Quaternion(); camera.getWorldPosition(head); camera.getWorldQuaternion(q);
+  if(vrPanel.parent!==rig){ rig.add(vrPanel); rig.add(vrMap); panelSnap=true; }
+  rig.updateMatrixWorld(true);
+  const head=camera.position, q=camera.quaternion;          // headset pose relative to the rig
+  if(panelSnap){ dt=10; if(++snapN>=3){ panelSnap=false; snapN=0; } }
   const f=new V3(0,0,-1).applyQuaternion(q); f.y=0; if(f.lengthSq()<1e-4) return; f.normalize();
+  const k=1-Math.exp(-dt*2.2);
   const goal=head.clone().addScaledVector(f,1.55); goal.y=head.y-0.48;
-  vrPanel.position.lerp(goal,1-Math.exp(-dt*2.2)); vrPanel.lookAt(head.x,head.y+0.25,head.z);
+  vrPanel.position.lerp(goal,k); vrPanel.lookAt(rig.localToWorld(new V3(head.x,head.y+0.25,head.z)));
   const right=new V3(-f.z,0,f.x); const mg=head.clone().addScaledVector(f,1.4).addScaledVector(right,-0.85); mg.y=head.y-0.12;
-  vrMap.position.lerp(mg,1-Math.exp(-dt*2.2)); vrMap.lookAt(head.x,head.y,head.z);
+  vrMap.position.lerp(mg,k); vrMap.lookAt(rig.localToWorld(head.clone()));
 }
 let snapReady=true; const btnPrev={};
 function pollXR(dt){ const s=renderer.xr.getSession(); if(!s) return;
@@ -1381,15 +1395,16 @@ const vrBtn=$('vrBtn');
 const framed=(()=>{ try{ return window.top!==window.self; }catch(e){ return true; } })();
 function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
   // inside a frame the headset browser may block VR: offer the page on its own
-  if(framed&&IS_QUEST){ vrBtn.disabled=false; vrBtn.textContent='Open for VR'; vrBtn.onclick=()=>window.open(location.href,'_blank'); } }
+  if(framed){ vrBtn.disabled=false; vrBtn.textContent='Open VR link'; vrBtn.title='alicemitakoff.github.io/albert-canal-vr'; vrBtn.onclick=()=>window.open('https://alicemitakoff.github.io/albert-canal-vr/','_blank'); } }
 (async()=>{ if(!navigator.xr){ vrUnavailable('Open this page in the Meta Quest browser'); return; }
   try{ if(!await navigator.xr.isSessionSupported('immersive-vr')){ vrUnavailable('VR is not available here'); return; } }catch(e){ vrUnavailable('VR is blocked in this frame'); return; }
   vrBtn.disabled=false; vrBtn.textContent='Enter VR';
   vrBtn.onclick=async()=>{ const cur=renderer.xr.getSession(); if(cur){ cur.end(); return; }
-    let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ if(framed){ window.open(location.href,'_blank'); } else { vrBtn.textContent='VR failed: '+e.name; } return; }
+    let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ window.__diag('Enter VR refused: '+e.name+' '+e.message); return; }
     try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(1); }catch(e){}
     sun.shadow.mapSize.set(1024,1024); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
-    await renderer.xr.setSession(s); vrBtn.textContent='Exit VR'; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; placeVR(); hudDirty=true;
+    try{ await renderer.xr.setSession(s); }catch(e){ window.__diag('Starting VR failed: '+e.name+' '+e.message); try{ s.end(); }catch(_){} return; }
+    vrBtn.textContent='Exit VR'; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; placeVR(); panelSnap=true; hudDirty=true;
     s.addEventListener('end',()=>{ vrBtn.textContent='Enter VR'; vrPanel.visible=false; vrMap.visible=false; scene.add(rig); rig.position.set(0,0,0); rig.rotation.set(0,0,0); camera.position.set(0,0,0); setView(cam.v,true); }); };
 })();
 
@@ -1450,8 +1465,9 @@ function build(){
 }
 function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
 addEventListener('resize',resize); resize();
-let xrFrame=0;
-renderer.setAnimationLoop(now=>{
+let xrFrame=0, loopErr=false;
+renderer.setAnimationLoop(now=>{ try{ frame(now); }catch(e){ if(!loopErr){ loopErr=true; window.__diag('Frame: '+e.message+' '+((e.stack||'').split('\n')[1]||'')); } } });
+function frame(now){
   if(!started){ renderer.render(scene,camera); return; }
   const dt=clamp((now-last)/1000,0,0.1); last=now;
   if(!paused&&!waiting&&!ended){ let nt=tNow+dt*speed;
@@ -1469,5 +1485,5 @@ renderer.setAnimationLoop(now=>{
   if(!xr){ updateLabels(tNow); updateHUD(tNow); }
   if(Math.floor(now/100)!==Math.floor((now-dt*1000)/100)) drawMaps(kmOf(barge.position));
   renderer.render(scene,camera);
-});
+}
 </script>
