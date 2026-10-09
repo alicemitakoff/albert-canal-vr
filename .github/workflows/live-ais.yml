@@ -1,0 +1,39 @@
+name: Live barge positions (AIS)
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: live-ais
+  cancel-in-progress: false
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Previous data
+        run: |
+          mkdir -p live
+          git fetch origin live-data --depth=1 && git show origin/live-data:live/ships.json > live/ships.json || echo '{"ships":[]}' > live/ships.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install websockets==12.0
+      - name: Listen to AIS for 45 seconds
+        env:
+          AISSTREAM_KEY: ${{ secrets.AISSTREAM_KEY }}
+        run: python tools/ais_fetch.py
+      - name: Publish to the live-data branch (one commit, replaced each time)
+        run: |
+          cp live/ships.json /tmp/ships.json
+          git config user.name "live-ais bot"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout --orphan live-data-new
+          git rm -rq --cached .
+          mkdir -p live && cp /tmp/ships.json live/ships.json
+          git add live/ships.json
+          git commit -qm "Live AIS positions"
+          git push -f origin HEAD:live-data
