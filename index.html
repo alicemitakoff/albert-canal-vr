@@ -1005,11 +1005,13 @@ function buildBatteryFX(){
 }
 function packAPct(t){ return t<29.2?socAt(t):packAState(t).p; }
 function packCPct(t){ return t<43.6?100:socAt(t); }
-const pctCol=p=>p<30?'#ff3b30':p<60?'#ffb21e':'#22f08f';
+/* charge colours used everywhere: red at 20% or less, orange below 60%, green from 60% */
+const pctCol=p=>p<=20?'#ff3b30':p<60?'#ffb21e':'#22f08f';
+const pctColor=p=>p<=20?BCOL.low:p<60?BCOL.chg:BCOL.full;
 function updateBatteryFX(t,dt){
   fxTime.value+=dt; const fps=VIEWS[cam.v].type==='fps', xr=renderer.xr.isPresenting;
-  const st=[{f:fxA,col:t<29.2?BCOL.low:BCOL.chg,k:t<60?1:0.5,beam:t<47,pct:packAPct(t),state:packAState(t).v},
-            {f:fxC,col:BCOL.full,k:t>=10?1:0.5,beam:t>=11,pct:packCPct(t),state:t<36.2?'Fully charged':t<43.6?'On the crane':'Powering the barge'}];
+  const st=[{f:fxA,col:pctColor(packAPct(t)),k:t<60?1:0.5,beam:t<47,pct:packAPct(t),state:packAState(t).v},
+            {f:fxC,col:pctColor(packCPct(t)),k:t>=10?1:0.5,beam:t>=11,pct:packCPct(t),state:t<36.2?'Fully charged':t<43.6?'On the crane':'Powering the barge'}];
   for(const f of FX){ if(f.o.dim){ f.shell.material.uniforms.c.value.copy(BCOL.full); f.shell.material.uniforms.k.value=0.42; } }
   const head=camera.getWorldPosition(new V3());
   for(const s of st){ const f=s.f; if(!f) continue; f.shell.material.uniforms.c.value.copy(s.col); f.shell.material.uniforms.k.value=s.k;
@@ -1131,9 +1133,9 @@ function buildLabels(){
   const spr=nodes['h:Crane_spreader'];
   addLabel({id:'barge',n:'CMA CGM e-barge',s:'135 m · 180 TEU · battery electric',col:'#fff',from:0,to:126,hide:['bridge'],when:t=>t<13.5||(t>=46&&t<60)||t>=110,at:()=>barge.localToWorld(new V3(0,13,-100)),
     info:{e:'The vessel',h:'CMA CGM e-barge',p:'A container barge built for the Albert Canal, carrying CMA CGM boxes between Antwerp and Genk on swappable battery power.',d:[['Length','135 m'],['Beam','11.45 m'],['Draught','3.0 m'],['Capacity','180 TEU'],['Battery bay','2 slots, 1 in use'],['Pack','20 ft · 1.96 MWh']]}});
-  addLabel({id:'packA',max:1400,batt:()=>BA,n:'Pack A',s:t=>packAState(t).v,pct:packAPct,col:t=>t<29.2?'var(--low)':'var(--amber)',from:0,to:47,at:()=>wp(BA,0,3.4,0),
+  addLabel({id:'packA',max:1400,batt:()=>BA,n:'Pack A',s:t=>packAState(t).v,pct:packAPct,col:t=>pctCol(packAPct(t)),from:0,to:47,at:()=>wp(BA,0,3.4,0),
     info:{e:'Battery as a service',h:'Swappable battery pack',p:'A 20 ft container battery leased per use. Packs are pooled at the hubs and charged ashore, so the barge never waits for a charge.',d:[['Energy','1.96 MWh'],['Charge time','about 2.5 h'],['Swap time','about 15 min per pack'],['Rule','CESNI ES-TRIN 10.11, fixed slot behind a steel bulkhead']]}});
-  addLabel({id:'packC',max:1400,batt:()=>BH1,n:'Pack C',s:t=>t<36.2?'Fully charged':t<43.6?'On the crane':'Powering the barge',pct:packCPct,col:'var(--full)',from:13.5,to:126,when:t=>t<79||t>=104,at:()=>wp(BH1,0,3.4,0),
+  addLabel({id:'packC',max:1400,batt:()=>BH1,n:'Pack C',s:t=>t<36.2?'Fully charged':t<43.6?'On the crane':'Powering the barge',pct:packCPct,col:t=>pctCol(packCPct(t)),from:13.5,to:126,when:t=>t<79||t>=104,at:()=>wp(BH1,0,3.4,0),
     info:{e:'Battery as a service',h:'Charged pack',p:'Each hub keeps charged packs in its docking station so a barge can leave with a full one straight away.',d:[['Energy','1.96 MWh'],['State','100%']]}});
   addLabel({id:'crane',max:950,n:'Swap crane',s:'Lifts the 20 ft packs',from:19,to:23.5,at:()=>wp(spr,0,18,0),
     info:{e:'NatPower Marine hub',h:'Swap crane',p:'A rail-mounted gantry over the berth moves packs between the barge and the docking station.',d:[['Span','21 m over the water'],['Moves','20 per hour at BCTN']]}});
@@ -1258,7 +1260,7 @@ function updateHUD(t){
   [...chaps.children].forEach((b,j)=>{ const s=CH[j].t, e=j<CH.length-1?CH[j+1].t:T_END; b.firstChild.style.width=(clamp((t-s)/(e-s),0,1)*100)+'%'; });
   $('time').textContent=fmt(t)+' / '+fmt(T_END);
   const soc=socAt(t); $('socV').textContent=Math.round(soc)+'%'; $('socT').textContent=t<43.6?'Pack A':'Pack C';
-  const sb=$('socBar'); sb.style.width=soc+'%'; sb.style.background=soc<50?'var(--amber)':'var(--full)';
+  const sb=$('socBar'); sb.style.width=soc+'%'; sb.style.background=pctCol(soc);
   const a=packAState(t); $('st2v').textContent=a.v; $('st2d').style.background=a.c; $('st2Bar').style.width=a.p+'%';
   if(t>=79){ $('st2k').textContent='Lock chamber'; const lv=hermite(WC,t,k=>k.v); $('st2v').textContent=(t<84?'Sealing':'+'+lv.toFixed(1)+' m'); $('st2d').style.background='var(--water)'; $('st2Bar').style.width=(lv/10*100)+'%'; $('st2Bar').style.background='var(--water)'; }
   else { $('st2k').textContent='Pack A ashore'; $('st2Bar').style.background='var(--amber)'; }
@@ -1397,7 +1399,7 @@ function drawVRPanel(t){
   c.fillStyle='#ffffff'; c.font='700 62px Arial,sans-serif'; c.fillText(ch.h,52,170);
   c.font='400 35px Arial,sans-serif'; c.fillStyle='#ffffff'; wrapText(c,ch.b,W-112).slice(0,4).forEach((l,k)=>c.fillText(l,56,230+k*48));
   if(waiting){ vrPrompt(c,W,'Pull the trigger: '+waiting.btn); vrTex.needsUpdate=true; return; }
-  const soc=socAt(t); c.fillStyle='rgba(255,255,255,.14)'; c.fillRect(56,478,520,12); c.fillStyle=soc<30?'#ff3b30':soc<60?'#ffb21e':'#22f08f'; c.fillRect(56,478,520*soc/100,12);
+  const soc=socAt(t); c.fillStyle='rgba(255,255,255,.14)'; c.fillRect(56,478,520,12); c.fillStyle=pctCol(soc); c.fillRect(56,478,520*soc/100,12);
   c.fillStyle='#c5d3e4'; c.font='700 26px Arial,sans-serif'; c.fillText('Pack on board: '+(t<43.6?'A':'C'),56,462); c.fillStyle='#ffffff'; c.font='700 34px Arial,sans-serif'; c.fillText(Math.round(soc)+'%',600,492);
   c.fillStyle='#c5d3e4'; c.font='400 25px Arial,sans-serif'; c.fillText('You are at: '+VIEWS[cam.v].vr+'   ·   B or Y: change place   ·   A or X: map   ·   Stick: turn   ·   Grip: pause',56,560);
   vrTex.needsUpdate=true;
@@ -1577,7 +1579,8 @@ function mergeStatic(root,dyn,skip){
 }
 function build(){
   const T0=performance.now(), tm=n=>{ if(TEST) console.warn('BUILD '+n+' '+(performance.now()-T0).toFixed(0)+'ms'); };
-  HF=smoothBanks(decodeHF(D.height)); if(D.height_core) HC=smoothBanks(decodeHF(D.height_core)); GF=decodeHF(D.ground); MB=D.route_base; tm('hf');
+  HF=decodeHF(D.height); if(D.height_core) HC=decodeHF(D.height_core);   // banks are shaped offline from the exact canal outline (scripts/data/banks.py)
+  GF=decodeHF(D.ground); MB=D.route_base; tm('hf');
   buildModels(); tm('models'); buildTerrain(); tm('terrain'); buildWater(); buildTrees(); tm('trees'); buildBuildings(); tm('buildings'); buildContainers(); buildQuayWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
   // sky reflections only where they belong: water, glass and the painted barge
   WATER_MAT.envMap=ENV; WATER_MAT.envMapIntensity=0.16; WATER_MAT.needsUpdate=true;
