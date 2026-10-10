@@ -1495,11 +1495,11 @@ async function refreshLive(){
     liveJSON('https://api.open-meteo.com/v1/forecast?latitude=51.099&longitude=5.105&current=temperature_2m,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation,is_day&wind_speed_unit=ms&timezone=Europe%2FBrussels'),
     liveJSON(E+'ods086/records?where=realtime%20is%20not%20null&order_by=datetime%20desc&limit=20&select=datetime,realtime'),
     liveJSON(E+'ods087/records?where=realtime%20is%20not%20null%20and%20region%3D%22Belgium%22&order_by=datetime%20desc&limit=1&select=datetime,realtime'),
-    liveJSON(E+'ods001/records?where=totalload%20is%20not%20null&order_by=datetime%20desc&limit=1&select=datetime,totalload')]);
+    liveJSON(E+'ods002/records?where=measured%20is%20not%20null&order_by=datetime%20desc&limit=1&select=datetime,measured')]);
   if(w.status==='fulfilled'){ const c=w.value.current; LIVE.temp=c.temperature_2m; LIVE.wind=c.wind_speed_10m; LIVE.dir=c.wind_direction_10m; LIVE.cloud=c.cloud_cover; LIVE.rain=c.precipitation; LIVE.time=c.time; LIVE.ok=true; }
   if(wind.status==='fulfilled'&&wind.value.results.length){ const R=wind.value.results, t0=R[0].datetime; LIVE.windMW=R.filter(r=>r.datetime===t0).reduce((a,r)=>a+r.realtime,0); LIVE.gridTime=t0; }
   if(sun.status==='fulfilled'&&sun.value.results.length) LIVE.solarMW=sun.value.results[0].realtime;
-  if(load.status==='fulfilled'&&load.value.results.length) LIVE.loadMW=load.value.results[0].totalload;
+  if(load.status==='fulfilled'&&load.value.results.length) LIVE.loadMW=load.value.results[0].measured;
   // the wind turbines turn at the measured wind speed (stopped below 3 m/s cut-in, tip speed ratio about 7)
   if(LIVE.wind!=null) for(const r of turbines){ const R=r.userData.radius||45; r.userData.speed=LIVE.wind<3?0.05:Math.min(1.6,7*Math.min(LIVE.wind,13)/R); }
   drawLive(); hudDirty=true;

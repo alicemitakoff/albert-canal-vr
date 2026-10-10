@@ -360,8 +360,8 @@ void ASwapExperience::RefreshLive()
 			for (auto& v : *R) if (v->AsObject()->GetStringField(TEXT("datetime")) == T0) S += v->AsObject()->GetNumberField(TEXT("realtime")); WindMW = S; } });
 	GetJson(E + TEXT("ods087/records?where=realtime%20is%20not%20null%20and%20region%3D%22Belgium%22&order_by=datetime%20desc&limit=1&select=datetime,realtime"),
 		[this](TSharedPtr<FJsonObject> O) { const TArray<TSharedPtr<FJsonValue>>* R; if (O->TryGetArrayField(TEXT("results"), R) && R->Num()) SolarMW = (*R)[0]->AsObject()->GetNumberField(TEXT("realtime")); });
-	GetJson(E + TEXT("ods001/records?where=totalload%20is%20not%20null&order_by=datetime%20desc&limit=1&select=datetime,totalload"),
-		[this](TSharedPtr<FJsonObject> O) { const TArray<TSharedPtr<FJsonValue>>* R; if (O->TryGetArrayField(TEXT("results"), R) && R->Num()) LoadMW = (*R)[0]->AsObject()->GetNumberField(TEXT("totalload")); });
+	GetJson(E + TEXT("ods002/records?where=measured%20is%20not%20null&order_by=datetime%20desc&limit=1&select=datetime,measured"),
+		[this](TSharedPtr<FJsonObject> O) { const TArray<TSharedPtr<FJsonValue>>* R; if (O->TryGetArrayField(TEXT("results"), R) && R->Num()) LoadMW = (*R)[0]->AsObject()->GetNumberField(TEXT("measured")); });
 	GetJson(FString::Printf(TEXT("https://raw.githubusercontent.com/alicemitakoff/albert-canal-vr/live-data/live/ships.json?t=%lld"), FDateTime::UtcNow().ToUnixTimestamp()),
 		[this](TSharedPtr<FJsonObject> O) { const TArray<TSharedPtr<FJsonValue>>* S; if (O->TryGetArrayField(TEXT("ships"), S)) {
 			const int64 Now = FDateTime::UtcNow().ToUnixTimestamp(); int32 n = 0; for (auto& v : *S) { double seen = 0; if (v->AsObject()->TryGetNumberField(TEXT("seen"), seen) && Now - seen < 3 * 3600) n++; } Vessels = n; } });
