@@ -390,6 +390,7 @@ const $=id=>document.getElementById(id);
 const IS_QUEST=/OculusBrowser|Quest/i.test(navigator.userAgent);
 const params=new URLSearchParams(location.search);
 const TEST=params.has('t');
+const FLAT=params.has('flat');   // ?flat: on the Quest, show the normal screen version without the big Enter VR banner
 
 /* Geodesy: local frame around km 51.0 of the Albert Canal (same as the Unreal georeference).
    X east, Z south, Y up in metres above the lower canal level (20.0 m TAW). */
@@ -1457,14 +1458,14 @@ function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
 (async()=>{ if(!navigator.xr){ vrUnavailable('Open this page in the Meta Quest browser'); return; }
   try{ if(!await navigator.xr.isSessionSupported('immersive-vr')){ vrUnavailable('VR is not available here'); return; } }catch(e){ vrUnavailable('VR is blocked in this frame'); return; }
   vrBtn.disabled=false; vrBtn.textContent='Enter VR';
-  if(IS_QUEST){ document.body.classList.add('quest'); $('vrBig').hidden=false; $('vrBig').onclick=()=>vrBtn.onclick(); }
+  if(IS_QUEST&&!FLAT){ document.body.classList.add('quest'); $('vrBig').hidden=false; $('vrBig').onclick=()=>vrBtn.onclick(); }
   vrBtn.onclick=async()=>{ const cur=renderer.xr.getSession(); if(cur){ cur.end(); return; }
     let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ window.__diag('Enter VR refused: '+e.name+' '+e.message); return; }
     try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(1); }catch(e){}
     sun.shadow.mapSize.set(1024,1024); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
     try{ await renderer.xr.setSession(s); }catch(e){ window.__diag('Starting VR failed: '+e.name+' '+e.message); try{ s.end(); }catch(_){} return; }
     vrBtn.textContent='Exit VR'; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; setView(1); panelSnap=true; hudDirty=true; $('vrBig').hidden=true;
-    s.addEventListener('end',()=>{ vrBtn.textContent='Enter VR'; if(IS_QUEST) $('vrBig').hidden=false; vrPanel.visible=false; vrMap.visible=false; scene.add(rig); rig.position.set(0,0,0); rig.rotation.set(0,0,0); camera.position.set(0,0,0); setView(cam.v,true); }); };
+    s.addEventListener('end',()=>{ vrBtn.textContent='Enter VR'; if(IS_QUEST&&!FLAT) $('vrBig').hidden=false; vrPanel.visible=false; vrMap.visible=false; scene.add(rig); rig.position.set(0,0,0); rig.rotation.set(0,0,0); camera.position.set(0,0,0); setView(cam.v,true); }); };
 })();
 
 /* ============================================================
