@@ -1378,7 +1378,7 @@ addEventListener('resize',()=>{ if(big.open) sizeBig(); });
    ============================================================ */
 const vrC=document.createElement('canvas'); vrC.width=1280; vrC.height=600; const vctx=vrC.getContext('2d');
 const vrTex=new THREE.CanvasTexture(vrC); vrTex.encoding=THREE.sRGBEncoding; vrTex.anisotropy=4;
-const vrPanel=new THREE.Mesh(new THREE.PlaneGeometry(1.12,0.525),new THREE.MeshBasicMaterial({map:vrTex,transparent:true,depthTest:false,fog:false,toneMapped:false}));
+const vrPanel=new THREE.Mesh(new THREE.PlaneGeometry(0.96,0.45),new THREE.MeshBasicMaterial({map:vrTex,transparent:true,depthTest:false,fog:false,toneMapped:false}));
 vrPanel.renderOrder=20; vrPanel.visible=false; scene.add(vrPanel);
 const vrMapC=document.createElement('canvas'); vrMapC.width=1200; vrMapC.height=680;
 const vrMapTex=new THREE.CanvasTexture(vrMapC); vrMapTex.encoding=THREE.sRGBEncoding;
@@ -1433,9 +1433,11 @@ function placePanels(dt){
   if(panelSnap){ dt=10; if(++snapN>=3){ panelSnap=false; snapN=0; } }
   const f=new V3(0,0,-1).applyQuaternion(q); f.y=0; if(f.lengthSq()<1e-4) return; f.normalize();
   const k=1-Math.exp(-dt*2.2);
-  const goal=head.clone().addScaledVector(f,1.55); goal.y=head.y-0.48;
-  vrPanel.position.lerp(goal,k); vrPanel.lookAt(rig.localToWorld(new V3(head.x,head.y+0.25,head.z)));
-  const right=new V3(-f.z,0,f.x); const mg=head.clone().addScaledVector(f,1.4).addScaledVector(right,-0.85); mg.y=head.y-0.12;
+  const right=new V3(-f.z,0,f.x);
+  // story panel up and to the left, out of the line of sight
+  const goal=head.clone().addScaledVector(f,1.7).addScaledVector(right,-0.95); goal.y=head.y+0.42;
+  vrPanel.position.lerp(goal,k); vrPanel.lookAt(rig.localToWorld(head.clone()));
+  const mg=head.clone().addScaledVector(f,1.4).addScaledVector(right,0.85); mg.y=head.y-0.12;   // map on the right
   vrMap.position.lerp(mg,k); vrMap.lookAt(rig.localToWorld(head.clone()));
 }
 let snapReady=true; const btnPrev={};
