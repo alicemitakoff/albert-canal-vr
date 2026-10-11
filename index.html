@@ -1016,7 +1016,7 @@ function updateBatteryFX(t,dt){
   for(const f of FX){ if(f.o.dim){ f.shell.material.uniforms.c.value.copy(BCOL.full); f.shell.material.uniforms.k.value=0.42; } }
   const head=camera.getWorldPosition(new V3());
   for(const s of st){ const f=s.f; if(!f) continue; f.shell.material.uniforms.c.value.copy(s.col); f.shell.material.uniforms.k.value=s.k;
-    const showBeam=s.beam&&!fps; f.beam.visible=f.ring.visible=showBeam;
+    const showBeam=false; f.beam.visible=f.ring.visible=false;   // the light beam above the packs was confusing: off (colour and tag stay)
     if(showBeam){ f.beam.material.uniforms.c.value.copy(s.col); const d=head.distanceTo(f.node.getWorldPosition(_fxv)); f.beam.material.uniforms.k.value=clamp(0.7+d/600,0.7,1.1);
       const ph=(fxTime.value*0.55)%1; const sc=1.6+ph*9; f.ring.scale.set(sc,1,sc); f.ring.material.color.copy(s.col); f.ring.material.opacity=(1-ph)*0.85; }
     const tag=f.tag; tag.s.visible=xr&&labelsOn&&s.k>=1&&(f===fxA?t<60:t>=11);

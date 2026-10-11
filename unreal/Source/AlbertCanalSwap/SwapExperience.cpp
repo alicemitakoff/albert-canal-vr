@@ -239,6 +239,7 @@ void ASwapExperience::PlaceFx(FFx& F, AActor* Pack, const FLinearColor& C, float
 	const float Top = Ctr.Z + Ext.Z;
 	if (F.Beam)
 	{
+		bBeam = false;   // the light beam above the packs was confusing: off (colour and tag stay)
 		F.Beam->SetVisibility(bBeam);
 		if (bBeam) { F.Beam->SetWorldLocationAndRotation(FVector(Ctr.X, Ctr.Y, Top + 2600), FRotator::ZeroRotator); F.Beam->SetWorldScale3D(FVector(2.6f, 2.6f, 52.f));
 			if (!F.MBeam && (GlowMaterial || ColourMaterial)) { F.MBeam = UMaterialInstanceDynamic::Create(GlowMaterial ? GlowMaterial : ColourMaterial, this); F.Beam->SetMaterial(0, F.MBeam); }
