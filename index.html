@@ -695,6 +695,21 @@ function buildContainers(){
   }
   im.count=k; im.castShadow=im.receiveShadow=true; scene.add(im);
 }
+function buildDetails(){
+  // parked trailers and vehicles on the terminal apron (boxes found in the LiDAR surface), with the photo colour
+  const TR=D.objects.trailers||[]; if(TR.length){
+    const g=new THREE.BoxGeometry(1,1,1); g.translate(0,0.5,0);
+    const m=triplanar(new THREE.MeshStandardMaterial({color:'#ffffff',roughness:0.75,metalness:0.08,map:null}),TEX.ribs,0.9,0.6);
+    const im=new THREE.InstancedMesh(g,m,TR.length); const M=new THREE.Matrix4(), q=new THREE.Quaternion(), sc=new V3(), p=new V3(), col=new THREE.Color();
+    TR.forEach(([x,z,g0,yaw,L,W,h,hex],i)=>{ q.setFromAxisAngle(new V3(0,1,0),-yaw); sc.set(L,h,W); p.set(x,Math.min(g0,hAt(x,z))+0.9,z); M.compose(p,q,sc); im.setMatrixAt(i,M);
+      col.set(hex); const hsl={}; col.getHSL(hsl); col.setHSL(hsl.h,Math.min(0.5,hsl.s*1.4),clamp(hsl.l*1.05,0.25,0.85)); im.setColorAt(i,col); });
+    im.castShadow=im.receiveShadow=true; scene.add(im); }
+  // lamp posts along the quay road
+  const LA=D.objects.lamps||[]; if(LA.length){
+    const pole=new THREE.CylinderGeometry(0.09,0.13,10,8); pole.translate(0,5,0); const head=new THREE.BoxGeometry(1.4,0.22,0.5); head.translate(0.6,10,0);
+    const mp=new THREE.MeshStandardMaterial({color:'#8d939a',roughness:0.6,metalness:0.4}), mh=new THREE.MeshStandardMaterial({color:'#d9dde2',roughness:0.4,metalness:0.3});
+    for(const [x,z,g0] of LA){ const y=Math.min(g0,hAt(x,z)); const a=new THREE.Mesh(pole,mp), b=new THREE.Mesh(head,mh); a.position.set(x,y,z); b.position.set(x,y,z); b.rotation.y=-Math.atan2(0.2453,0.9694)+Math.PI/2; a.castShadow=b.castShadow=true; scene.add(a); scene.add(b); } }
+}
 function buildQuayWall(){
   const qz=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2]; const pts=[];
   for(let X=596;X<=1004;X+=4) pts.push(new V3(X,0,qz(X)+0.4));
@@ -772,7 +787,7 @@ function treeAtlas(){
   const t=new THREE.CanvasTexture(c); t.anisotropy=4; return t;
 }
 function buildTrees(){
-  const T=D.objects.trees; const n=T.length/5;
+  const T=D.objects.trees, BU=D.objects.bushes||[]; const n=T.length/5+BU.length/4;
   const geo=new THREE.InstancedBufferGeometry(); const pl=new THREE.PlaneGeometry(1,1); pl.translate(0,0.5,0);
   geo.index=pl.index; geo.attributes.position=pl.attributes.position; geo.attributes.uv=pl.attributes.uv;
   const pos=new Float32Array(n*3), size=new Float32Array(n*2), vari=new Float32Array(n*2); let k=0;
@@ -781,6 +796,9 @@ function buildTrees(){
     let v=T[i*5+4]?3:(H>17&&hh<0.35?2:(H<9?1:0));
     const w=v===2?clamp(H*0.3,3,7):v===3?clamp(H*0.42,3,9):clamp(H*0.62,3.5,15);
     pos[k*3]=X; pos[k*3+1]=Math.min(G,hAt(X,Z))-0.3; pos[k*3+2]=Z; size[k*2]=w*1.08; size[k*2+1]=H*1.05+0.6; vari[k*2]=v; vari[k*2+1]=0.8+hh*0.22; k++; }
+  for(let i=0;i<BU.length/4;i++){ const X=BU[i*4], Z=BU[i*4+1], G=BU[i*4+2], H=BU[i*4+3]; if(inHub(X,Z)||inLock(X,Z,-12)) continue;   // hedges and bushes from the survey
+    const hh=Math.abs((Math.sin(X*12.9898+Z*78.233)*43758.5453)%1);
+    pos[k*3]=X+(hh-0.5)*1.2; pos[k*3+1]=Math.min(G,hAt(X,Z))-0.2; pos[k*3+2]=Z+(hh*7%1-0.5)*1.2; size[k*2]=clamp(H*1.6,2.2,4.5); size[k*2+1]=H*1.1+0.3; vari[k*2]=1; vari[k*2+1]=0.72+hh*0.2; k++; }
   geo.setAttribute('aPos',new THREE.InstancedBufferAttribute(pos.subarray(0,k*3),3));
   geo.setAttribute('aSize',new THREE.InstancedBufferAttribute(size.subarray(0,k*2),2));
   geo.setAttribute('aVar',new THREE.InstancedBufferAttribute(vari.subarray(0,k*2),2));
@@ -877,6 +895,8 @@ function buildModels(){
   hub.add(hubGLTF.scene); index(hubGLTF.scene,'h:');
   lock.add(lockGLTF.scene); index(lockGLTF.scene,'l:');
   barge.add(bargeGLTF.scene); index(bargeGLTF.scene,'b:');
+  // battery bay moved one container row forward (into the first 40 ft row, which is removed), so the packs sit well inboard on the deck
+  bargeGLTF.scene.traverse(o=>{ if(/^Box40_0(0[1-9]|1[0-2])$/.test(o.name)) o.visible=false; else if(/^Battery_[AB]$/.test(o.name)){ o.position.z-=9.9; o.position.x=0; } });   // pack centred in the opened bay
   // the road bridge over the lower lock heads: no piers standing in the three navigation openings
   lock.updateMatrixWorld(true);
   lock.traverse(o=>{ if(!o.isMesh||!/Lock_bridge_downstream/.test(o.name)) return; const g=o.geometry, P=g.attributes.position;
@@ -1584,7 +1604,7 @@ function build(){
   const T0=performance.now(), tm=n=>{ if(TEST) console.warn('BUILD '+n+' '+(performance.now()-T0).toFixed(0)+'ms'); };
   HF=decodeHF(D.height); if(D.height_core) HC=decodeHF(D.height_core);   // banks are shaped offline from the exact canal outline (scripts/data/banks.py)
   GF=decodeHF(D.ground); MB=D.route_base; tm('hf');
-  buildModels(); tm('models'); buildTerrain(); tm('terrain'); buildWater(); buildTrees(); tm('trees'); buildBuildings(); tm('buildings'); buildContainers(); buildQuayWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
+  buildModels(); tm('models'); buildTerrain(); tm('terrain'); buildWater(); buildTrees(); tm('trees'); buildBuildings(); tm('buildings'); buildContainers(); buildDetails(); buildQuayWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
   // sky reflections only where they belong: water, glass and the painted barge
   WATER_MAT.envMap=ENV; WATER_MAT.envMapIntensity=0.16; WATER_MAT.needsUpdate=true;
   scene.traverse(o=>{ if(!o.isMesh) return; (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m&&m.isMeshStandardMaterial&&m.transparent){ m.envMap=ENV; m.envMapIntensity=1.0; m.needsUpdate=true; } }); });
