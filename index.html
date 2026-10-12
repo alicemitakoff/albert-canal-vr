@@ -1285,7 +1285,7 @@ function setupSwap(){
   ['h:Crane_sign_1','h:Crane_sign_-1'].forEach(n=>{ if(nodes[n]) base[n]=nodes[n].position.clone(); });
   // the bollards along the push-tow chamber walls sink into their housings while the barge passes (lowered 66 s to 70 s, raised 110 s to 114 s)
   { const f=nodes['l:Lock_wall_fittings']; const meshes=[]; if(f) f.traverse(o=>{ if(o.isMesh) meshes.push(o); });
-    base.boll=meshes.find(o=>{ o.geometry.computeBoundingBox(); const b=o.geometry.boundingBox; return b.max.y-b.min.y<1.5; })||null; if(base.boll) base.bollY=base.boll.position.y; }
+    base.boll=meshes.find(o=>{ o.geometry.computeBoundingBox(); const b=o.geometry.boundingBox; return b.max.y-b.min.y<1.5; })||null; if(base.boll){ base.bollY=base.boll.position.y; base.boll.visible=false; } }   // the wall bollards are hidden altogether (requested)
   base.gd=nodes['l:Gate_PushTow_Down'].position.y; base.gu=nodes['l:Gate_PushTow_Up'].position.y; base.wc=nodes['l:Water_Chamber_PushTow'].position.y;
 }
 function applyTime(t){
