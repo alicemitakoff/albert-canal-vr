@@ -489,7 +489,7 @@ WATER_MAT.onBeforeCompile=sh=>{ // world-space UVs so the ripples have the same 
    3. Loading
    ============================================================ */
 const manager=new THREE.LoadingManager();
-manager.onProgress=(u,l,t)=>{ if(TEST&&l%20===0) console.warn('LOAD '+l+'/'+t+' '+performance.now().toFixed(0)); const p=Math.round(100*l/t); $('bar').firstElementChild.style.width=p+'%'; $('loadTxt').textContent=p+'%  ·  '+l+' of '+t+' files'; };
+manager.onProgress=(u,l,t)=>{ if(TEST&&l%20===0) console.warn('LOAD '+l+'/'+t+' '+performance.now().toFixed(0)); const p=Math.round(100*l/t); const bar=$('bar'), lt=$('loadTxt'); if(bar) bar.firstElementChild.style.width=p+'%'; if(lt) lt.textContent=p+'%  ·  '+l+' of '+t+' files'; };
 const gltfL=new THREE.GLTFLoader(manager), texL=new THREE.TextureLoader(manager), jsonL=new THREE.FileLoader(manager); jsonL.setResponseType('json');
 const D={}; const nodes={};
 const want=['scene/chunks','scene/height','scene/height_core','scene/ground','scene/water','scene/objects','scene/groundmask','map/route','map/route_base'];
