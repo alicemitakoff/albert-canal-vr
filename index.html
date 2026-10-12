@@ -185,6 +185,7 @@ body.quest #act{display:none}
 .live{width:320px;max-width:calc(100vw - 32px);padding:10px 12px 10px;pointer-events:auto}
 .live .hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .live .t{font:700 16px/1.1 var(--sans);color:var(--ivory);display:flex;align-items:center;gap:8px}
+.lbtn{background:none;border:0;padding:0;font:inherit;color:inherit;text-align:right;cursor:pointer;text-decoration:underline dotted rgba(255,255,255,.45);text-underline-offset:3px}
 .live .lt{font:400 13px var(--sans);color:var(--mist)}
 .ldot{width:9px;height:9px;border-radius:50%;background:#22f08f;box-shadow:0 0 0 0 rgba(34,240,143,.6);animation:lp 1.6s ease-out infinite;display:inline-block}
 .ldot.off{background:#ffb21e;animation:none}
@@ -278,7 +279,7 @@ body.hidden-ui .restore{display:flex}
         <div class="lrow"><span class="lk">Weather at the lock</span><span class="lv" id="liveW">…</span></div>
         <div class="lrow"><span class="lk">Belgian grid, renewables</span><span class="lv" id="liveG">…</span></div>
         <div class="lbar"><i id="liveBar"></i></div>
-        <div class="lrow"><span class="lk">Vessels on the corridor (AIS)</span><span class="lv" id="liveS">…</span></div>
+        <div class="lrow"><span class="lk">Vessels on the corridor (AIS)</span><button class="lv lbtn" id="liveS" type="button" title="Show them on the map">…</button></div>
         <button class="lvessel" id="liveV" hidden><span class="vd"></span><span class="vt"><b id="liveVn"></b><span id="liveVs"></span></span><span class="vgo">Show on map</span></button>
         <div class="lsrc">Open‑Meteo · Elia open data · AIS via aisstream.io</div>
       </div>
@@ -1330,7 +1331,8 @@ function drawRoute(ctx,view,opt){
     ctx.font=`600 ${(opt.full?13:11)*dpr}px Arial,sans-serif`; const label=opt.full?Hh.name:Hh.name.split(' ')[0]; const tw=ctx.measureText(label).width;
     const lx=clamp(x-tw/2,8*dpr,W-tw-8*dpr), ly=opt.full?y-15*dpr:(y>H*0.6?y-14*dpr:y+24*dpr); ctx.fillStyle='rgba(6,26,51,.82)'; ctx.fillRect(lx-6*dpr,ly-13*dpr,tw+12*dpr,18*dpr); ctx.fillStyle='#ffffff'; ctx.fillText(label,lx,ly); }
   // live vessels from AIS
-  if(AIS.list.length){ for(const v of AIS.list){ const [x,y]=P(v.lon,v.lat); if(x<-10||y<-10||x>W+10||y>H+10) continue;
+  if(opt.full) big.hits=[];
+  if(AIS.list.length){ for(const v of AIS.list){ const [x,y]=P(v.lon,v.lat); if(x<-10||y<-10||x>W+10||y>H+10) continue; if(opt.full) big.hits.push({x,y,v});
       ctx.beginPath(); ctx.arc(x,y,3.4*dpr,0,7); ctx.fillStyle='#22f08f'; ctx.fill(); ctx.lineWidth=1.2*dpr; ctx.strokeStyle='#061a33'; ctx.stroke();
       if(opt.full&&s>0.9&&v.name){ ctx.font=`700 ${11*dpr}px Arial,sans-serif`; ctx.fillStyle='rgba(6,26,51,.85)'; ctx.fillText(v.name,x+7*dpr+1,y-5*dpr+1); ctx.fillStyle='#22f08f'; ctx.fillText(v.name,x+7*dpr,y-5*dpr); } } }
   // barge marker
@@ -1356,7 +1358,14 @@ $('mapFit').onclick=()=>{ const v=big.view; fitWhole(); const g=big.view; big.vi
 ['stNight','stSat'].forEach(id=>$(id).onclick=()=>{ mapStyle=id==='stNight'?'night':'sat'; $('stNight').setAttribute('aria-pressed',mapStyle==='night'); $('stSat').setAttribute('aria-pressed',mapStyle==='sat'); });
 big.cv.addEventListener('pointerdown',e=>{ big.drag={x:e.clientX,y:e.clientY}; big.cv.setPointerCapture(e.pointerId); big.goal=null; });
 big.cv.addEventListener('pointermove',e=>{ if(!big.drag) return; const d=big.dpr; big.view.cx-=(e.clientX-big.drag.x)*d/big.view.s; big.view.cy-=(e.clientY-big.drag.y)*d/big.view.s; big.drag={x:e.clientX,y:e.clientY}; });
-big.cv.addEventListener('pointerup',()=>big.drag=null);
+big.cv.addEventListener('pointerdown',e=>{ big.down={x:e.clientX,y:e.clientY}; });
+big.cv.addEventListener('pointerup',e=>{ big.drag=null; if(!big.down||Math.hypot(e.clientX-big.down.x,e.clientY-big.down.y)>6||!big.hits) return;
+  const r=big.cv.getBoundingClientRect(), d=big.dpr, mx=(e.clientX-r.left)*d, my=(e.clientY-r.top)*d; let best=null, bd=14*d;
+  for(const h of big.hits){ const dd=Math.hypot(h.x-mx,h.y-my); if(dd<bd){ bd=dd; best=h; } }
+  if(best) showVessel(best.v,{getBoundingClientRect:()=>({left:e.clientX,top:e.clientY,width:0,height:0})}); });
+function showVessel(v,anchor){ const now=Date.now()/1000, hubLL=[5.10167,51.09796], km=Math.hypot((v.lon-hubLL[0])*69.96,(v.lat-hubLL[1])*111.25);
+  showInfo({e:'Live AIS · real vessel',h:v.name||('MMSI '+v.mmsi),p:'A real vessel on the Antwerp to Genk corridor, from its AIS transponder. Positions are collected every 10 minutes; coverage is good at Antwerp and thin east of it.',
+    d:[['Speed',v.sog!=null?v.sog.toFixed(1)+' knots':'not reported'],['Heading',aisHeading(v)!=null?Math.round(aisHeading(v))+'°':'not reported'],['Length',v.len?v.len+' m':'not reported'],['Destination',v.dest||'not reported'],['From the hub',Math.round(km)+' km'],['Last report',Math.max(0,Math.round((now-v.seen)/60))+' min ago'],['MMSI',v.mmsi]]},anchor); }
 big.cv.addEventListener('wheel',e=>{ e.preventDefault(); big.goal=null; const r=big.cv.getBoundingClientRect(), d=big.dpr; const mx=(e.clientX-r.left)*d, my=(e.clientY-r.top)*d;
   const wx=(mx-big.cv.width/2)/big.view.s+big.view.cx, wy=(my-big.cv.height/2)/big.view.s+big.view.cy; const ns=clamp(big.view.s*Math.exp(-e.deltaY*0.0015),0.12,3.2);
   big.view.s=ns; big.view.cx=wx-(mx-big.cv.width/2)/ns; big.view.cy=wy-(my-big.cv.height/2)/ns; },{passive:false});
@@ -1544,6 +1553,7 @@ function drawLive(){ const s=liveSummary();
     $('liveVs').textContent=(best.sog!=null?best.sog.toFixed(1)+' kn':'')+' · '+Math.round(dkm(best))+' km from the hub'+(best.dest?' · to '+best.dest:'')+' · '+Math.max(0,Math.round((Date.now()/1000-best.seen)/60))+' min ago';
     $('liveV').onclick=()=>{ openMap(); flyTo(best.lon,best.lat,1.4); }; } else $('liveV').hidden=true;
   $('liveS').textContent=AIS.err?'waiting for data':(AIS.updated?(nS+' on the corridor'+(nIn?', '+nIn+' in view':'')+' · '+aisAge()):'…'); document.querySelector('#live .ldot').classList.toggle('off',!LIVE.ok); }
+$('liveS').onclick=()=>{ if(AIS.list.length){ openMap(); const v=AIS.list.slice().sort((a,b)=>b.seen-a.seen)[0]; flyTo(v.lon,v.lat,0.9); } };
 $('liveFold').onclick=()=>{ const m=$('live'); m.classList.toggle('collapsed'); $('liveFold').textContent=m.classList.contains('collapsed')?'Show':'Fold'; };
 /* live vessels: positions collected every 10 minutes from AIS by a GitHub job, moved on between updates at their reported speed */
 const AIS={list:[],objs:new Map(),updated:null};
