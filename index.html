@@ -1190,8 +1190,8 @@ function buildModels(){
   // battery bay: a raised steel plate with hatching and the word BATTERY, so the slot reads as a deck position, not water
   // the bay is a dark steel well with a yellow safety border and a raised coaming, so the pack clearly stands in a slot and not on open deck
   { const c=document.createElement('canvas'); c.width=1024; c.height=1024; const x=c.getContext('2d');
-    x.fillStyle='#23272b'; x.fillRect(0,0,1024,1024);
-    x.save(); x.strokeStyle='rgba(255,255,255,.07)'; x.lineWidth=10; for(let i=-1024;i<2048;i+=96){ x.beginPath(); x.moveTo(i,0); x.lineTo(i+1024,1024); x.stroke(); } x.restore();
+    x.fillStyle='#7f8d93'; x.fillRect(0,0,1024,1024);
+    x.save(); x.strokeStyle='rgba(255,255,255,.10)'; x.lineWidth=10; for(let i=-1024;i<2048;i+=96){ x.beginPath(); x.moveTo(i,0); x.lineTo(i+1024,1024); x.stroke(); } x.restore();
     x.strokeStyle='#f2c200'; x.lineWidth=34; x.strokeRect(34,34,956,956);
     x.save(); x.strokeStyle='#f2c200'; x.lineWidth=18; x.setLineDash([54,42]); x.strokeRect(118,118,788,788); x.restore();           // dashed inner line marks the pack footprint
     x.fillStyle='#f2c200'; x.font='700 170px Arial,sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('BATTERY',512,440);
@@ -1205,8 +1205,8 @@ function buildModels(){
     const beam=(w,d,px,pz)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.55,d),[coam,coam,top,coam,coam,coam]); m.position.set(px,DK+0.35+0.275,-31.2+pz); m.castShadow=m.receiveShadow=true; bargeGLTF.scene.add(m); };
     beam(10.2,0.3,0,-6.15); beam(10.2,0.3,0,6.15); beam(0.3,12.6,-4.95,0); beam(0.3,12.6,4.95,0);
     // black rubber bearing pad and four twistlock cones under the pack corners (20 ft pack, 6.06 by 2.44 m)
-    const pad=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.12,9.4),new THREE.MeshStandardMaterial({color:'#111315',roughness:0.95})); pad.position.set(0,DK+0.35+0.06,-31.2); pad.receiveShadow=true; bargeGLTF.scene.add(pad);
-    for(const [dx,dz] of [[-2.0,-4.3],[2.0,-4.3],[-2.0,4.3],[2.0,4.3]]){ const k=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.2,0.3,10),top); k.position.set(dx,DK+0.35+0.12+0.15,-31.2+dz); k.castShadow=true; bargeGLTF.scene.add(k); } }
+    const pad=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.12,9.4),new THREE.MeshStandardMaterial({color:'#6d7a80',roughness:0.9})); pad.position.set(0,DK+0.35+0.06,-31.2); pad.receiveShadow=true; bargeGLTF.scene.add(pad);
+    }   // no twistlock cones on the pad (they read as blocks from the wheelhouse)
 
   // the road bridge over the lower lock heads: no piers standing in the three navigation openings
   lock.updateMatrixWorld(true);
