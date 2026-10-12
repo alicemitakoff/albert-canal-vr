@@ -617,6 +617,73 @@ function buildTerrain(){
     m.receiveShadow=true; m.castShadow=c.t!=='lo'; m.userData.chunk=c; scene.add(m); terrainMeshes.push(m);
   }
 }
+/* the wake: a soft V of ripples and stern foam that trails the barge while it moves, drawn as a translucent sheet just above the water */
+const WAKE={mesh:null,speed:0,last:null};
+function wakeTexture(){ const S=512, c=document.createElement('canvas'); c.width=S; c.height=S; const x=c.getContext('2d'); x.clearRect(0,0,S,S);
+  // u across (0 left, 1 right), v along (0 at the stern, 1 far behind)
+  const img=x.createImageData(S,S), d=img.data;
+  for(let j=0;j<S;j++) for(let i=0;i<S;i++){ const u=(i+0.5)/S*2-1, v=(j+0.5)/S; const spread=0.12+v*0.95;   // the V opens behind the stern
+      const edge=Math.exp(-Math.pow((Math.abs(u)-spread)/0.07,2));                                                   // the two diverging crests
+      const foam=Math.exp(-Math.pow(u/0.28,2))*Math.exp(-v*4.5);                                                      // propeller foam right behind the stern
+      const ripple=0.5+0.5*Math.sin(v*60-Math.abs(u)*12);
+      let a=(edge*0.55+foam*0.9)*(1-v)*(0.55+0.45*ripple); if(Math.abs(u)>spread+0.1) a=0;
+      const k=(j*S+i)*4; d[k]=235; d[k+1]=245; d[k+2]=250; d[k+3]=Math.min(255,a*255); }
+  x.putImageData(img,0,0); const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; return t; }
+function buildWake(){ const g=new THREE.PlaneGeometry(60,220,1,1); g.rotateX(-Math.PI/2); g.translate(0,0,110);   // the sheet starts at the stern (local z 0) and trails behind (+z)
+  const m=new THREE.MeshBasicMaterial({map:wakeTexture(),transparent:true,opacity:0,depthWrite:false,fog:true,toneMapped:false,blending:THREE.NormalBlending});
+  WAKE.mesh=new THREE.Mesh(g,m); WAKE.mesh.renderOrder=2; scene.add(WAKE.mesh); }
+function updateWake(dt){ const w=WAKE.mesh; if(!w) return; const p=barge.position;
+  // speed along the story timeline, so the wake looks the same at any frame rate
+  const a=new V3(hermite(BK,tNow,k=>k.p.x),0,hermite(BK,tNow,k=>k.p.z)), b=new V3(hermite(BK,tNow+0.1,k=>k.p.x),0,hermite(BK,tNow+0.1,k=>k.p.z));
+  WAKE.speed=lerp(WAKE.speed,paused?0:a.distanceTo(b)/0.1,1-Math.exp(-dt*3));
+  const k=clamp(WAKE.speed/25,0,1);                                                  // full wake under way, fading out as the barge slows at the hub and in the lock
+  w.material.opacity=0.55*k; w.visible=k>0.02; if(!w.visible) return;
+  w.position.set(p.x,0.06,p.z); w.rotation.y=barge.rotation.y;                     // the stern is at the barge origin, the wake trails behind it
+  w.scale.set(1,1,0.5+0.5*k); w.material.map.offset.y=(w.material.map.offset.y-dt*0.35*k)%1; }
+/* people: the helmsman in the wheelhouse and two hub operators on the quay (built in code, hi-vis, with a small idle motion) */
+const PEOPLE=[];
+function vestTexture(col){ const c=document.createElement('canvas'); c.width=256; c.height=256; const x=c.getContext('2d'); x.fillStyle=col; x.fillRect(0,0,256,256);
+  x.fillStyle='#d9d9d9'; x.fillRect(0,96,256,22); x.fillRect(0,150,256,22); x.fillStyle='#bfc3c8'; x.fillRect(0,104,256,6); x.fillRect(0,158,256,6);
+  const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; return t; }
+function makePerson(o){ // o: {vest, helmet, skin, trousers, radio, tablet, height}
+  const g=new THREE.Group(); const M=(c,r=0.7)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:0.02});
+  const skin=M(o.skin||'#d9a784',0.55), trous=M(o.trousers||'#2d3a52',0.85), boot=M('#1d1d1d',0.8), vest=new THREE.MeshStandardMaterial({map:vestTexture(o.vest||'#ff7a00'),roughness:0.75}), sleeve=M(o.sleeve||'#3a4150',0.8), hair=M('#3a2a1e',0.9);
+  const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.rotation.set(rx,ry,rz); m.castShadow=true; g.add(m); return m; };
+  // legs with knees and boots
+  const thigh=new THREE.CylinderGeometry(0.095,0.085,0.42,12); thigh.translate(0,-0.21,0); const shin=new THREE.CylinderGeometry(0.08,0.07,0.42,12); shin.translate(0,-0.21,0);
+  for(const sx of [-0.11,0.11]){ add(thigh,trous,sx,0.9,0); add(new THREE.SphereGeometry(0.085,12,10),trous,sx,0.48,0); add(shin,trous,sx,0.49,0);
+    const bt=new THREE.BoxGeometry(0.13,0.1,0.3); bt.translate(0,0.05,0.05); add(bt,boot,sx,0,0); }
+  // hips, torso, vest, shoulders
+  add(new THREE.CylinderGeometry(0.19,0.17,0.2,14),trous,0,0.98,0);
+  const torso=new THREE.CylinderGeometry(0.21,0.19,0.5,16); torso.translate(0,0.25,0); add(torso,vest,0,1.05,0);
+  add(new THREE.SphereGeometry(0.09,12,10),sleeve,-0.25,1.52,0); add(new THREE.SphereGeometry(0.09,12,10),sleeve,0.25,1.52,0);
+  // arms: upper and forearm, hands
+  const up=new THREE.CylinderGeometry(0.065,0.058,0.3,12); up.translate(0,-0.15,0); const fore=new THREE.CylinderGeometry(0.055,0.05,0.28,12); fore.translate(0,-0.14,0);
+  const armL=new THREE.Group(), armR=new THREE.Group(); armL.position.set(-0.27,1.5,0); armR.position.set(0.27,1.5,0); g.add(armL); g.add(armR);
+  const seg=(grp,geo,mat,y,rx)=>{ const m=new THREE.Mesh(geo,mat); m.position.y=y; m.rotation.x=rx; m.castShadow=true; grp.add(m); return m; };
+  seg(armL,up,sleeve,0,0); const fL=seg(armL,fore,sleeve,-0.3,0); const hL=seg(armL,new THREE.SphereGeometry(0.055,10,8),skin,-0.58,0);
+  seg(armR,up,sleeve,0,0); const fR=seg(armR,fore,sleeve,-0.3,0); const hR=seg(armR,new THREE.SphereGeometry(0.055,10,8),skin,-0.58,0);
+  armL.rotation.z=0.1; armR.rotation.z=-0.1;
+  if(o.radio){ armR.rotation.x=-0.5; fR.rotation.x=-1.6; hR.position.set(0,-0.42,-0.26); const rd=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.14,0.03),M('#111')); rd.position.set(0,-0.36,-0.3); armR.add(rd); const an=new THREE.Mesh(new THREE.CylinderGeometry(0.005,0.005,0.16,6),M('#111')); an.position.set(0,-0.22,-0.3); armR.add(an); }
+  if(o.tablet){ for(const [grp,f,h] of [[armL,fL,hL],[armR,fR,hR]]){ grp.rotation.x=-0.35; f.rotation.x=-1.4; h.position.set(0,-0.38,-0.27); }
+    const tb=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.02,0.2),M('#1a1a1a',0.4)); tb.position.set(0,1.1,0.36); tb.rotation.x=0.55; g.add(tb); const sc=new THREE.Mesh(new THREE.PlaneGeometry(0.26,0.16),new THREE.MeshBasicMaterial({color:'#9fd3ff'})); sc.position.set(0,1.112,0.36); sc.rotation.x=-Math.PI/2+0.55; g.add(sc); }
+  // neck, head, hair, helmet with rim and a dark visor
+  add(new THREE.CylinderGeometry(0.06,0.07,0.1,10),skin,0,1.6,0);
+  add(new THREE.SphereGeometry(0.115,20,16),skin,0,1.73,0);
+  add(new THREE.SphereGeometry(0.117,16,12,0,Math.PI*2,0,Math.PI*0.5),hair,0,1.735,0);
+  add(new THREE.SphereGeometry(0.135,20,14,0,Math.PI*2,0,Math.PI*0.6),M(o.helmet||'#ffffff',0.35),0,1.74,0);
+  add(new THREE.CylinderGeometry(0.165,0.165,0.018,20),M(o.helmet||'#ffffff',0.35),0,1.745,0);
+  add(new THREE.BoxGeometry(0.19,0.04,0.08),M('#222',0.3),0,1.735,0.13);
+  g.scale.setScalar(o.height||1); g.userData.idle=Math.random()*6.28; PEOPLE.push(g); return g; }
+function buildPeople(){
+  const root=bargeGLTF.scene; // helmsman at the wheelhouse console, looking over the bow
+  const helm=makePerson({vest:'#e8e80c',helmet:'#ffffff',radio:false,height:1.0}); helm.position.set(-0.6,9.6,-15.4); helm.rotation.y=Math.PI; root.add(helm);
+  // two hub operators on the quay beside the docking station, in hub coordinates
+  const hubRoot=nodes['h:Crane_structure'].parent;
+  const opA=makePerson({vest:'#ff7a00',helmet:'#ffffff',radio:true,height:1.02}); opA.position.set(-26,1.85,-16); opA.rotation.y=0.9; hubRoot.add(opA);
+  const opB=makePerson({vest:'#ff7a00',helmet:'#f2c200',tablet:true,height:0.97}); opB.position.set(24,1.85,-16.5); opB.rotation.y=-2.2; hubRoot.add(opB);
+}
+function updatePeople(dt){ const t=performance.now()/1000; for(const p of PEOPLE){ const k=p.userData.idle; p.rotation.z=Math.sin(t*0.9+k)*0.012; p.rotation.x=Math.sin(t*0.6+k*2)*0.008; } }
 function buildWater(){
   const mk=(polys,y)=>{ for(const p of polys){ const sh=new THREE.Shape(p.o.map(([x,z])=>new THREE.Vector2(x,-z)));
       for(const h of p.h) sh.holes.push(new THREE.Path(h.map(([x,z])=>new THREE.Vector2(x,-z))));
@@ -871,7 +938,9 @@ function buildTurbines(){
   const white=new THREE.MeshStandardMaterial({color:'#eef0ee',roughness:0.42,metalness:0.05});
   const bladeG=(()=>{ const s=new THREE.Shape(); s.moveTo(0,-1.6); s.quadraticCurveTo(3.6,8,1.1,46); s.lineTo(0.2,47); s.quadraticCurveTo(-0.6,10,-1.0,-1.6); s.lineTo(0,-1.6);
     const g=new THREE.ExtrudeGeometry(s,{depth:0.6,bevelEnabled:false,curveSegments:8}); g.translate(0,0,-0.3); return g; })();
-  for(const t of D.objects.turbines){
+  // the four turbines nearest the swap hub only: the full park of 14 crowds the view
+  const keep=D.objects.turbines.map((t,i)=>[Math.hypot(t.x-890,t.z-330),i]).sort((a,b)=>a[0]-b[0]).slice(0,4).map(a=>a[1]);
+  for(const [ti,t] of D.objects.turbines.entries()){ if(!keep.includes(ti)) continue;
     const grp=new THREE.Group(); grp.position.set(t.x,t.g,t.z);
     const H=t.hub, Rr=t.rotor/2;
     const tower=new THREE.Mesh(new THREE.CylinderGeometry(1.45,2.4,H,24,1,true),white); tower.position.y=H/2; grp.add(tower);
@@ -940,7 +1009,16 @@ function buildModels(){
   lock.add(lockGLTF.scene); index(lockGLTF.scene,'l:');
   barge.add(bargeGLTF.scene); index(bargeGLTF.scene,'b:');
   // battery bay moved one container row forward (into the first 40 ft row, which is removed), so the packs sit well inboard on the deck
-  bargeGLTF.scene.traverse(o=>{ if(/^Box40_0(0[1-9]|1[0-2])$/.test(o.name)) o.visible=false; else if(/^Battery_[AB]$/.test(o.name)){ o.position.z-=9.9; o.position.x=0; } });   // pack centred in the opened bay
+  bargeGLTF.scene.traverse(o=>{ if(/^Box40_0(0[1-9]|1[0-2])$/.test(o.name)) o.visible=false; else if(/^Battery_[AB]$/.test(o.name)){ o.position.z-=9.9; o.position.x=0; o.position.y+=0.35; } });   // pack centred in the opened bay
+  // battery bay: a raised steel plate with hatching and the word BATTERY, so the slot reads as a deck position, not water
+  { const c=document.createElement('canvas'); c.width=1024; c.height=1024; const x=c.getContext('2d');
+    x.fillStyle='#6f7478'; x.fillRect(0,0,1024,1024); x.strokeStyle='#f2c200'; x.lineWidth=26; x.strokeRect(40,40,944,944);
+    x.save(); x.beginPath(); x.rect(70,70,884,884); x.clip(); x.strokeStyle='rgba(242,194,0,.55)'; x.lineWidth=14; for(let i=-1024;i<2048;i+=120){ x.beginPath(); x.moveTo(i,0); x.lineTo(i+1024,1024); x.stroke(); } x.restore();
+    x.fillStyle='#4b5055'; x.fillRect(150,300,724,424); x.fillStyle='#ffffff'; x.font='700 150px Arial,sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('BATTERY',512,470); x.font='700 70px Arial,sans-serif'; x.fillText('SWAP SLOT A',512,610);
+    const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; t.anisotropy=8;
+    const plate=new THREE.Mesh(new THREE.BoxGeometry(9.6,0.35,12.0),[new THREE.MeshStandardMaterial({color:'#5a5f63',roughness:0.8}),new THREE.MeshStandardMaterial({color:'#5a5f63',roughness:0.8}),new THREE.MeshStandardMaterial({map:t,roughness:0.75}),new THREE.MeshStandardMaterial({color:'#5a5f63',roughness:0.8}),new THREE.MeshStandardMaterial({color:'#5a5f63',roughness:0.8}),new THREE.MeshStandardMaterial({color:'#5a5f63',roughness:0.8})]);
+    plate.position.set(0,0.8+0.175,-31.2); plate.receiveShadow=plate.castShadow=true; bargeGLTF.scene.add(plate); }
+
   // the road bridge over the lower lock heads: no piers standing in the three navigation openings
   lock.updateMatrixWorld(true);
   lock.traverse(o=>{ if(!o.isMesh||!/Lock_bridge_downstream/.test(o.name)) return; const g=o.geometry, P=g.attributes.position;
@@ -1662,7 +1740,7 @@ function build(){
   const T0=performance.now(), tm=n=>{ if(TEST) console.warn('BUILD '+n+' '+(performance.now()-T0).toFixed(0)+'ms'); };
   HF=decodeHF(D.height); if(D.height_core) HC=decodeHF(D.height_core);   // banks are shaped offline from the exact canal outline (scripts/data/banks.py)
   GF=decodeHF(D.ground); MB=D.route_base; tm('hf');
-  buildModels(); tm('models'); buildTerrain(); tm('terrain'); buildWater(); buildTrees(); tm('trees'); buildBuildings(); tm('buildings'); buildContainers(); buildDetails(); buildGroundCover(); buildRoads(); buildQuayWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
+  buildModels(); tm('models'); buildTerrain(); tm('terrain'); buildWater(); buildTrees(); tm('trees'); buildBuildings(); tm('buildings'); buildContainers(); buildDetails(); buildGroundCover(); buildRoads(); buildWake(); buildPeople(); buildQuayWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
   // sky reflections only where they belong: water, glass and the painted barge
   WATER_MAT.envMap=ENV; WATER_MAT.envMapIntensity=0.16; WATER_MAT.needsUpdate=true;
   scene.traverse(o=>{ if(!o.isMesh) return; (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m&&m.isMeshStandardMaterial&&m.transparent){ m.envMap=ENV; m.envMapIntensity=1.0; m.needsUpdate=true; } }); });
@@ -1688,7 +1766,7 @@ function frame(now){
     if(guided&&cpNext<CP.length&&nt>=CP[cpNext].t){ nt=CP[cpNext].t; arrive(CP[cpNext]); }
     if(nt>=T_END){ nt=T_END; finish(); }
     tNow=nt; }
-  applyTime(tNow); updateBatteryFX(tNow,dt); if(AIS.objs.size) updateAIS();
+  applyTime(tNow); updateBatteryFX(tNow,dt); updateWake(dt); updatePeople(dt); if(AIS.objs.size) updateAIS();
   const xr=renderer.xr.isPresenting;
   renderer.shadowMap.autoUpdate=!xr; if(xr&&((++xrFrame)%3===0)) renderer.shadowMap.needsUpdate=true;
   if(xr){ pollXR(dt); vrFollow(dt); placePanels(dt); vrPanel.visible=vrCaptions||!!waiting||ended; if((waiting||ended)&&Math.floor(now/120)!==Math.floor((now-dt*1000)/120)) hudDirty=true; if(Math.floor(now/250)!==Math.floor((now-dt*1000)/250)||hudDirty){ if(vrPanel.visible) drawVRPanel(tNow); if(vrMapOn&&MB){ drawRoute(vrMapC.getContext('2d'),(()=>{ const [x0,y0]=mapXY(4.25,51.31),[x1,y1]=mapXY(5.53,50.92); return {cx:(x0+x1)/2,cy:(y0+y1)/2,s:Math.min(1200/(x1-x0),680/(y1-y0))*0.95}; })(),{km:kmOf(barge.position),style:'night',dpr:2,full:true}); vrMapTex.needsUpdate=true; } hudDirty=false; } }
