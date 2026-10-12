@@ -784,8 +784,42 @@ function buildLogos(){
       const logo=new THREE.Mesh(new THREE.PlaneGeometry(W,H),logoMat); logo.position.z=0.02; g.add(logo);
       scene.add(g); } }
 }
+/* Wall material: concrete tone for ordinary buildings; for logistics halls a drawn facade in metres, so it is sharp at any distance:
+   vertical cladding panels, a dark plinth, a continuous glass band with mullions, a navy parapet trim, dock doors with black
+   dock shelters along the longest wall and personnel doors elsewhere. */
+function hallMaterial(){
+  const mat=triplanar(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.88,side:THREE.DoubleSide}),TEX.concrete,0.35,0.55);
+  const prev=mat.onBeforeCompile;
+  mat.onBeforeCompile=sh=>{ prev(sh);
+    sh.vertexShader='attribute vec2 aUvm; attribute vec2 aInfo; varying vec2 vUvm; varying vec2 vInfo;\n'+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\n vUvm=aUvm; vInfo=aInfo;');
+    sh.fragmentShader='varying vec2 vUvm; varying vec2 vInfo;\n'+sh.fragmentShader.replace(' diffuseColor.rgb*=mix(1.0,_t*1.18,triK);',` diffuseColor.rgb*=mix(1.0,_t*1.18,triK);
+ if(vInfo.y>0.5){
+  float u=vUvm.x, v=vUvm.y, H=vInfo.x; vec3 c=diffuseColor.rgb/mix(1.0,_t*1.18,triK);
+  if(vInfo.y>2.5){ c=vec3(0.10,0.20,0.42); }                                                     // parapet capping in navy
+  else {
+   float rib=smoothstep(0.0,0.07,fract(u))*smoothstep(1.0,0.93,fract(u)); c*=mix(0.84,1.0,rib);     // 1 m cladding panels
+   c*=1.0+(step(0.5,fract(u*0.25))-0.5)*0.04;
+   c=mix(vec3(0.22,0.23,0.24),c,smoothstep(0.5,0.7,v));                                             // dark plinth
+   float wb0=max(3.2,H*0.52), wb1=wb0+1.7; float band=step(wb0,v)*step(v,wb1)*step(6.5,H);         // glass band with mullions every 2 m
+   float mull=smoothstep(0.0,0.07,fract(u*0.5))*smoothstep(1.0,0.93,fract(u*0.5));
+   float tone=fract(sin(floor(u*0.5)*12.9898)*43758.5453);
+   vec3 glass=mix(vec3(0.03,0.09,0.11),vec3(0.16,0.30,0.34),tone)*(0.75+0.35*smoothstep(wb0,wb1,v));
+   c=mix(c,mix(vec3(0.50,0.52,0.54),glass,mull),band);
+   c=mix(c,vec3(0.10,0.20,0.42),step(H-0.45,v));                                                     // navy trim line under the parapet
+   if(vInfo.y>1.5){                                                                                   // dock wall: a door every 14 m
+    float p=mod(u-5.0,14.0); float door=step(0.0,p)*step(p,3.4)*step(0.55,v)*step(v,4.3);
+    float shelter=step(-0.45,p)*step(p,3.85)*step(0.55,v)*step(v,4.75);
+    vec3 shutter=vec3(0.40,0.42,0.44)*(0.88+0.12*step(0.5,fract(v*2.0)));
+    c=mix(c,vec3(0.05,0.05,0.06),shelter); c=mix(c,shutter,door);
+    float lamp=step(0.0,p)*step(p,0.25)*step(H-2.2,v)*step(v,H-1.9); c=mix(c,vec3(0.9,0.9,0.85),lamp);
+   } else {                                                                                           // other walls: a personnel door every 48 m
+    float p=mod(u-12.0,48.0); float d=step(0.0,p)*step(p,1.1)*step(0.55,v)*step(v,2.3); c=mix(c,vec3(0.10,0.20,0.42),d);
+   }
+  }
+  diffuseColor.rgb=c; }`); };
+  mat.customProgramCacheKey=()=>'hall1'; mat.needsUpdate=true; return mat; }
 function buildBuildings(){
-  const walls={pos:[],col:[]}, roofs=new Map(); let rnd=7; const R=()=>{ rnd=(rnd*16807)%2147483647; return rnd/2147483647; };
+  const walls={pos:[],col:[],uv:[],info:[]}, roofs=new Map(), trucks=[]; let rnd=7; const R=()=>{ rnd=(rnd*16807)%2147483647; return rnd/2147483647; };
   const col=new THREE.Color(), push=(arr,c,...vs)=>{ for(const v of vs){ arr.pos.push(v.x,v.y,v.z); arr.col.push(c.r,c.g,c.b); } };
   const roofOf=c=>{ if(!roofs.has(c.f)) roofs.set(c.f,{c,pos:[],uv:[]}); return roofs.get(c.f); };
   const rpush=(r,...vs)=>{ for(const v of vs){ r.pos.push(v.x,v.y,v.z); r.uv.push((v.x-r.c.x)/r.c.w, 1-(v.z-r.c.z)/r.c.h); } };
@@ -794,13 +828,24 @@ function buildBuildings(){
     const ch=chunkFor(cx,cz); if(!ch) continue;
     const small=/house|detached|semi|terrace|residential|farm|barn|garage|shed/.test(b.t)||b.r==='gable';
     const base=Math.min(b.b,groundH(cx,cz))-0.6, top=base+0.6+b.h, eave=b.r==='gable'?base+0.6+b.e:top;
-    const wc=col.set(small?BRICK[Math.floor(R()*BRICK.length)]:CLAD[Math.floor(R()*CLAD.length)]).clone();
-    const dark=wc.clone().multiplyScalar(0.72);
+    // logistics halls (large, flat roofed, not houses) get drawn cladding: white panels, a glass band, dock doors on the longest wall
+    let area=0; for(let i=0;i<n;i++){ const [x1,z1]=f[i],[x2,z2]=f[(i+1)%n]; area+=x1*z2-x2*z1; } area=Math.abs(area)/2;
+    const hall=!small&&b.r!=='gable'&&area>1800&&b.h>=6;
+    let longest=-1, lmax=0; if(hall) for(let i=0;i<n;i++){ const [x1,z1]=f[i],[x2,z2]=f[(i+1)%n]; const L=Math.hypot(x2-x1,z2-z1); if(L>lmax){ lmax=L; longest=i; } }
+    const wc=col.set(hall?['#e3e5e7','#dde1e4','#e8e9e6','#d9dde0'][Math.floor(R()*4)]:small?BRICK[Math.floor(R()*BRICK.length)]:CLAD[Math.floor(R()*CLAD.length)]).clone();
+    const dark=wc.clone().multiplyScalar(hall?0.9:0.72);
     for(let i=0;i<n;i++){ const [x1,z1]=f[i],[x2,z2]=f[(i+1)%n]; const sh=0.86+0.14*Math.abs(Math.sin(Math.atan2(z2-z1,x2-x1)+0.5));
       const c1=wc.clone().multiplyScalar(sh), c0=dark.clone().multiplyScalar(sh);
       const a=new V3(x1,base,z1), bb=new V3(x2,base,z2), a2=new V3(x1,eave,z1), b2=new V3(x2,eave,z2);
       walls.pos.push(a.x,a.y,a.z, bb.x,bb.y,bb.z, b2.x,b2.y,b2.z, a.x,a.y,a.z, b2.x,b2.y,b2.z, a2.x,a2.y,a2.z);
-      for(const c of [c0,c0,c1,c0,c1,c1]) walls.col.push(c.r,c.g,c.b); }
+      for(const c of [c0,c0,c1,c0,c1,c1]) walls.col.push(c.r,c.g,c.b);
+      const L=Math.hypot(x2-x1,z2-z1), Hw=eave-base, fl=hall?(i===longest&&L>40?2:1):0;
+      walls.uv.push(0,0, L,0, L,Hw, 0,0, L,Hw, 0,Hw); for(let t=0;t<6;t++) walls.info.push(Hw,fl);
+      if(fl===2){ let nx=(z2-z1)/L, nz=-(x2-x1)/L; if(inPoly((x1+x2)/2+nx*2,(z1+z2)/2+nz*2,f)){ nx=-nx; nz=-nz; }   // trucks backed onto every second dock door
+        for(let u=5+1.7;u<L-4;u+=28){ const dx=(x2-x1)/L, dz=(z2-z1)/L; const px=x1+dx*u+nx*8.2, pz=z1+dz*u+nz*8.2;
+          if(hAt(px,pz)<-0.5||inHub(px,pz)||inLock(px,pz,-12)) continue; let blocked=false;
+          for(const o of D.objects.buildings){ if(o===b) continue; const of=o.f; if(Math.abs(of[0][0]-px)>60||Math.abs(of[0][1]-pz)>60) continue; if(inPoly(px,pz,of)){ blocked=true; break; } }
+          if(!blocked) trucks.push([px,base+0.6,pz,Math.atan2(nx,nz)]); } } }
     const r=roofOf(ch);
     if(b.r==='gable'){
       const q=b.q.map(([x,z])=>new V3(x,eave,z)), k=b.k.map(([x,z])=>new V3(x,top,z));
@@ -810,17 +855,24 @@ function buildBuildings(){
         rpush(r,A,B,kB, A,kB,kA); }
       const ends=b.long===0?[[1,2],[3,0]]:[[0,1],[2,3]];
       for(const [i,j] of ends){ const A=q[i],B=q[j]; const kk=k[0].distanceTo(A)+k[0].distanceTo(B)<k[1].distanceTo(A)+k[1].distanceTo(B)?k[0]:k[1];
-        walls.pos.push(A.x,A.y,A.z,B.x,B.y,B.z,kk.x,kk.y,kk.z); for(let t=0;t<3;t++) walls.col.push(wc.r*0.9,wc.g*0.9,wc.b*0.9); }
+        walls.pos.push(A.x,A.y,A.z,B.x,B.y,B.z,kk.x,kk.y,kk.z); for(let t=0;t<3;t++){ walls.col.push(wc.r*0.9,wc.g*0.9,wc.b*0.9); walls.uv.push(0,0); walls.info.push(0,0); } }
     } else {
       let tri; try{ tri=THREE.ShapeUtils.triangulateShape(f.map(([x,z])=>new THREE.Vector2(x,z)),[]); }catch(e){ continue; }
       for(const [i,j,k] of tri) rpush(r,new V3(f[i][0],top,f[i][1]),new V3(f[j][0],top,f[j][1]),new V3(f[k][0],top,f[k][1]));
       // parapet edge
       for(let i=0;i<n;i++){ const [x1,z1]=f[i],[x2,z2]=f[(i+1)%n]; const a=new V3(x1,top,z1),bb=new V3(x2,top,z2),a2=new V3(x1,top+0.5,z1),b2=new V3(x2,top+0.5,z2);
-        walls.pos.push(a.x,a.y,a.z,bb.x,bb.y,bb.z,b2.x,b2.y,b2.z,a.x,a.y,a.z,b2.x,b2.y,b2.z,a2.x,a2.y,a2.z); for(let t=0;t<6;t++) walls.col.push(wc.r*0.8,wc.g*0.8,wc.b*0.8); }
+        walls.pos.push(a.x,a.y,a.z,bb.x,bb.y,bb.z,b2.x,b2.y,b2.z,a.x,a.y,a.z,b2.x,b2.y,b2.z,a2.x,a2.y,a2.z); for(let t=0;t<6;t++){ walls.col.push(wc.r*0.8,wc.g*0.8,wc.b*0.8); walls.uv.push(0,0); walls.info.push(0,hall?3:0); } }
     }
   }
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(walls.pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(walls.col,3)); g.computeVertexNormals();
-  const wm=new THREE.Mesh(g,triplanar(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.88,side:THREE.DoubleSide}),TEX.concrete,0.35,0.55)); wm.castShadow=wm.receiveShadow=true; scene.add(wm);
+  g.setAttribute('aUvm',new THREE.Float32BufferAttribute(walls.uv,2)); g.setAttribute('aInfo',new THREE.Float32BufferAttribute(walls.info,2));
+  const wm=new THREE.Mesh(g,hallMaterial()); wm.castShadow=wm.receiveShadow=true; scene.add(wm);
+  if(trucks.length){ const box=[],cab=[],wheel=[];
+    for(const [x,y,z,ry] of trucks){ const t=new THREE.BoxGeometry(2.55,2.7,13.6); t.translate(0,1.35+1.1,-1.2); t.rotateY(ry); t.translate(x,y,z); box.push(t);
+      const c=new THREE.BoxGeometry(2.5,2.4,2.2); c.translate(0,1.2+0.6,6.8); c.rotateY(ry); c.translate(x,y,z); cab.push(c);
+      for(const wz of [-5.5,-4.0,5.6]){ const w=new THREE.BoxGeometry(2.6,1.0,1.0); w.translate(0,0.5,wz); w.rotateY(ry); w.translate(x,y,z); wheel.push(w); } }
+    const add=(arr,c,r)=>{ const m=new THREE.Mesh(THREE.BufferGeometryUtils.mergeBufferGeometries(arr),new THREE.MeshStandardMaterial({color:c,roughness:r})); m.castShadow=m.receiveShadow=true; scene.add(m); };
+    add(box,'#f1f2f1',0.55); add(cab,'#dfe3e8',0.5); add(wheel,'#151617',0.9); }
   for(const r of roofs.values()){ const rg=new THREE.BufferGeometry(); rg.setAttribute('position',new THREE.Float32BufferAttribute(r.pos,3)); rg.setAttribute('uv',new THREE.Float32BufferAttribute(r.uv,2)); rg.computeVertexNormals();
     const rm=new THREE.Mesh(rg,new THREE.MeshLambertMaterial({map:chunkTex[r.c.f],side:THREE.DoubleSide})); rm.castShadow=rm.receiveShadow=true; scene.add(rm); }
 }
