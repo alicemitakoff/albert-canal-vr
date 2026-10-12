@@ -611,8 +611,8 @@ function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
   vec2 mu=(vGP.xz-maskO)/maskS; float inM=step(0.0,mu.x)*step(mu.x,1.0)*step(0.0,mu.y)*step(mu.y,1.0)*(1.0-steep);
   vec3 mk=texture2D(tMask,vec2(mu.x,1.0-mu.y)).rgb*inM;
   // drawn land cover: grass with patchy light and dark areas, the apron in light concrete, roads in dark asphalt
-  float patch=texture2D(tMacro,vGP.xz*0.004+0.37).r;
-  vec3 grassCol=mix(vec3(0.085,0.19,0.035),vec3(0.17,0.27,0.06),patch)*(0.82+0.36*g2);
+  float pat=texture2D(tMacro,vGP.xz*0.004+0.37).r;
+  vec3 grassCol=mix(vec3(0.085,0.19,0.035),vec3(0.17,0.27,0.06),pat)*(0.82+0.36*g2);
   vec3 pavedCol=vec3(0.36,0.36,0.34); vec3 roadCol=vec3(0.075,0.078,0.08)*(0.85+0.3*g1);
   col=mix(col,grassCol,mk.r*0.94); col=mix(col,pavedCol*(0.9+0.2*mac),mk.g*0.8); col=mix(col,roadCol,mk.b*0.9);
   float amt=max(max(green,steep*0.9),mk.r);
