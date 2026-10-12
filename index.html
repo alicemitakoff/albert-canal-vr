@@ -1185,7 +1185,7 @@ function buildModels(){
   barge.add(bargeGLTF.scene); index(bargeGLTF.scene,'b:');
   const DK=4.5;   // top of the deck plating and hatch covers in this row of the hero model (the original bay floor at 0.8 is inside the hull)
   // battery bay moved one container row forward (into the first 40 ft row, which is removed), so the packs sit well inboard on the deck
-  bargeGLTF.scene.traverse(o=>{ if(/^Box40_0(0[1-9]|1[0-2])$/.test(o.name)) o.visible=false; else if(/^Battery_[AB]$/.test(o.name)){ o.position.z-=9.9; o.position.x=0; o.position.y=DK+0.35+0.12+0.03; } });   // pack centred in the opened bay, resting on the bearing pad (plate 0.35 + pad 0.12 + 3 cm)
+  bargeGLTF.scene.traverse(o=>{ if(o.name==='Bollards') o.visible=false; if(/^Box40_0(0[1-9]|1[0-2])$/.test(o.name)) o.visible=false; else if(/^Battery_[AB]$/.test(o.name)){ o.position.z-=9.9; o.position.x=0; o.position.y=DK+0.35+0.12+0.03; } });   // pack centred in the opened bay, resting on the bearing pad (plate 0.35 + pad 0.12 + 3 cm)
   // battery bay: a raised steel plate with hatching and the word BATTERY, so the slot reads as a deck position, not water
   // the bay is a dark steel well with a yellow safety border and a raised coaming, so the pack clearly stands in a slot and not on open deck
   { const c=document.createElement('canvas'); c.width=1024; c.height=1024; const x=c.getContext('2d');
