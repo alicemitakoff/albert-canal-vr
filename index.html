@@ -1189,7 +1189,11 @@ function buildModels(){
   barge.add(bargeGLTF.scene); index(bargeGLTF.scene,'b:');
   const DK=4.5;   // top of the deck plating and hatch covers in this row of the hero model (the original bay floor at 0.8 is inside the hull)
   // battery bay moved one container row forward (into the first 40 ft row, which is removed), so the packs sit well inboard on the deck
-  for(const root of [bargeGLTF.scene,lodGLTF.scene,lockGLTF.scene,hubGLTF.scene]) root.traverse(o=>{ if(/boll|bitt|cleat|Stern_mast/i.test(o.name)) o.visible=false; });   // no bollards anywhere (requested)
+  // clean rebuild of the models: only the parts on these lists are kept, every other object in the files is dropped
+  const KEEP_BARGE=/^(Hull_shell|Deck_plating|Sheer_stripe|Rubbing_strake|Coaming_|Hold_|Box\d|Accommodation|Wheelhouse_|Radar_mast|Bow_mast|Bow_name|Stern_name|Draft_|Guardrail|Lifebuoy|PowerConverter|Battery_[AB])/;
+  const KEEP_LOCK=/^(Lock_walls|Lock_guide_walls|Lock_islands|Lock_gate_towers|Lock_control_tower|Lock_bridge_downstream|Gate_|Water_)/;
+  const prune=(root,keep)=>{ const drop=[]; root.traverse(o=>{ if(o===root) return; let p=o.parent, top=o; while(p&&p!==root){ top=p; p=p.parent; } if(!keep.test(top.name||'')) drop.push(top); }); for(const d of new Set(drop)){ if(d.parent) d.parent.remove(d); } };
+  prune(bargeGLTF.scene,KEEP_BARGE); prune(lodGLTF.scene,KEEP_BARGE); prune(lockGLTF.scene,KEEP_LOCK);
   // the old battery bay behind the wheelhouse (bulkhead and service cabinets) is removed and decked over
   bargeGLTF.scene.traverse(o=>{ if(/^Battery_bay_/.test(o.name)) o.visible=false; });
   { const deckMat=new THREE.MeshStandardMaterial({color:'#8a9499',roughness:0.85,metalness:0.1}); const d=new THREE.Mesh(new THREE.BoxGeometry(10.4,0.3,10.4),deckMat); d.position.set(0,DK-0.15,-21.4); d.receiveShadow=true; bargeGLTF.scene.add(d); }
