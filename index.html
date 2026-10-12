@@ -1182,6 +1182,10 @@ function buildModels(){
   upgradeMaterials(hubGLTF.scene); upgradeMaterials(lockGLTF.scene); upgradeMaterials(bargeGLTF.scene);
   hub.add(hubGLTF.scene); index(hubGLTF.scene,'h:');
   lock.add(lockGLTF.scene); index(lockGLTF.scene,'l:');
+  // the lock gates carry three pyramid shaped hoisting lugs on top; they are flattened so the gate top is a plain beam
+  lockGLTF.scene.traverse(n=>{ if(!/^Gate_/.test(n.name)) return; const ms=[]; n.traverse(o=>{ if(o.isMesh){ o.geometry.computeBoundingBox(); ms.push(o); } }); if(ms.length<2) return;
+    ms.sort((a,b)=>a.geometry.boundingBox.max.y-b.geometry.boundingBox.max.y); const lim=ms[0].geometry.boundingBox.max.y, g=ms[ms.length-1].geometry; const pos=g.attributes.position;
+    for(let i=0;i<pos.count;i++) if(pos.getY(i)>lim) pos.setY(i,lim); pos.needsUpdate=true; g.computeBoundingBox(); g.computeBoundingSphere(); g.computeVertexNormals(); });
   barge.add(bargeGLTF.scene); index(bargeGLTF.scene,'b:');
   const DK=4.5;   // top of the deck plating and hatch covers in this row of the hero model (the original bay floor at 0.8 is inside the hull)
   // battery bay moved one container row forward (into the first 40 ft row, which is removed), so the packs sit well inboard on the deck
