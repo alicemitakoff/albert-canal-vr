@@ -1185,7 +1185,8 @@ function buildModels(){
   barge.add(bargeGLTF.scene); index(bargeGLTF.scene,'b:');
   const DK=4.5;   // top of the deck plating and hatch covers in this row of the hero model (the original bay floor at 0.8 is inside the hull)
   // battery bay moved one container row forward (into the first 40 ft row, which is removed), so the packs sit well inboard on the deck
-  bargeGLTF.scene.traverse(o=>{ if(o.name==='Bollards') o.visible=false; if(/^Box40_0(0[1-9]|1[0-2])$/.test(o.name)) o.visible=false; else if(/^Battery_[AB]$/.test(o.name)){ o.position.z-=9.9; o.position.x=0; o.position.y=DK+0.35+0.12+0.03; } });   // pack centred in the opened bay, resting on the bearing pad (plate 0.35 + pad 0.12 + 3 cm)
+  for(const root of [bargeGLTF.scene,lodGLTF.scene,lockGLTF.scene,hubGLTF.scene]) root.traverse(o=>{ if(/boll|bitt|cleat/i.test(o.name)) o.visible=false; });   // no bollards anywhere (requested)
+  bargeGLTF.scene.traverse(o=>{ if(/^Box40_0(0[1-9]|1[0-2])$/.test(o.name)) o.visible=false; else if(/^Battery_[AB]$/.test(o.name)){ o.position.z-=9.9; o.position.x=0; o.position.y=DK+0.35+0.12+0.03; } });   // pack centred in the opened bay, resting on the bearing pad (plate 0.35 + pad 0.12 + 3 cm)
   // battery bay: a raised steel plate with hatching and the word BATTERY, so the slot reads as a deck position, not water
   // the bay is a dark steel well with a yellow safety border and a raised coaming, so the pack clearly stands in a slot and not on open deck
   { const c=document.createElement('canvas'); c.width=1024; c.height=1024; const x=c.getContext('2d');
@@ -1228,7 +1229,7 @@ function buildModels(){
   // a moored barge at the western berth and a passing barge, both from the light model with neutral boxes
   const neutral=(root,seed)=>{ const pal=['#5b6b78','#8a3b34','#3d6650','#b8b4a8','#2f4f6f','#8b6a3a']; let s=seed; root.traverse(o=>{ if(o.isMesh){ const ms=Array.isArray(o.material)?o.material:[o.material];
       o.material=ms.map(m=>{ if(/Box_|Reefer|Text|CMA_Red|Hull_CMA/i.test(m.name)){ const c=m.clone(); s=(s*16807)%2147483647; c.color.set(/Hull/.test(m.name)?'#2b2f33':pal[s%pal.length]); c.map=null; return c; } return m; }); if(o.material.length===1) o.material=o.material[0];
-      if(/Battery_|BATTERY|Batt/.test(o.name)) o.visible=false; o.castShadow=true; o.receiveShadow=true; } }); return root; };
+      if(/Battery_|BATTERY|Batt|boll|bitt|cleat/i.test(o.name)) o.visible=false; o.castShadow=true; o.receiveShadow=true; } }); return root; };
   moored=neutral(THREE.SkeletonUtils?lodGLTF.scene.clone(true):lodGLTF.scene.clone(true),11);
   const qd=new V3(F.quayDir[0],0,F.quayDir[1]); const qz=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2];
   { const sx=748, sz=qz(sx)-7.2; moored.position.set(sx,-3.0,sz); moored.rotation.y=Math.atan2(qd.x,qd.z); scene.add(moored); }
