@@ -889,7 +889,7 @@ function buildBankWall(){
     const p=lockLocal(x,z); if(p.z>-120&&p.z<30&&p.x>-170&&p.x<150) return true;          // lock heads and approach walls come from the lock model
     if(x>588&&x<1012&&Math.abs(z-qz(x))<22) return true; return false; };                  // the hub quay has its own wall
   const O=ring.o, wall=[],wuv=[], rev=[],ruv=[]; let u=0;
-  const WT=0.9, CR=3.2, OUT=2.0;                                                            // wall top, crest height, revetment width
+  const WT=0.9, CR=3.5, OUT=2.6;                                                            // wall top, crest height, revetment width
   for(let i=0;i<O.length;i++){ const a=O[i], b=O[(i+1)%O.length]; const L=Math.hypot(b[0]-a[0],b[1]-a[1]); if(L<0.5) continue;
     const n=Math.max(1,Math.ceil(L/4)); const nx=(b[1]-a[1])/L, nz=-(b[0]-a[0])/L;           // candidate outward normal
     const mx=(a[0]+b[0])/2, mz=(a[1]+b[1])/2; const sgn=inPoly(mx+nx*2,mz+nz*2,O)?-1:1;      // flip it if that side is still water
