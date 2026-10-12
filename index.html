@@ -1008,8 +1008,9 @@ function buildModels(){
   hub.add(hubGLTF.scene); index(hubGLTF.scene,'h:');
   lock.add(lockGLTF.scene); index(lockGLTF.scene,'l:');
   barge.add(bargeGLTF.scene); index(bargeGLTF.scene,'b:');
+  const DK=4.5;   // top of the deck plating and hatch covers in this row of the hero model (the original bay floor at 0.8 is inside the hull)
   // battery bay moved one container row forward (into the first 40 ft row, which is removed), so the packs sit well inboard on the deck
-  bargeGLTF.scene.traverse(o=>{ if(/^Box40_0(0[1-9]|1[0-2])$/.test(o.name)) o.visible=false; else if(/^Battery_[AB]$/.test(o.name)){ o.position.z-=9.9; o.position.x=0; o.position.y+=0.5; } });   // pack centred in the opened bay, resting on the bearing pad (plate 0.35 + pad 0.12 + 3 cm)
+  bargeGLTF.scene.traverse(o=>{ if(/^Box40_0(0[1-9]|1[0-2])$/.test(o.name)) o.visible=false; else if(/^Battery_[AB]$/.test(o.name)){ o.position.z-=9.9; o.position.x=0; o.position.y=DK+0.35+0.12+0.03; } });   // pack centred in the opened bay, resting on the bearing pad (plate 0.35 + pad 0.12 + 3 cm)
   // battery bay: a raised steel plate with hatching and the word BATTERY, so the slot reads as a deck position, not water
   // the bay is a dark steel well with a yellow safety border and a raised coaming, so the pack clearly stands in a slot and not on open deck
   { const c=document.createElement('canvas'); c.width=1024; c.height=1024; const x=c.getContext('2d');
@@ -1022,14 +1023,14 @@ function buildModels(){
     const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; t.anisotropy=8;
     const side=new THREE.MeshStandardMaterial({color:'#3a3f44',roughness:0.85});
     const plate=new THREE.Mesh(new THREE.BoxGeometry(9.6,0.35,12.0),[side,side,new THREE.MeshStandardMaterial({map:t,roughness:0.7,metalness:0.15}),side,side,side]);
-    plate.position.set(0,0.8+0.175,-31.2); plate.receiveShadow=plate.castShadow=true; bargeGLTF.scene.add(plate);
+    plate.position.set(0,DK+0.175,-31.2); plate.receiveShadow=plate.castShadow=true; bargeGLTF.scene.add(plate);
     // raised coaming around the well, yellow on top like a real hatch frame
     const coam=new THREE.MeshStandardMaterial({color:'#2e3236',roughness:0.8}), top=new THREE.MeshStandardMaterial({color:'#f2c200',roughness:0.6});
-    const beam=(w,d,px,pz)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.55,d),[coam,coam,top,coam,coam,coam]); m.position.set(px,0.8+0.35+0.275,-31.2+pz); m.castShadow=m.receiveShadow=true; bargeGLTF.scene.add(m); };
+    const beam=(w,d,px,pz)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.55,d),[coam,coam,top,coam,coam,coam]); m.position.set(px,DK+0.35+0.275,-31.2+pz); m.castShadow=m.receiveShadow=true; bargeGLTF.scene.add(m); };
     beam(10.2,0.3,0,-6.15); beam(10.2,0.3,0,6.15); beam(0.3,12.6,-4.95,0); beam(0.3,12.6,4.95,0);
     // black rubber bearing pad and four twistlock cones under the pack corners (20 ft pack, 6.06 by 2.44 m)
-    const pad=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.12,9.4),new THREE.MeshStandardMaterial({color:'#111315',roughness:0.95})); pad.position.set(0,0.8+0.35+0.06,-31.2); pad.receiveShadow=true; bargeGLTF.scene.add(pad);
-    for(const [dx,dz] of [[-2.0,-4.3],[2.0,-4.3],[-2.0,4.3],[2.0,4.3]]){ const k=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.2,0.3,10),top); k.position.set(dx,0.8+0.35+0.12+0.15,-31.2+dz); k.castShadow=true; bargeGLTF.scene.add(k); } }
+    const pad=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.12,9.4),new THREE.MeshStandardMaterial({color:'#111315',roughness:0.95})); pad.position.set(0,DK+0.35+0.06,-31.2); pad.receiveShadow=true; bargeGLTF.scene.add(pad);
+    for(const [dx,dz] of [[-2.0,-4.3],[2.0,-4.3],[-2.0,4.3],[2.0,4.3]]){ const k=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.2,0.3,10),top); k.position.set(dx,DK+0.35+0.12+0.15,-31.2+dz); k.castShadow=true; bargeGLTF.scene.add(k); } }
 
   // the road bridge over the lower lock heads: no piers standing in the three navigation openings
   lock.updateMatrixWorld(true);
