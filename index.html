@@ -641,14 +641,18 @@ function wakeTexture(){ const S=512, c=document.createElement('canvas'); c.width
 function buildWake(){
   // one sheet in the barge frame: x across, z from the bow (-140) to 260 m behind the stern (stern at z 0). The banks occlude it by depth.
   const g=new THREE.PlaneGeometry(120,400,1,1); g.rotateX(-Math.PI/2); g.translate(0,0,60);
-  const m=new THREE.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{k:{value:0},dist:{value:0},time:{value:0}},
-    vertexShader:'varying vec2 vL; void main(){ vL=position.xz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-    fragmentShader:`uniform float k; uniform float dist; uniform float time; varying vec2 vL;
+    // the water outline (44 points) clips the wake exactly to the canal, so nothing spills onto the quay or the banks
+  const ring=D.water.lower.find(q=>!q.wkc).o, NP=64, poly=new Float32Array(NP*2); for(let i=0;i<Math.min(NP,ring.length);i++){ poly[i*2]=ring[i][0]; poly[i*2+1]=ring[i][1]; }
+  const m=new THREE.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{k:{value:0},dist:{value:0},time:{value:0},poly:{value:poly},np:{value:Math.min(NP,ring.length)}},
+    vertexShader:'varying vec2 vL; varying vec2 vW; void main(){ vL=position.xz; vW=(modelMatrix*vec4(position,1.0)).xz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader:`uniform float k; uniform float dist; uniform float time; uniform vec2 poly[64]; uniform int np; varying vec2 vL; varying vec2 vW;
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y); }
 float fbm(vec2 p){ return 0.5*noise(p)+0.25*noise(p*2.1+3.7)+0.125*noise(p*4.3+1.3)+0.0625*noise(p*8.9+7.1); }
+bool inWater(vec2 p){ bool c=false; for(int i=0;i<64;i++){ if(i>=np) break; int j=(i==0)?np-1:i-1; vec2 a=poly[i], b=poly[j];
+  if(((a.y>p.y)!=(b.y>p.y))&&(p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)) c=!c; } return c; }
 void main(){
-  float x=vL.x, z=vL.y; float db=z+135.0; if(db<0.0) discard; float ax=abs(x);
+  float x=vL.x, z=vL.y; float db=z+135.0; if(db<0.0) discard; if(!inWater(vW)) discard; float ax=abs(x);
   // Kelvin wake: the two diverging arms leave the bow at 19.5 degrees, with short feathered crests running along them
   float arm=0.3535*db, w=1.4+0.028*db;
   float a1=exp(-pow((ax-arm)/w,2.0));
@@ -657,7 +661,7 @@ void main(){
   float armI=a1*feather*exp(-db/240.0)*smoothstep(0.0,10.0,db);
   // transverse waves between the arms, moving back with the water
   float inside=smoothstep(arm+3.0,arm-8.0,ax);
-  float tw=pow(0.5+0.5*sin(db*0.42-dist*0.42+x*x*0.0015),8.0)*inside*0.28*exp(-db/200.0);
+  float tw=pow(0.5+0.5*sin(db*0.42-dist*0.42+x*x*0.0015),8.0)*inside*0.11*exp(-db/160.0)*(0.6+0.4*noise(vec2(x*0.08,db*0.05)));
   // propeller wash: white churned foam behind the stern, widening slowly and breaking into patches as it trails off
   float foam=0.0;
   if(z>0.0){ float hw=5.2+0.07*z; float e=smoothstep(hw,hw-2.5,ax);
