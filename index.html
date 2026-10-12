@@ -510,7 +510,8 @@ gltfL.load('assets/models/hub.gltf.json',g=>{ hubGLTF=g; });
 gltfL.load('assets/models/lock.gltf.json',g=>{ lockGLTF=g; });
 let fontsReady=false; (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>{ fontsReady=true; hudDirty=true; });
 manager.onError=u=>window.__diag('Could not load '+u);
-manager.onLoad=()=>{ try{ build(); }catch(e){ console.error(e); $('loadTxt').textContent='Error: '+e.message; window.__diag('Build: '+e.message); return; }
+let built=false;
+manager.onLoad=()=>{ if(built) return; built=true; try{ build(); }catch(e){ console.error(e); $('loadTxt').textContent='Error: '+e.message; window.__diag('Build: '+e.message); return; }
   const L=$('load'); L.style.opacity=0; setTimeout(()=>L.remove(),900); };
 
 /* ============================================================
@@ -574,7 +575,7 @@ const MACRO=(()=>{ const t=new THREE.CanvasTexture(noiseCanvas(256,(i,j)=>128+(n
 const GROUND_U={tGrass:{value:GRASS},tMacro:{value:MACRO},tMask:{value:null},maskO:{value:new THREE.Vector2(0,0)},maskS:{value:new THREE.Vector2(1,1)}};
 /* ground colour coding: assets/scene/groundmask.png (scripts/data/groundmask.py) marks grass (R), paved ground and streets (G)
    and bare sandy ground (B) read from the 2024 photo and the LiDAR surface; the shader repaints those classes in solid, drawn colours */
-function loadGroundMask(){ if(!D.groundmask) return; const t=texL.load('assets/scene/groundmask.png'); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; t.minFilter=THREE.LinearFilter;
+function loadGroundMask(){ if(!D.groundmask) return; const t=new THREE.TextureLoader().load('assets/scene/groundmask.png'); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; t.minFilter=THREE.LinearFilter;
   GROUND_U.tMask.value=t; GROUND_U.maskO.value.set(D.groundmask.x0,D.groundmask.z0); GROUND_U.maskS.value.set(D.groundmask.w,D.groundmask.h); }
 function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
   m.onBeforeCompile=sh=>{ Object.assign(sh.uniforms,GROUND_U);
@@ -718,7 +719,7 @@ function chunkFor(x,z){ for(const c of D.chunks.chunks) if(x>=c.x&&x<c.x+c.w&&z>
    each on a white sign panel the way cladding signs are mounted. */
 const LOGO_HALLS=[874,875,876];
 function buildLogos(){
-  const tex=texL.load('assets/brand/cma-cgm.svg'); tex.encoding=THREE.sRGBEncoding; tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+  const tex=new THREE.TextureLoader().load('assets/brand/cma-cgm.svg'); tex.encoding=THREE.sRGBEncoding; tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
   const logoMat=new THREE.MeshBasicMaterial({map:tex,transparent:true,alphaTest:0.2,toneMapped:false,side:THREE.DoubleSide});
   const panelMat=new THREE.MeshStandardMaterial({color:'#f4f4f2',roughness:0.6});
   const ASPECT=530/340.4;
