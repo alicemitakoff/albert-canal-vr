@@ -638,17 +638,47 @@ function wakeTexture(){ const S=512, c=document.createElement('canvas'); c.width
       let a=(edge*0.55+foam*0.9)*(1-v)*(0.55+0.45*ripple); if(Math.abs(u)>spread+0.1) a=0;
       const k=(j*S+i)*4; d[k]=235; d[k+1]=245; d[k+2]=250; d[k+3]=Math.min(255,a*255); }
   x.putImageData(img,0,0); const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; return t; }
-function buildWake(){ const g=new THREE.PlaneGeometry(60,220,1,1); g.rotateX(-Math.PI/2); g.translate(0,0,110);   // the sheet starts at the stern (local z 0) and trails behind (+z)
-  const m=new THREE.MeshBasicMaterial({map:wakeTexture(),transparent:true,opacity:0,depthWrite:false,fog:true,toneMapped:false,blending:THREE.NormalBlending});
-  WAKE.mesh=new THREE.Mesh(g,m); WAKE.mesh.renderOrder=2; scene.add(WAKE.mesh); }
+function buildWake(){
+  // one sheet in the barge frame: x across, z from the bow (-140) to 260 m behind the stern (stern at z 0). The banks occlude it by depth.
+  const g=new THREE.PlaneGeometry(120,400,1,1); g.rotateX(-Math.PI/2); g.translate(0,0,60);
+  const m=new THREE.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{k:{value:0},dist:{value:0},time:{value:0}},
+    vertexShader:'varying vec2 vL; void main(){ vL=position.xz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader:`uniform float k; uniform float dist; uniform float time; varying vec2 vL;
+float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y); }
+float fbm(vec2 p){ return 0.5*noise(p)+0.25*noise(p*2.1+3.7)+0.125*noise(p*4.3+1.3)+0.0625*noise(p*8.9+7.1); }
+void main(){
+  float x=vL.x, z=vL.y; float db=z+135.0; if(db<0.0) discard; float ax=abs(x);
+  // Kelvin wake: the two diverging arms leave the bow at 19.5 degrees, with short feathered crests running along them
+  float arm=0.3535*db, w=1.4+0.028*db;
+  float a1=exp(-pow((ax-arm)/w,2.0));
+  float along=ax*0.94+db*0.34;
+  float feather=0.45+0.55*pow(0.5+0.5*sin(along*0.75-dist*0.22),2.0);
+  float armI=a1*feather*exp(-db/240.0)*smoothstep(0.0,10.0,db);
+  // transverse waves between the arms, moving back with the water
+  float inside=smoothstep(arm+3.0,arm-8.0,ax);
+  float tw=pow(0.5+0.5*sin(db*0.42-dist*0.42+x*x*0.0015),8.0)*inside*0.28*exp(-db/200.0);
+  // propeller wash: white churned foam behind the stern, widening slowly and breaking into patches as it trails off
+  float foam=0.0;
+  if(z>0.0){ float hw=5.2+0.07*z; float e=smoothstep(hw,hw-2.5,ax);
+    float n=fbm(vec2(x*0.16,(z-dist)*0.11)); float n2=fbm(vec2(x*0.45+9.0,(z-dist)*0.3+time*0.05));
+    float cover=mix(0.9,0.35,clamp(z/180.0,0.0,1.0));
+    foam=e*smoothstep(0.55-cover*0.3,0.75,n*0.75+n2*0.45)*exp(-z/170.0);
+    foam+=e*0.5*exp(-z/25.0); }
+  // bow wave: the white crest thrown off both shoulders of the bow
+  float bow=exp(-pow((db-5.0)/6.0,2.0))*exp(-pow((ax-5.4)/2.6,2.0))*0.95;
+  float shoulder=exp(-pow((ax-(5.4+0.9*db))/(1.2+0.1*db),2.0))*exp(-db/18.0)*smoothstep(0.0,3.0,db)*0.7;
+  float a=clamp(armI*0.85+tw+foam+bow+shoulder,0.0,1.0)*k;
+  gl_FragColor=vec4(vec3(0.94,0.97,1.0),a); }`});
+  WAKE.mesh=new THREE.Mesh(g,m); WAKE.mesh.renderOrder=2; WAKE.mesh.frustumCulled=false; scene.add(WAKE.mesh); WAKE.dist=0; }
 function updateWake(dt){ const w=WAKE.mesh; if(!w) return; const p=barge.position;
   // speed along the story timeline, so the wake looks the same at any frame rate
   const a=new V3(hermite(BK,tNow,k=>k.p.x),0,hermite(BK,tNow,k=>k.p.z)), b=new V3(hermite(BK,tNow+0.1,k=>k.p.x),0,hermite(BK,tNow+0.1,k=>k.p.z));
   WAKE.speed=lerp(WAKE.speed,paused?0:a.distanceTo(b)/0.1,1-Math.exp(-dt*3));
   const k=clamp(WAKE.speed/25,0,1);                                                  // full wake under way, fading out as the barge slows at the hub and in the lock
-  w.material.opacity=0.55*k; w.visible=k>0.02; if(!w.visible) return;
-  w.position.set(p.x,0.06,p.z); w.rotation.y=barge.rotation.y;                     // the stern is at the barge origin, the wake trails behind it
-  w.scale.set(1,1,0.5+0.5*k); w.material.map.offset.y=(w.material.map.offset.y-dt*0.35*k)%1; }
+  w.material.uniforms.k.value=0.85*k; w.visible=k>0.02; if(!w.visible) return;
+  WAKE.dist+=WAKE.speed*dt; w.material.uniforms.dist.value=WAKE.dist; w.material.uniforms.time.value+=dt;
+  w.position.set(p.x,0.06,p.z); w.rotation.y=barge.rotation.y; }                     // the stern is at the barge origin, the wake trails behind it
 /* people: the helmsman in the wheelhouse and two hub operators on the quay (built in code, hi-vis, with a small idle motion) */
 const PEOPLE=[];
 function vestTexture(col){ const c=document.createElement('canvas'); c.width=256; c.height=256; const x=c.getContext('2d'); x.fillStyle=col; x.fillRect(0,0,256,256);
