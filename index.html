@@ -492,7 +492,7 @@ const manager=new THREE.LoadingManager();
 manager.onProgress=(u,l,t)=>{ if(TEST&&l%20===0) console.warn('LOAD '+l+'/'+t+' '+performance.now().toFixed(0)); const p=Math.round(100*l/t); $('bar').firstElementChild.style.width=p+'%'; $('loadTxt').textContent=p+'%  ·  '+l+' of '+t+' files'; };
 const gltfL=new THREE.GLTFLoader(manager), texL=new THREE.TextureLoader(manager), jsonL=new THREE.FileLoader(manager); jsonL.setResponseType('json');
 const D={}; const nodes={};
-const want=['scene/chunks','scene/height','scene/height_core','scene/ground','scene/water','scene/objects','map/route','map/route_base'];
+const want=['scene/chunks','scene/height','scene/height_core','scene/ground','scene/water','scene/objects','scene/groundmask','map/route','map/route_base'];
 want.forEach(k=>jsonL.load('assets/'+k+'.json',d=>{ D[k.split('/')[1]]=d; if(k==='scene/chunks') loadChunkTextures(d); }));
 const chunkTex={};
 function loadChunkTextures(d){ d.chunks.forEach(c=>{ const t=texL.load('assets/scene/chunks/'+c.f); t.encoding=THREE.sRGBEncoding; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; chunkTex[c.f]=t; }); }
@@ -571,11 +571,15 @@ const GRASS=(()=>{ const N=512, c=document.createElement('canvas'); c.width=c.he
     for(const ox of [-N,0,N]) for(const oy of [-N,0,N]){ const X=px+ox, Y=py+oy; if(X<-10||X>N+10||Y<-10||Y>N+10) continue; x.beginPath(); x.moveTo(X,Y); x.lineTo(X+Math.cos(a)*L,Y+Math.sin(a)*L); x.stroke(); } }
   const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); return t; })();
 const MACRO=(()=>{ const t=new THREE.CanvasTexture(noiseCanvas(256,(i,j)=>128+(nz2(i,j)-0.5)*150)); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t; })();
-const GROUND_U={tGrass:{value:GRASS},tMacro:{value:MACRO}};
+const GROUND_U={tGrass:{value:GRASS},tMacro:{value:MACRO},tMask:{value:null},maskO:{value:new THREE.Vector2(0,0)},maskS:{value:new THREE.Vector2(1,1)}};
+/* ground colour coding: assets/scene/groundmask.png (scripts/data/groundmask.py) marks grass (R), paved ground and streets (G)
+   and bare sandy ground (B) read from the 2024 photo and the LiDAR surface; the shader repaints those classes in solid, drawn colours */
+function loadGroundMask(){ if(!D.groundmask) return; const t=texL.load('assets/scene/groundmask.png'); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; t.minFilter=THREE.LinearFilter;
+  GROUND_U.tMask.value=t; GROUND_U.maskO.value.set(D.groundmask.x0,D.groundmask.z0); GROUND_U.maskS.value.set(D.groundmask.w,D.groundmask.h); }
 function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
   m.onBeforeCompile=sh=>{ Object.assign(sh.uniforms,GROUND_U);
     sh.vertexShader='varying vec3 vGP; varying vec3 vGN;\n'+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\n vGP=(modelMatrix*vec4(transformed,1.0)).xyz; vGN=normalize(mat3(modelMatrix)*objectNormal);');
-    sh.fragmentShader='uniform sampler2D tGrass; uniform sampler2D tMacro; varying vec3 vGP; varying vec3 vGN;\n'+sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+    sh.fragmentShader='uniform sampler2D tGrass; uniform sampler2D tMacro; uniform sampler2D tMask; uniform vec2 maskO; uniform vec2 maskS; varying vec3 vGP; varying vec3 vGN;\n'+sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
  {
   vec3 gN=normalize(vGN); float slope=1.0-clamp(gN.y,0.0,1.0);
   float dist=length(vGP-cameraPosition); float near=1.0-smoothstep(160.0,900.0,dist);
@@ -590,7 +594,11 @@ function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
   float g2=texture2D(tGrass,vGP.zy*0.037).r*b.x+texture2D(tGrass,vGP.xz*0.037).r*b.y+texture2D(tGrass,vGP.xy*0.037).r*b.z;
   float det=1.0+((g1*0.55+g2*0.45)*2.0-1.0)*1.7;
   float mac=texture2D(tMacro,vGP.xz*0.009).r*2.0;
-  float amt=max(green,steep*0.9);
+  vec2 mu=(vGP.xz-maskO)/maskS; float inM=step(0.0,mu.x)*step(mu.x,1.0)*step(0.0,mu.y)*step(mu.y,1.0)*(1.0-steep);
+  vec3 mk=texture2D(tMask,vec2(mu.x,1.0-mu.y)).rgb*inM;
+  vec3 grassCol=vec3(0.105,0.215,0.045)*(0.78+0.44*g2); vec3 pavedCol=vec3(0.33,0.33,0.31); vec3 bareCol=vec3(0.40,0.33,0.22);
+  col=mix(col,grassCol,mk.r*0.85); col=mix(col,pavedCol*(0.9+0.2*mac),mk.g*0.7); col=mix(col,mix(col,bareCol,0.5),mk.b*0.55);
+  float amt=max(max(green,steep*0.9),mk.r);
   col*=mix(1.0,det,(0.75*amt+0.22)*near);
   col*=mix(1.0,mac,0.22+0.18*amt);
   col=mix(col,col*vec3(1.12,1.06,0.74),amt*near*smoothstep(0.5,0.7,g2)*0.7);
@@ -598,7 +606,7 @@ function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
   diffuseColor.rgb=col;
  }`);
   };
-  m.customProgramCacheKey=()=>'ground1'; return m; }
+  m.customProgramCacheKey=()=>'ground2'; return m; }
 function buildTerrain(){
   const vr=IS_QUEST;
   for(const c of D.chunks.chunks){
@@ -706,6 +714,25 @@ function buildWater(){
    ============================================================ */
 const BRICK=['#9b5b45','#8a4f3d','#a8694f','#7d4a3a','#b07b5f','#c2a58a','#d8d0c4'], CLAD=['#b4b8bb','#a2a9ae','#c3c0b8','#8d959c','#cfcdc6','#7e868c'];
 function chunkFor(x,z){ for(const c of D.chunks.chunks) if(x>=c.x&&x<c.x+c.w&&z>=c.z&&z<c.z+c.h) return c; return null; }
+/* CMA CGM signs on the long walls of the three logistics halls south of the canal (the official logo file, never redrawn),
+   each on a white sign panel the way cladding signs are mounted. */
+const LOGO_HALLS=[874,875,876];
+function buildLogos(){
+  const tex=texL.load('assets/brand/cma-cgm.svg'); tex.encoding=THREE.sRGBEncoding; tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+  const logoMat=new THREE.MeshBasicMaterial({map:tex,transparent:true,alphaTest:0.2,toneMapped:false,side:THREE.DoubleSide});
+  const panelMat=new THREE.MeshStandardMaterial({color:'#f4f4f2',roughness:0.6});
+  const ASPECT=530/340.4;
+  for(const id of LOGO_HALLS){ const b=D.objects.buildings[id]; if(!b) continue; const f=b.f, n=f.length; let cx=0,cz=0; for(const [x,z] of f){cx+=x;cz+=z;} cx/=n; cz/=n;
+    const base=Math.min(b.b,groundH(cx,cz))-0.6, h=b.h;
+    for(let i=0;i<n;i++){ const [x1,z1]=f[i],[x2,z2]=f[(i+1)%n]; const L=Math.hypot(x2-x1,z2-z1); if(L<90) continue;
+      let nx=(z2-z1)/L, nz=-(x2-x1)/L; const mx=(x1+x2)/2, mz=(z1+z2)/2; if(inPoly(mx+nx*2,mz+nz*2,f)){ nx=-nx; nz=-nz; }
+      if(!(nz<-0.3||nx>0.8)) continue;                                   // faces towards the canal or the terminal road
+      const W=Math.min(L*0.42,h*0.55*ASPECT), H=W/ASPECT, y=base+0.6+h*0.64;
+      const g=new THREE.Group(); g.position.set(mx+nx*0.12,y,mz+nz*0.12); g.rotation.y=Math.atan2(nx,nz);
+      const panel=new THREE.Mesh(new THREE.BoxGeometry(W*1.12,H*1.3,0.18),panelMat); panel.position.z=-0.09; panel.castShadow=true; g.add(panel);
+      const logo=new THREE.Mesh(new THREE.PlaneGeometry(W,H),logoMat); logo.position.z=0.02; g.add(logo);
+      scene.add(g); } }
+}
 function buildBuildings(){
   const walls={pos:[],col:[]}, roofs=new Map(); let rnd=7; const R=()=>{ rnd=(rnd*16807)%2147483647; return rnd/2147483647; };
   const col=new THREE.Color(), push=(arr,c,...vs)=>{ for(const v of vs){ arr.pos.push(v.x,v.y,v.z); arr.col.push(c.r,c.g,c.b); } };
@@ -795,6 +822,46 @@ function buildQuayWall(){
     if(i%3===0){ const f=new THREE.BoxGeometry(0.5,2.6,0.45); f.rotateY(ang); f.translate(a.x,0.6,a.z-0.3); fen.push(f); } }
   const cm=new THREE.Mesh(THREE.BufferGeometryUtils.mergeBufferGeometries(cap),triplanar(new THREE.MeshStandardMaterial({color:'#9b978d',roughness:0.9}),TEX.concrete,0.3,0.8)); cm.castShadow=cm.receiveShadow=true; scene.add(cm);
   const fm=new THREE.Mesh(THREE.BufferGeometryUtils.mergeBufferGeometries(fen),new THREE.MeshStandardMaterial({color:'#1d1f21',roughness:0.85})); fm.castShadow=true; scene.add(fm);
+}
+/* Canal banks: a steel sheet-pile edge standing 0.9 m out of the water with a dark wet band, then a stone revetment
+   climbing to the 3.2 m crest. Built along the exact canal outline, so the freeboard reads the same everywhere
+   whatever the terrain mesh resolution (the terrain alone left a jagged, low looking edge). */
+TEX.stone=new THREE.CanvasTexture((()=>{ const N=256, c=document.createElement('canvas'); c.width=c.height=N; const x=c.getContext('2d'); x.fillStyle='#6f6a62'; x.fillRect(0,0,N,N);
+  let s=17; const R=()=>{ s=(s*16807)%2147483647; return s/2147483647; };
+  for(let n=0;n<900;n++){ const px=R()*N, py=R()*N, r=4+R()*9, b=95+R()*90; x.fillStyle=`rgb(${b|0},${(b*0.96)|0},${(b*0.9)|0})`;
+    for(const ox of [-N,0,N]) for(const oy of [-N,0,N]){ x.beginPath(); x.ellipse(px+ox,py+oy,r,r*(0.6+R()*0.5),R()*3.14,0,6.3); x.fill(); } }
+  return c; })()); TEX.stone.wrapS=TEX.stone.wrapT=THREE.RepeatWrapping; TEX.stone.encoding=THREE.sRGBEncoding;
+function buildBankWall(){
+  const ring=D.water.lower.find(q=>!q.wkc); if(!ring) return;
+  const qz=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2];
+  const skip=(x,z)=>{ if(x<-980||x>1760||z<-40||z>780) return true; if(inLock(x,z,-16)||inHub(x,z)) return true;
+    const p=lockLocal(x,z); if(p.z>-120&&p.z<30&&p.x>-170&&p.x<150) return true;          // lock heads and approach walls come from the lock model
+    if(x>588&&x<1012&&Math.abs(z-qz(x))<22) return true; return false; };                  // the hub quay has its own wall
+  const O=ring.o, wall=[],wuv=[], rev=[],ruv=[]; let u=0;
+  const WT=0.9, CR=3.2, OUT=2.0;                                                            // wall top, crest height, revetment width
+  for(let i=0;i<O.length;i++){ const a=O[i], b=O[(i+1)%O.length]; const L=Math.hypot(b[0]-a[0],b[1]-a[1]); if(L<0.5) continue;
+    const n=Math.max(1,Math.ceil(L/4)); const nx=(b[1]-a[1])/L, nz=-(b[0]-a[0])/L;           // candidate outward normal
+    const mx=(a[0]+b[0])/2, mz=(a[1]+b[1])/2; const sgn=inPoly(mx+nx*2,mz+nz*2,O)?-1:1;      // flip it if that side is still water
+    for(let k=0;k<n;k++){ const t0=k/n, t1=(k+1)/n; const p0=[a[0]+(b[0]-a[0])*t0,a[1]+(b[1]-a[1])*t0], p1=[a[0]+(b[0]-a[0])*t1,a[1]+(b[1]-a[1])*t1];
+      const seg=L/n; if(skip((p0[0]+p1[0])/2,(p0[1]+p1[1])/2)){ u+=seg; continue; }
+      const ox=nx*sgn, oz=nz*sgn;
+      const q=(P,y,o)=>[P[0]+ox*o,y,P[1]+oz*o];
+      const push=(arr,uvs,A,B,C,Dd,v0,v1,uA,uB)=>{ for(const [p,uu,vv] of [[A,uA,v0],[B,uB,v0],[C,uB,v1],[A,uA,v0],[C,uB,v1],[Dd,uA,v1]]){ arr.push(p[0],p[1],p[2]); uvs.push(uu,vv); } };
+      // sheet pile wall: from 2.2 m under water to 0.9 m above, 0.3 m behind the outline so the water laps the steel
+      push(wall,wuv,q(p0,-2.2,0.3),q(p1,-2.2,0.3),q(p1,WT,0.3),q(p0,WT,0.3),0,1,u/1.4,(u+seg)/1.4);
+      // stone revetment from the wall top back to the crest
+      push(rev,ruv,q(p0,WT,0.3),q(p1,WT,0.3),q(p1,CR,0.3+OUT),q(p0,CR,0.3+OUT),0,1,u/6,(u+seg)/6);
+      u+=seg; } }
+  const mk=(pos,uv,mat)=>{ if(!pos.length) return; const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.computeVertexNormals(); const m=new THREE.Mesh(g,mat); m.receiveShadow=true; m.castShadow=true; scene.add(m); };
+  const wt=TEX.ribs.clone(); wt.needsUpdate=true; wt.wrapS=wt.wrapT=THREE.RepeatWrapping;
+  const wallMat=new THREE.MeshStandardMaterial({color:'#4f5457',roughness:0.72,metalness:0.3,map:wt,side:THREE.DoubleSide});
+  // the wet band: darker steel in the lowest 0.5 m above the water line
+  wallMat.onBeforeCompile=sh=>{ sh.vertexShader='varying float vWy;\n'+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\n vWy=(modelMatrix*vec4(transformed,1.0)).y;');
+    sh.fragmentShader='varying float vWy;\n'+sh.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n diffuseColor.rgb*=mix(0.45,1.0,smoothstep(0.05,0.55,vWy));'); };
+  wallMat.customProgramCacheKey=()=>'bankwall1';
+  const st=TEX.stone.clone(); st.needsUpdate=true; st.repeat.set(1,1);
+  mk(wall,wuv,wallMat);
+  mk(rev,ruv,new THREE.MeshStandardMaterial({color:'#8d8880',roughness:0.95,map:st,side:THREE.DoubleSide}));
 }
 function buildBridges(){
   const deckM=triplanar(new THREE.MeshStandardMaterial({color:'#b9b6ae',roughness:0.85}),TEX.concrete,0.3,0.7);
@@ -923,15 +990,20 @@ function buildGroundCover(){
 }
 function buildRoads(){
   const RD=D.objects.roads||[]; if(!RD.length) return;
-  const asphalt=new THREE.MeshStandardMaterial({color:'#5d5f60',roughness:0.95,metalness:0}), light=new THREE.MeshStandardMaterial({color:'#8d8a84',roughness:0.95,metalness:0});
-  const groups={a:[],l:[]};
-  for(const r of RD){ const P=r.p; if(P.length<2) continue; const half=r.w/2, L=[], Rr=[];
+  const asphalt=new THREE.MeshStandardMaterial({color:'#4b4d4f',roughness:0.95,metalness:0}), light=new THREE.MeshStandardMaterial({color:'#8d8a84',roughness:0.95,metalness:0}), line=new THREE.MeshStandardMaterial({color:'#e6e6e0',roughness:0.8,metalness:0});
+  const groups={a:[],l:[],e:[]};
+  // every street is resampled every 6 m and laid 0.3 m over the terrain, so it follows the ground instead of cutting through it
+  const ribbon=(P,half,off,arr)=>{ const L=[],Rr=[];
     for(let i=0;i<P.length;i++){ const a=P[Math.max(0,i-1)], b=P[Math.min(P.length-1,i+1)]; let dx=b[0]-a[0], dz=b[1]-a[1]; const l=Math.hypot(dx,dz)||1; dx/=l; dz/=l;
-      const y=Math.min(P[i][2],hAt(P[i][0],P[i][1]))+0.12; L.push([P[i][0]-dz*half,y,P[i][1]+dx*half]); Rr.push([P[i][0]+dz*half,y,P[i][1]-dx*half]); }
-    const v=[]; for(let i=0;i<P.length-1;i++){ v.push(...L[i],...Rr[i],...L[i+1], ...Rr[i],...Rr[i+1],...L[i+1]); }
-    (/track|path|footway|cycleway/.test(r.t)?groups.l:groups.a).push(...v); }
-  for(const [key,mat] of [['a',asphalt],['l',light]]){ if(!groups[key].length) continue; const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(groups[key],3)); g.computeVertexNormals();
-    const m=new THREE.Mesh(g,mat); m.receiveShadow=true; m.renderOrder=1; scene.add(m); }
+      const y=hAt(P[i][0],P[i][1])+0.3; L.push([P[i][0]-dz*(off+half),y,P[i][1]+dx*(off+half)]); Rr.push([P[i][0]-dz*(off-half),y,P[i][1]+dx*(off-half)]); }
+    for(let i=0;i<P.length-1;i++){ arr.push(...L[i],...Rr[i],...L[i+1], ...Rr[i],...Rr[i+1],...L[i+1]); } };
+  for(const r of RD){ const P0=r.p; if(P0.length<2) continue; const half=r.w/2;
+    const P=[]; for(let i=0;i<P0.length-1;i++){ const a=P0[i], b=P0[i+1]; const n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/6)); for(let k=0;k<n;k++){ const t=k/n; P.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]); } } P.push([P0[P0.length-1][0],P0[P0.length-1][1]]);
+    const soft=/track|path|footway|cycleway/.test(r.t);
+    ribbon(P,half,0,soft?groups.l:groups.a);
+    if(!soft&&r.w>=5){ ribbon(P,0.08,half-0.25,groups.e); ribbon(P,0.08,-(half-0.25),groups.e); } }   // white edge lines on real streets
+  for(const [key,mat,ro] of [['a',asphalt,1],['l',light,1],['e',line,2]]){ if(!groups[key].length) continue; const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(groups[key],3)); g.computeVertexNormals();
+    const m=new THREE.Mesh(g,mat); m.receiveShadow=true; m.renderOrder=ro; if(key==='e') m.position.y=0.02; scene.add(m); }
 }
 const turbines=[];
 function buildTurbines(){
@@ -1753,7 +1825,7 @@ function build(){
   const T0=performance.now(), tm=n=>{ if(TEST) console.warn('BUILD '+n+' '+(performance.now()-T0).toFixed(0)+'ms'); };
   HF=decodeHF(D.height); if(D.height_core) HC=decodeHF(D.height_core);   // banks are shaped offline from the exact canal outline (scripts/data/banks.py)
   GF=decodeHF(D.ground); MB=D.route_base; tm('hf');
-  buildModels(); tm('models'); buildTerrain(); tm('terrain'); buildWater(); buildTrees(); tm('trees'); buildBuildings(); tm('buildings'); buildContainers(); buildDetails(); buildGroundCover(); buildRoads(); buildWake(); buildPeople(); buildQuayWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
+  buildModels(); tm('models'); loadGroundMask(); buildTerrain(); tm('terrain'); buildWater(); buildTrees(); tm('trees'); buildBuildings(); buildLogos(); tm('buildings'); buildContainers(); buildDetails(); buildGroundCover(); buildRoads(); buildWake(); buildPeople(); buildQuayWall(); buildBankWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
   // sky reflections only where they belong: water, glass and the painted barge
   WATER_MAT.envMap=ENV; WATER_MAT.envMapIntensity=0.16; WATER_MAT.needsUpdate=true;
   scene.traverse(o=>{ if(!o.isMesh) return; (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m&&m.isMeshStandardMaterial&&m.transparent){ m.envMap=ENV; m.envMapIntensity=1.0; m.needsUpdate=true; } }); });
