@@ -1543,15 +1543,16 @@ function drawLive(){ const s=liveSummary();
   if(best){ $('liveV').hidden=false; $('liveVn').textContent=(best.name||'MMSI '+best.mmsi);
     $('liveVs').textContent=(best.sog!=null?best.sog.toFixed(1)+' kn':'')+' · '+Math.round(dkm(best))+' km from the hub'+(best.dest?' · to '+best.dest:'')+' · '+Math.max(0,Math.round((Date.now()/1000-best.seen)/60))+' min ago';
     $('liveV').onclick=()=>{ openMap(); flyTo(best.lon,best.lat,1.4); }; } else $('liveV').hidden=true;
-  $('liveS').textContent=AIS.err?'waiting for data':(AIS.updated?(nS+' on the corridor'+(nIn?', '+nIn+' in view':'')+' · '+AIS.updated.slice(11,16)+' UTC'):'…'); document.querySelector('#live .ldot').classList.toggle('off',!LIVE.ok); }
+  $('liveS').textContent=AIS.err?'waiting for data':(AIS.updated?(nS+' on the corridor'+(nIn?', '+nIn+' in view':'')+' · '+aisAge()):'…'); document.querySelector('#live .ldot').classList.toggle('off',!LIVE.ok); }
 $('liveFold').onclick=()=>{ const m=$('live'); m.classList.toggle('collapsed'); $('liveFold').textContent=m.classList.contains('collapsed')?'Show':'Fold'; };
 /* live vessels: positions collected every 10 minutes from AIS by a GitHub job, moved on between updates at their reported speed */
 const AIS={list:[],objs:new Map(),updated:null};
+function aisAge(){ const m=Math.round((Date.now()-Date.parse(AIS.updated))/60000); return m<2?'just now':m<90?m+' min ago':(m/60).toFixed(1).replace(/\.0$/,'')+' h ago'; }
 const AIS_URL='https://raw.githubusercontent.com/alicemitakoff/albert-canal-vr/live-data/live/ships.json';
 async function refreshAIS(){
   let d; try{ d=await liveJSON(AIS_URL+'?t='+Date.now()); }catch(e){ AIS.err=true; drawLive(); return; }
   AIS.err=false; AIS.updated=d.updated; const now=Date.now()/1000;
-  AIS.list=(d.ships||[]).filter(v=>v.lat&&v.lon&&now-v.seen<3*3600);
+  AIS.list=(d.ships||[]).filter(v=>v.lat&&v.lon&&now-v.seen<12*3600);   // keep the last known positions up to 12 h, the age is shown
   for(const v of AIS.list){ const p=ll(v.lon,v.lat); v.x=p.x; v.z=p.z; v.inScene=p.x>-2600&&p.x<3450&&p.z>-1200&&p.z<1430; }
   syncAIS(); drawLive(); hudDirty=true; }
 function aisHeading(v){ return (v.hdg!=null&&v.hdg<360)?v.hdg:(v.cog!=null&&v.cog<360?v.cog:null); }

@@ -7,7 +7,7 @@ KEY = os.environ.get('AISSTREAM_KEY', '').strip()
 BOX = [[[50.88, 4.25], [51.32, 5.62]]]          # the pilot corridor, Antwerp port to Genk
 OUT = 'live/ships.json'
 LISTEN = 45
-KEEP_H = 3
+KEEP_H = 12
 
 def load_previous():
     try:
