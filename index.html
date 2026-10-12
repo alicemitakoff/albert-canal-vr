@@ -787,24 +787,8 @@ function treeAtlas(){
   for(let k=0;k<9;k++){ const y=S+22+k*21, w=14+k*11; for(let j=0;j<60;j++){ const t=R(); const px=S+128+(R()-0.5)*2*w*t, py=y-18+t*40; x.fillStyle=greens[Math.floor(clamp(0.25+(px-S-128)/(4*w)+R()*0.25,0,0.999)*5)]; x.beginPath(); x.arc(px,py,3+R()*4,0,7); x.fill(); } }
   const t=new THREE.CanvasTexture(c); t.anisotropy=4; return t;
 }
-function buildTrees(){
-  const T=D.objects.trees, BU=D.objects.bushes||[]; const n=T.length/5+BU.length/4;
-  const geo=new THREE.InstancedBufferGeometry(); const pl=new THREE.PlaneGeometry(1,1); pl.translate(0,0.5,0);
-  geo.index=pl.index; geo.attributes.position=pl.attributes.position; geo.attributes.uv=pl.attributes.uv;
-  const pos=new Float32Array(n*3), size=new Float32Array(n*2), vari=new Float32Array(n*2); let k=0;
-  for(let i=0;i<n;i++){ const X=T[i*5], Z=T[i*5+1], G=T[i*5+2], H=T[i*5+3]; if(inHub(X,Z)||inLock(X,Z,-12)) continue;
-    const h=(Math.sin(X*12.9898+Z*78.233)*43758.5453)%1, hh=Math.abs(h);
-    let v=T[i*5+4]?3:(H>17&&hh<0.35?2:(H<9?1:0));
-    const w=v===2?clamp(H*0.3,3,7):v===3?clamp(H*0.42,3,9):clamp(H*0.62,3.5,15);
-    pos[k*3]=X; pos[k*3+1]=Math.min(G,hAt(X,Z))-0.3; pos[k*3+2]=Z; size[k*2]=w*1.08; size[k*2+1]=H*1.05+0.6; vari[k*2]=v; vari[k*2+1]=0.8+hh*0.22; k++; }
-  for(let i=0;i<BU.length/4;i++){ const X=BU[i*4], Z=BU[i*4+1], G=BU[i*4+2], H=BU[i*4+3]; if(inHub(X,Z)||inLock(X,Z,-12)) continue;   // hedges and bushes from the survey
-    const hh=Math.abs((Math.sin(X*12.9898+Z*78.233)*43758.5453)%1);
-    pos[k*3]=X+(hh-0.5)*1.2; pos[k*3+1]=Math.min(G,hAt(X,Z))-0.2; pos[k*3+2]=Z+(hh*7%1-0.5)*1.2; size[k*2]=clamp(H*1.6,2.2,4.5); size[k*2+1]=H*1.1+0.3; vari[k*2]=1; vari[k*2+1]=0.72+hh*0.2; k++; }
-  geo.setAttribute('aPos',new THREE.InstancedBufferAttribute(pos.subarray(0,k*3),3));
-  geo.setAttribute('aSize',new THREE.InstancedBufferAttribute(size.subarray(0,k*2),2));
-  geo.setAttribute('aVar',new THREE.InstancedBufferAttribute(vari.subarray(0,k*2),2));
-  geo.instanceCount=k;
-  const mat=new THREE.ShaderMaterial({ fog:true, uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{tMap:{value:treeAtlas()},uLight:{value:new THREE.Color('#f4f6ea')}}]),
+function billboardMat(tex){
+  return new THREE.ShaderMaterial({ fog:true, uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{tMap:{value:tex},uLight:{value:new THREE.Color('#f4f6ea')}}]),
     vertexShader:`attribute vec3 aPos; attribute vec2 aSize; attribute vec2 aVar; varying vec2 vUv; varying float vTint;
       #include <fog_pars_vertex>
       void main(){ vec3 toC=cameraPosition-aPos; toC.y=0.0; vec3 right=normalize(vec3(toC.z,0.0,-toC.x)+1e-5);
@@ -821,7 +805,66 @@ function buildTrees(){
         #include <encodings_fragment>
         #include <fog_fragment>
       }` });
+}
+function buildTrees(){
+  const T=D.objects.trees; const n=T.length/5;
+  const geo=new THREE.InstancedBufferGeometry(); const pl=new THREE.PlaneGeometry(1,1); pl.translate(0,0.5,0);
+  geo.index=pl.index; geo.attributes.position=pl.attributes.position; geo.attributes.uv=pl.attributes.uv;
+  const pos=new Float32Array(n*3), size=new Float32Array(n*2), vari=new Float32Array(n*2); let k=0;
+  for(let i=0;i<n;i++){ const X=T[i*5], Z=T[i*5+1], G=T[i*5+2], H=T[i*5+3]; if(inHub(X,Z)||inLock(X,Z,-12)) continue;
+    const h=(Math.sin(X*12.9898+Z*78.233)*43758.5453)%1, hh=Math.abs(h);
+    let v=T[i*5+4]?3:(H>17&&hh<0.35?2:(H<9?1:0));
+    const w=v===2?clamp(H*0.3,3,7):v===3?clamp(H*0.42,3,9):clamp(H*0.62,3.5,15);
+    pos[k*3]=X; pos[k*3+1]=Math.min(G,hAt(X,Z))-0.3; pos[k*3+2]=Z; size[k*2]=w*1.08; size[k*2+1]=H*1.05+0.6; vari[k*2]=v; vari[k*2+1]=0.8+hh*0.22; k++; }
+  geo.setAttribute('aPos',new THREE.InstancedBufferAttribute(pos.subarray(0,k*3),3));
+  geo.setAttribute('aSize',new THREE.InstancedBufferAttribute(size.subarray(0,k*2),2));
+  geo.setAttribute('aVar',new THREE.InstancedBufferAttribute(vari.subarray(0,k*2),2));
+  geo.instanceCount=k;
+  const mat=billboardMat(treeAtlas());
   const m=new THREE.Mesh(geo,mat); m.frustumCulled=false; scene.add(m);
+}
+/* ground cover near the quay, terminal and lock: hedge clumps and grass tufts from the survey, drawn like the trees */
+function coverAtlas(){
+  const S=256, c=document.createElement('canvas'); c.width=c.height=S*2; const x=c.getContext('2d'); let sd=11; const R=()=>{ sd=(sd*16807)%2147483647; return sd/2147483647; };
+  const greens=['#223617','#2b4320','#365328','#436431','#53773b','#648a47','#78a055'];
+  const blob=(ox,oy,cx,cy,rx,ry,n,rmin,rmax)=>{ for(let i=0;i<n;i++){ const a=R()*Math.PI*2, rr=Math.sqrt(R()); const px=cx+Math.cos(a)*rx*rr, py=cy+Math.sin(a)*ry*rr;
+      const light=clamp(0.4+(cy-py)/(2*ry)*0.8+(px-cx)/(2*rx)*0.3+(R()-0.5)*0.3,0,0.999); x.fillStyle=greens[Math.floor(light*greens.length)]; x.globalAlpha=0.93; x.beginPath(); x.arc(ox+px,oy+py,rmin+R()*(rmax-rmin),0,7); x.fill(); } x.globalAlpha=1; };
+  blob(0,0,128,150,118,100,1100,5,12);                                  // 0 hedge clump, wide and round
+  blob(S,0,128,140,70,112,900,5,11);                                    // 1 taller hedge
+  for(let i=0;i<70;i++){ const bx=128+(R()-0.5)*150, h=90+R()*140, lean=(R()-0.5)*60;   // 2 grass tuft: blades
+    const light=0.3+R()*0.6; x.strokeStyle=greens[Math.floor(light*greens.length)]; x.lineWidth=2.5+R()*3; x.beginPath(); x.moveTo(bx,S+S); x.quadraticCurveTo(bx+lean*0.4,S+S-h*0.6,bx+lean,S+S-h); x.stroke(); }
+  for(let i=0;i<40;i++){ const bx=S+128+(R()-0.5)*120, h=150+R()*95;                   // 3 reeds
+    x.strokeStyle=['#6b7a3a','#7f8d44','#8a9550','#5e6d33'][Math.floor(R()*4)]; x.lineWidth=2+R()*2; x.beginPath(); x.moveTo(bx,S+S); x.lineTo(bx+(R()-0.5)*12,S+S-h); x.stroke(); }
+  const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; t.anisotropy=4; return t;
+}
+function buildGroundCover(){
+  const BU=D.objects.bushes||[], GR=D.objects.grass||[]; const n=BU.length/4*2+GR.length/3*3; if(!n) return;
+  const geo=new THREE.InstancedBufferGeometry(); const pl=new THREE.PlaneGeometry(1,1); pl.translate(0,0.5,0);
+  geo.index=pl.index; geo.attributes.position=pl.attributes.position; geo.attributes.uv=pl.attributes.uv;
+  const pos=new Float32Array(n*3), size=new Float32Array(n*2), vari=new Float32Array(n*2); let k=0;
+  const put=(X,Z,Y,w,h,v,tint)=>{ pos[k*3]=X; pos[k*3+1]=Y; pos[k*3+2]=Z; size[k*2]=w; size[k*2+1]=h; vari[k*2]=v; vari[k*2+1]=tint; k++; };
+  for(let i=0;i<BU.length/4;i++){ const X=BU[i*4], Z=BU[i*4+1], G=BU[i*4+2], H=BU[i*4+3]; if(inHub(X,Z)||inLock(X,Z,-12)) continue;
+    const hh=Math.abs((Math.sin(X*12.9898+Z*78.233)*43758.5453)%1), y=Math.min(G,hAt(X,Z))-0.15;
+    for(let j=0;j<2;j++){ const o=hh*(j+1)*3%1; put(X+(o-0.5)*2.2,Z+((o*7)%1-0.5)*2.2,y,clamp(H*1.3,2.4,5),H*1.05+0.4,H>3?1:0,0.7+((o*13)%1)*0.25); } }
+  for(let i=0;i<GR.length/3;i++){ const X=GR[i*3], Z=GR[i*3+1], G=GR[i*3+2]; if(inHub(X,Z)||inLock(X,Z,-12)) continue;
+    const hh=Math.abs((Math.sin(X*31.7+Z*17.3)*43758.5453)%1), y=Math.min(G,hAt(X,Z))-0.05;
+    for(let j=0;j<3;j++){ const o=(hh*(j+1)*2.7)%1, o2=(hh*(j+2)*5.3)%1; put(X+(o-0.5)*2.4,Z+(o2-0.5)*2.4,y,1.8+o2*1.2,0.55+o*0.55,o>0.85?3:2,0.75+o*0.3); } }
+  geo.setAttribute('aPos',new THREE.InstancedBufferAttribute(pos.subarray(0,k*3),3));
+  geo.setAttribute('aSize',new THREE.InstancedBufferAttribute(size.subarray(0,k*2),2));
+  geo.setAttribute('aVar',new THREE.InstancedBufferAttribute(vari.subarray(0,k*2),2));
+  geo.instanceCount=k; const m=new THREE.Mesh(geo,billboardMat(coverAtlas())); m.frustumCulled=false; scene.add(m);
+}
+function buildRoads(){
+  const RD=D.objects.roads||[]; if(!RD.length) return;
+  const asphalt=new THREE.MeshStandardMaterial({color:'#5d5f60',roughness:0.95,metalness:0}), light=new THREE.MeshStandardMaterial({color:'#8d8a84',roughness:0.95,metalness:0});
+  const groups={a:[],l:[]};
+  for(const r of RD){ const P=r.p; if(P.length<2) continue; const half=r.w/2, L=[], Rr=[];
+    for(let i=0;i<P.length;i++){ const a=P[Math.max(0,i-1)], b=P[Math.min(P.length-1,i+1)]; let dx=b[0]-a[0], dz=b[1]-a[1]; const l=Math.hypot(dx,dz)||1; dx/=l; dz/=l;
+      const y=Math.min(P[i][2],hAt(P[i][0],P[i][1]))+0.12; L.push([P[i][0]-dz*half,y,P[i][1]+dx*half]); Rr.push([P[i][0]+dz*half,y,P[i][1]-dx*half]); }
+    const v=[]; for(let i=0;i<P.length-1;i++){ v.push(...L[i],...Rr[i],...L[i+1], ...Rr[i],...Rr[i+1],...L[i+1]); }
+    (/track|path|footway|cycleway/.test(r.t)?groups.l:groups.a).push(...v); }
+  for(const [key,mat] of [['a',asphalt],['l',light]]){ if(!groups[key].length) continue; const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(groups[key],3)); g.computeVertexNormals();
+    const m=new THREE.Mesh(g,mat); m.receiveShadow=true; m.renderOrder=1; scene.add(m); }
 }
 const turbines=[];
 function buildTurbines(){
@@ -974,6 +1017,9 @@ function setupSwap(){
   SK=SKraw.map(([t,x,y,z])=>({t, x:x==='ax'?aL.x:x/100, z:y==='ay'?aL.z:y/100, y:z==='pz'?pz:z/100}));
   base.gant=nodes['h:Crane_structure'].position.clone(); base.trol=nodes['h:Crane_trolley'].position.clone();
   ['h:Crane_sign_1','h:Crane_sign_-1'].forEach(n=>{ if(nodes[n]) base[n]=nodes[n].position.clone(); });
+  // the bollards along the push-tow chamber walls sink into their housings while the barge passes (lowered 66 s to 70 s, raised 110 s to 114 s)
+  { const f=nodes['l:Lock_wall_fittings']; const meshes=[]; if(f) f.traverse(o=>{ if(o.isMesh) meshes.push(o); });
+    base.boll=meshes.find(o=>{ o.geometry.computeBoundingBox(); const b=o.geometry.boundingBox; return b.max.y-b.min.y<1.5; })||null; if(base.boll) base.bollY=base.boll.position.y; }
   base.gd=nodes['l:Gate_PushTow_Down'].position.y; base.gu=nodes['l:Gate_PushTow_Up'].position.y; base.wc=nodes['l:Water_Chamber_PushTow'].position.y;
 }
 function applyTime(t){
@@ -985,6 +1031,7 @@ function applyTime(t){
   nodes['h:Crane_trolley'].position.set(sx,base.trol.y,sz);
   nodes['h:Crane_spreader'].position.set(sx,sy,sz);
   nodes['l:Gate_PushTow_Down'].position.y=base.gd+hermite(GD,t,k=>k.v); nodes['l:Gate_PushTow_Up'].position.y=base.gu+hermite(GU,t,k=>k.v); nodes['l:Water_Chamber_PushTow'].position.y=base.wc+hermite(WC,t,k=>k.v);
+  if(base.boll){ const k=t<66?0:t<70?smooth((t-66)/4):t<110?1:t<114?1-smooth((t-110)/4):0; base.boll.position.y=base.bollY-1.3*k; }
   const spr=nodes['h:Crane_spreader'];
   if(t<21.6){ put(BA,base.BAparent,pA_barge,qA_barge); setLED(BA,LED.low);} else if(t<29.2){ put(BA,spr,new V3(0,-2.591,0),qA_hub); setLED(BA,LED.low);} else { put(BA,base.hubRoot,new V3(13.5,2.3,-24),qA_hub); setLED(BA,LED.chg);}
   if(t<36.2){ put(BH1,base.hubRoot,base.h1p,qH1);} else if(t<43.6){ put(BH1,spr,new V3(0,-2.591,0),qH1);} else { put(BH1,base.BAparent,pA_barge,base.qH1_barge);} setLED(BH1,LED.full);
@@ -1615,7 +1662,7 @@ function build(){
   const T0=performance.now(), tm=n=>{ if(TEST) console.warn('BUILD '+n+' '+(performance.now()-T0).toFixed(0)+'ms'); };
   HF=decodeHF(D.height); if(D.height_core) HC=decodeHF(D.height_core);   // banks are shaped offline from the exact canal outline (scripts/data/banks.py)
   GF=decodeHF(D.ground); MB=D.route_base; tm('hf');
-  buildModels(); tm('models'); buildTerrain(); tm('terrain'); buildWater(); buildTrees(); tm('trees'); buildBuildings(); tm('buildings'); buildContainers(); buildDetails(); buildQuayWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
+  buildModels(); tm('models'); buildTerrain(); tm('terrain'); buildWater(); buildTrees(); tm('trees'); buildBuildings(); tm('buildings'); buildContainers(); buildDetails(); buildGroundCover(); buildRoads(); buildQuayWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
   // sky reflections only where they belong: water, glass and the painted barge
   WATER_MAT.envMap=ENV; WATER_MAT.envMapIntensity=0.16; WATER_MAT.needsUpdate=true;
   scene.traverse(o=>{ if(!o.isMesh) return; (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m&&m.isMeshStandardMaterial&&m.transparent){ m.envMap=ENV; m.envMapIntensity=1.0; m.needsUpdate=true; } }); });
