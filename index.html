@@ -1189,6 +1189,8 @@ function buildModels(){
   barge.add(bargeGLTF.scene); index(bargeGLTF.scene,'b:');
   const DK=4.5;   // top of the deck plating and hatch covers in this row of the hero model (the original bay floor at 0.8 is inside the hull)
   // battery bay moved one container row forward (into the first 40 ft row, which is removed), so the packs sit well inboard on the deck
+  // the light barge model (used on the Quest and for traffic) names every part with a .001 suffix: strip it so the same rules apply
+  for(const root of [bargeGLTF.scene,lodGLTF.scene]) root.traverse(o=>{ if(o.name) o.name=o.name.replace(/\.\d{3}$/,''); });
   // clean rebuild of the models: only the parts on these lists are kept, every other object in the files is dropped
   const KEEP_BARGE=/^(Hull_shell|Deck_plating|Sheer_stripe|Rubbing_strake|Coaming_|Hold_|Box\d|Accommodation|Wheelhouse_|Radar_mast|Bow_mast|Bow_name|Stern_name|Draft_|Guardrail|Lifebuoy|PowerConverter|Battery_[AB])/;
   const KEEP_LOCK=/^(Lock_walls|Lock_guide_walls|Lock_islands|Lock_gate_towers|Lock_control_tower|Lock_bridge_downstream|Gate_|Water_)/;
@@ -1767,7 +1769,10 @@ const VR_SPOTS={
   quay:()=>({p:hub.localToWorld(new V3(19,1.8,-11)), look:hub.localToWorld(new V3(21,1.8,8))}),
   lock:()=>({p:lock.localToWorld(new V3(10,12.05,-16)), look:lock.localToWorld(new V3(10,12.05,8))})
 };
+const VR_PLACES=['follow','over'];
+function vrNextPlace(){ const cur=VIEWS[cam.v].id; const i=VR_PLACES.indexOf(cur); const nid=VR_PLACES[(i+1)%VR_PLACES.length]; setView(VIEWS.findIndex(v=>v.id===nid)); hudDirty=true; }
 function placeVR(){
+  if(!VR_PLACES.includes(VIEWS[cam.v].id)){ cam.v=VIEWS.findIndex(x=>x.id==='follow'); document.querySelectorAll('#viewSeg button').forEach((b,j)=>b.setAttribute('aria-pressed',j===cam.v)); }
   const v=VIEWS[cam.v]; vrDolly=0; vrOff.set(0,0,0); panelSnap=true;
   if(VR_SPOTS[v.id]){ const s=VR_SPOTS[v.id](); scene.add(rig); rig.position.copy(s.p); rig.rotation.set(0,Math.atan2(s.p.x-s.look.x,s.p.z-s.look.z),0); return; }
   if(v.type==='fps'){ barge.add(rig); rig.position.set(0,12.25,-17.3); rig.rotation.set(0,0,0); }   // on the wheelhouse roof, facing the battery bay and the containers
@@ -1810,12 +1815,12 @@ function pollXR(dt){ const s=renderer.xr.getSession(); if(!s) return; const v=VI
       if(ty){ const up=toParent(new V3(0,-ty*dt*4,0)); if(v.id==='follow') vrOff.add(up); else rig.position.add(up); } }
     const b4=gp.buttons[4]&&gp.buttons[4].pressed, b5=gp.buttons[5]&&gp.buttons[5].pressed;
     const k=h+'4', k2=h+'5';
-    if(b4&&!btnPrev[k]){ vrMapOn=!vrMapOn; vrMap.visible=vrMapOn; } if(b5&&!btnPrev[k2]){ setView((cam.v+1)%VIEWS.length); hudDirty=true; }
+    if(b4&&!btnPrev[k]){ vrMapOn=!vrMapOn; vrMap.visible=vrMapOn; } if(b5&&!btnPrev[k2]){ vrNextPlace(); }
     btnPrev[k]=b4; btnPrev[k2]=b5; }
   // keep the feet above the ground and the water when walking on land
   if(rig.parent===scene){ const floor=surfaceH(rig.position.x,rig.position.z); const minY=Math.max(floor,0)+0.2; if(rig.position.y<minY) rig.position.y=minY; }
 }
-for(let i=0;i<2;i++){ const c=renderer.xr.getController(i); c.addEventListener('select',()=>{ if(waiting) act(); else if(ended) replay(0); else setView((cam.v+1)%VIEWS.length); }); c.addEventListener('squeeze',e=>{ const src=e.data||e.target.inputSource||null; const hand=src&&src.handedness; if(hand!=='left') setPaused(!paused); }); rig.add(c); }
+for(let i=0;i<2;i++){ const c=renderer.xr.getController(i); c.addEventListener('select',()=>{ if(waiting) act(); else if(ended) replay(0); else vrNextPlace(); }); c.addEventListener('squeeze',e=>{ const src=e.data||e.target.inputSource||null; const hand=src&&src.handedness; if(hand!=='left') setPaused(!paused); }); rig.add(c); }
 const vrBtn=$('vrBtn');
 const framed=(()=>{ try{ return window.top!==window.self; }catch(e){ return true; } })();
 function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
