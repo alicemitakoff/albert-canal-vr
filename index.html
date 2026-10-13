@@ -436,7 +436,7 @@ const pmrem=new THREE.PMREMGenerator(renderer); let ENV=null;
   ENV=pmrem.fromScene(s,0.02).texture; }
 const hemi=new THREE.HemisphereLight('#d9e5f1','#56603f',0.62); scene.add(hemi);
 const sun=new THREE.DirectionalLight('#fff3df',1.25); sun.castShadow=true;
-sun.shadow.mapSize.set(QLOW?2048:4096,QLOW?2048:4096);
+sun.shadow.mapSize.set(IS_QUEST&&!params.has('max')?2048:4096,IS_QUEST&&!params.has('max')?2048:4096);
 { const c=sun.shadow.camera; c.left=-260; c.right=260; c.top=260; c.bottom=-260; c.near=10; c.far=2400; }
 sun.shadow.bias=-0.00035; sun.shadow.normalBias=0.6;
 scene.add(sun); scene.add(sun.target);
@@ -580,7 +580,7 @@ function loadGroundMask(){ if(!D.groundmask) return; const t=new THREE.TextureLo
   GROUND_U.tMask.value=t; GROUND_U.maskO.value.set(D.groundmask.x0,D.groundmask.z0); GROUND_U.maskS.value.set(D.groundmask.w,D.groundmask.h); }
 /* vegetation over the whole painted grass area: tufts every few metres and a low bush now and then, read from the mask once it has loaded */
 function buildExtraCover(img){ const M=D.groundmask; const c=document.createElement('canvas'); c.width=img.width; c.height=img.height; const x=c.getContext('2d'); x.drawImage(img,0,0); const px=x.getImageData(0,0,c.width,c.height).data;
-  const step=QLOW?6:3.5, sx=c.width/M.w, sz=c.height/M.h; const list=[];
+  const step=QLOW?6:IS_QUEST?4.5:3.5, sx=c.width/M.w, sz=c.height/M.h; const list=[];
   for(let Z=M.z0+1;Z<M.z0+M.h-1;Z+=step) for(let X=M.x0+1;X<M.x0+M.w-1;X+=step){ const hh=Math.abs((Math.sin(X*12.9898+Z*78.233)*43758.5453)%1), h2=(hh*7.31)%1;
     const jx=X+(hh-0.5)*step, jz=Z+(h2-0.5)*step; const i=((Math.floor((jz-M.z0)*sz)*c.width)+Math.floor((jx-M.x0)*sx))*4; if(px[i]<140) continue;
     if(inHub(jx,jz)||inLock(jx,jz,-12)) continue; list.push([jx,jz,hh,h2]); }
@@ -1835,8 +1835,8 @@ function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
   vrBtn.onclick=async()=>{ const cur=renderer.xr.getSession(); if(cur){ cur.end(); return; }
     let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ window.__diag('Enter VR refused: '+e.name+' '+e.message); return; }
     // sharper headset image: render at 1.4x the headset's default resolution, little edge foveation, and a 2 m visual high quality hint
-    try{ renderer.xr.setFramebufferScaleFactor&&renderer.xr.setFramebufferScaleFactor(params.has('soft')?1.0:2.0); }catch(e){}
-    try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(params.has('soft')?1:0); }catch(e){}
+    try{ renderer.xr.setFramebufferScaleFactor&&renderer.xr.setFramebufferScaleFactor(params.has('soft')?1.0:params.has('max')?2.0:1.5); }catch(e){}
+    try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(params.has('soft')?1:params.has('max')?0:0.35); }catch(e){}
     sun.shadow.mapSize.set(1024,1024); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
     try{ await renderer.xr.setSession(s); }catch(e){ window.__diag('Starting VR failed: '+e.name+' '+e.message); try{ s.end(); }catch(_){} return; }
     vrBtn.textContent='Exit VR'; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; setView(1); panelSnap=true; hudDirty=true; $('vrBig').hidden=true;
