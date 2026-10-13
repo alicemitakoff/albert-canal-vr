@@ -1213,12 +1213,6 @@ function buildModels(){
   // mitre gates: two steel leaves hinged on the chamber walls, meeting in a V towards the high water (+x), swinging into the walls to open
   lockGLTF.scene.traverse(n=>{ if(/^Gate_/.test(n.name)||n.name==='Lock_gate_towers') n.visible=false; });
   buildMitreGates();
-  // the concrete sills and gate stops of the old lifting gates: sunk below the water so only water shows between the leaves
-  { const zones=[[108.5,0,12.6],[38.3,-60,8.6],[37.4,-91.4,8.6],[-109.1,0,12.6],[-113.5,-60,8.6],[-114.1,-91.4,8.6]];
-    lockGLTF.scene.traverse(o=>{ if(!o.isMesh||!/^Lock_(walls|islands)/.test(o.parent&&o.parent.name||o.name)) return; const pos=o.geometry.attributes.position; let hit=0;
-      for(let i=0;i<pos.count;i++){ const x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
-        for(const [gx,gz,hw] of zones){ if(x>gx-6&&x<gx+6&&Math.abs(z-gz)<hw&&y>-2){ pos.setY(i,-6); hit++; break; } } }
-      if(hit){ pos.needsUpdate=true; o.geometry.computeVertexNormals(); o.geometry.computeBoundingBox(); o.geometry.computeBoundingSphere(); } }); }
   // the lock gates carry three pyramid shaped hoisting lugs on top; they are flattened so the gate top is a plain beam
   lockGLTF.scene.traverse(n=>{ if(!/^Gate_/.test(n.name)) return; const ms=[]; n.traverse(o=>{ if(o.isMesh){ o.geometry.computeBoundingBox(); ms.push(o); } }); if(ms.length<2) return;
     ms.sort((a,b)=>a.geometry.boundingBox.max.y-b.geometry.boundingBox.max.y); const lim=ms[0].geometry.boundingBox.max.y, g=ms[ms.length-1].geometry; const pos=g.attributes.position;
