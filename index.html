@@ -416,7 +416,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio,QLOW?1:1.75));
 renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.98;
 renderer.physicallyCorrectLights=false;
-renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate=true;
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=IS_QUEST?THREE.PCFShadowMap:THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate=true;   // the soft filter is the costliest shader on the Quest
 renderer.xr.enabled=true; renderer.xr.setReferenceSpaceType('local-floor');
 window.__r=renderer;
 const scene=new THREE.Scene();
@@ -436,7 +436,7 @@ const pmrem=new THREE.PMREMGenerator(renderer); let ENV=null;
   ENV=pmrem.fromScene(s,0.02).texture; }
 const hemi=new THREE.HemisphereLight('#d9e5f1','#56603f',0.62); scene.add(hemi);
 const sun=new THREE.DirectionalLight('#fff3df',1.25); sun.castShadow=true;
-sun.shadow.mapSize.set(IS_QUEST&&!params.has('max')?2048:4096,IS_QUEST&&!params.has('max')?2048:4096);
+sun.shadow.mapSize.set(IS_QUEST?(params.has('max')?2048:1024):4096,IS_QUEST?(params.has('max')?2048:1024):4096);
 { const c=sun.shadow.camera; c.left=-260; c.right=260; c.top=260; c.bottom=-260; c.near=10; c.far=2400; }
 sun.shadow.bias=-0.00035; sun.shadow.normalBias=0.6;
 scene.add(sun); scene.add(sun.target);
@@ -1987,8 +1987,9 @@ function frame(now){
     tNow=nt; }
   applyTime(tNow); updateBatteryFX(tNow,dt); updateWake(dt); updatePeople(dt); if(AIS.objs.size) updateAIS();
   const xr=renderer.xr.isPresenting;
-  renderer.shadowMap.autoUpdate=!xr; if(xr&&((++xrFrame)%3===0)) renderer.shadowMap.needsUpdate=true;
-  if(xr){ pollXR(dt); vrFollow(dt); placePanels(dt); vrPanel.visible=vrCaptions||!!waiting||ended; if((waiting||ended)&&Math.floor(now/120)!==Math.floor((now-dt*1000)/120)) hudDirty=true; if(Math.floor(now/250)!==Math.floor((now-dt*1000)/250)||hudDirty){ if(vrPanel.visible) drawVRPanel(tNow); if(vrMapOn&&MB){ drawRoute(vrMapC.getContext('2d'),(()=>{ const [x0,y0]=mapXY(4.25,51.31),[x1,y1]=mapXY(5.53,50.92); return {cx:(x0+x1)/2,cy:(y0+y1)/2,s:Math.min(1200/(x1-x0),680/(y1-y0))*0.95}; })(),{km:kmOf(barge.position),style:'night',dpr:2,full:true}); vrMapTex.needsUpdate=true; } hudDirty=false; } }
+  // in the headset the shadows are refreshed every frame (a refresh every third frame gave a regular hitch); the map is smaller there to keep the cost even
+  renderer.shadowMap.autoUpdate=true;
+  if(xr){ pollXR(dt); vrFollow(dt); placePanels(dt); vrPanel.visible=vrCaptions||!!waiting||ended; if((waiting||ended)&&Math.floor(now/120)!==Math.floor((now-dt*1000)/120)) hudDirty=true; if(Math.floor(now/1000)!==Math.floor((now-dt*1000)/1000)||hudDirty){ if(vrPanel.visible) drawVRPanel(tNow); if(vrMapOn&&MB){ drawRoute(vrMapC.getContext('2d'),(()=>{ const [x0,y0]=mapXY(4.25,51.31),[x1,y1]=mapXY(5.53,50.92); return {cx:(x0+x1)/2,cy:(y0+y1)/2,s:Math.min(1200/(x1-x0),680/(y1-y0))*0.95}; })(),{km:kmOf(barge.position),style:'night',dpr:2,full:true}); vrMapTex.needsUpdate=true; } hudDirty=false; } }
   else updateCamera(dt);
   for(const r of turbines) r.rotation.z+=dt*r.userData.speed;
   WATER_MAT.normalMap.offset.x+=dt*0.006; WATER_MAT.normalMap.offset.y+=dt*0.0035;
