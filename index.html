@@ -1190,7 +1190,8 @@ function buildModels(){
   const DK=4.5;   // top of the deck plating and hatch covers in this row of the hero model (the original bay floor at 0.8 is inside the hull)
   // battery bay moved one container row forward (into the first 40 ft row, which is removed), so the packs sit well inboard on the deck
   // the light barge model (used on the Quest and for traffic) names every part with a .001 suffix: strip it so the same rules apply
-  for(const root of [bargeGLTF.scene,lodGLTF.scene]) root.traverse(o=>{ if(o.name) o.name=o.name.replace(/\.\d{3}$/,''); });
+  // (the loader already drops the dot, so 'Battery_A.001' arrives as 'Battery_A001'); only the light model carries the suffix
+  for(const root of (/lod/.test(BARGE_URL)?[bargeGLTF.scene,lodGLTF.scene]:[lodGLTF.scene])) root.traverse(o=>{ if(o.name&&/001$/.test(o.name)) o.name=o.name.replace(/001$/,''); });
   // clean rebuild of the models: only the parts on these lists are kept, every other object in the files is dropped
   const KEEP_BARGE=/^(Hull_shell|Deck_plating|Sheer_stripe|Rubbing_strake|Coaming_|Hold_|Box\d|Accommodation|Wheelhouse_|Radar_mast|Bow_mast|Bow_name|Stern_name|Draft_|Guardrail|Lifebuoy|PowerConverter|Battery_[AB])/;
   const KEEP_LOCK=/^(Lock_walls|Lock_guide_walls|Lock_islands|Lock_gate_towers|Lock_control_tower|Lock_bridge_downstream|Gate_|Water_)/;
