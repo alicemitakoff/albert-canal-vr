@@ -1174,6 +1174,29 @@ function upgradeMaterials(root){
     o.material=Array.isArray(o.material)?out:out[0]; });
 }
 let realCranes=[], traffic=null, moored=null;
+const MITRE={};   // id -> {leaves:[group,group], ang}
+function buildMitreGates(){
+  const steel=new THREE.MeshStandardMaterial({color:'#4b5257',roughness:0.6,metalness:0.55}), dark=new THREE.MeshStandardMaterial({color:'#2a2e31',roughness:0.7,metalness:0.4}), rail=new THREE.MeshStandardMaterial({color:'#d8d8d4',roughness:0.5,metalness:0.3});
+  const TH=20*Math.PI/180;                                                                           // mitre angle off the chamber axis
+  const specs=[['down',-109.1,-4.2,0,12.4,15.8],['up',108.5,5.4,0,12.4,6.2],
+               ['mDown',-113.5,-4.2,-60,8.4,15.8],['mUp',38.3,5.4,-60,8.4,6.2],['nDown',-114.1,-4.2,-91.4,8.4,15.8],['nUp',37.4,5.4,-91.4,8.4,6.2]];
+  for(const [id,gx,gy,gz,hw,H] of specs){ const L=hw/Math.cos(TH)+0.25, leaves=[];
+    for(const side of [-1,1]){ const g=new THREE.Group(); g.position.set(gx,gy,gz+side*hw); lock.add(g);
+      const leaf=new THREE.Group(); g.add(leaf);                                                   // pivot at the wall, the leaf extends along +x in its own frame
+      const add=(geo,mat,x,y,z)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.castShadow=m.receiveShadow=true; leaf.add(m); return m; };
+      add(new THREE.BoxGeometry(L,H,0.7),steel,L/2,H/2,0);                                        // skin plate
+      for(let k=1;k<=Math.floor(H/2.2);k++) add(new THREE.BoxGeometry(L,0.35,1.1),dark,L/2,k*2.2,0);   // horizontal girders
+      for(let k=1;k<=Math.floor(L/2.6);k++) add(new THREE.BoxGeometry(0.4,H,1.0),dark,k*2.6,H/2,0);  // vertical ribs
+      add(new THREE.BoxGeometry(L+0.4,0.5,1.6),dark,L/2,H+0.25,0);                                // top walkway
+      add(new THREE.BoxGeometry(L,0.08,0.08),rail,L/2,H+1.4,0.6); add(new THREE.BoxGeometry(L,0.08,0.08),rail,L/2,H+1.4,-0.6);
+      for(let k=0;k<=Math.floor(L/2.2);k++){ add(new THREE.BoxGeometry(0.08,1.0,0.08),rail,k*2.2,H+0.95,0.6); add(new THREE.BoxGeometry(0.08,1.0,0.08),rail,k*2.2,H+0.95,-0.6); }
+      add(new THREE.CylinderGeometry(0.45,0.45,H+1.2,12),dark,0,H/2+0.3,0);                      // heel post at the hinge
+      leaf.userData.side=side; leaves.push(leaf); }
+    MITRE[id]={leaves,ang:(Math.PI/2-TH)}; setMitre(id,id==='down'?1:0); }                         // story start: lower gate open, upper gate closed
+}
+/* open: 0 = closed (leaves meeting in the V), 1 = open (leaves lying along the walls, pointing upstream) */
+function setMitre(id,open){ const m=MITRE[id]; if(!m) return; const o=THREE.MathUtils.clamp(open,0,1);
+  for(const leaf of m.leaves){ leaf.rotation.y=leaf.userData.side*m.ang*(1-o); } }
 function buildModels(){
   F=D.objects.frames;
   hub.position.set(F.hub.x,F.hub.quayTop-1.8+0.04,F.hub.z); hub.rotation.y=F.hub.ry;
@@ -1183,6 +1206,9 @@ function buildModels(){
   upgradeMaterials(hubGLTF.scene); upgradeMaterials(lockGLTF.scene); upgradeMaterials(bargeGLTF.scene);
   hub.add(hubGLTF.scene); index(hubGLTF.scene,'h:');
   lock.add(lockGLTF.scene); index(lockGLTF.scene,'l:');
+  // mitre gates: two steel leaves hinged on the chamber walls, meeting in a V towards the high water (+x), swinging into the walls to open
+  lockGLTF.scene.traverse(n=>{ if(/^Gate_/.test(n.name)||n.name==='Lock_gate_towers') n.visible=false; });
+  buildMitreGates();
   // the lock gates carry three pyramid shaped hoisting lugs on top; they are flattened so the gate top is a plain beam
   lockGLTF.scene.traverse(n=>{ if(!/^Gate_/.test(n.name)) return; const ms=[]; n.traverse(o=>{ if(o.isMesh){ o.geometry.computeBoundingBox(); ms.push(o); } }); if(ms.length<2) return;
     ms.sort((a,b)=>a.geometry.boundingBox.max.y-b.geometry.boundingBox.max.y); const lim=ms[0].geometry.boundingBox.max.y, g=ms[ms.length-1].geometry; const pos=g.attributes.position;
@@ -1312,7 +1338,7 @@ function applyTime(t){
   ['h:Crane_sign_1','h:Crane_sign_-1'].forEach(n=>{ if(nodes[n]) nodes[n].position.x=base[n].x+sx; });
   nodes['h:Crane_trolley'].position.set(sx,base.trol.y,sz);
   nodes['h:Crane_spreader'].position.set(sx,sy,sz);
-  nodes['l:Gate_PushTow_Down'].position.y=base.gd+hermite(GD,t,k=>k.v); nodes['l:Gate_PushTow_Up'].position.y=base.gu+hermite(GU,t,k=>k.v); nodes['l:Water_Chamber_PushTow'].position.y=base.wc+hermite(WC,t,k=>k.v);
+  setMitre('down',hermite(GD,t,k=>k.v)/23); setMitre('up',hermite(GU,t,k=>k.v)/17); nodes['l:Water_Chamber_PushTow'].position.y=base.wc+hermite(WC,t,k=>k.v);
   if(base.boll){ const k=t<66?0:t<70?smooth((t-66)/4):t<110?1:t<114?1-smooth((t-110)/4):0; base.boll.position.y=base.bollY-1.3*k; }
   const spr=nodes['h:Crane_spreader'];
   if(t<21.6){ put(BA,base.BAparent,pA_barge,qA_barge); setLED(BA,LED.low);} else if(t<29.2){ put(BA,spr,new V3(0,-2.591,0),qA_hub); setLED(BA,LED.low);} else { put(BA,base.hubRoot,new V3(13.5,2.3,-24),qA_hub); setLED(BA,LED.chg);}
