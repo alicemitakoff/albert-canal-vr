@@ -435,7 +435,7 @@ const pmrem=new THREE.PMREMGenerator(renderer); let ENV=null;
   ENV=pmrem.fromScene(s,0.02).texture; }
 const hemi=new THREE.HemisphereLight('#d9e5f1','#56603f',0.62); scene.add(hemi);
 const sun=new THREE.DirectionalLight('#fff3df',1.25); sun.castShadow=true;
-sun.shadow.mapSize.set(IS_QUEST?1024:4096,IS_QUEST?1024:4096);
+sun.shadow.mapSize.set(IS_QUEST?2048:4096,IS_QUEST?2048:4096);
 { const c=sun.shadow.camera; c.left=-260; c.right=260; c.top=260; c.bottom=-260; c.near=10; c.far=2400; }
 sun.shadow.bias=-0.00035; sun.shadow.normalBias=0.6;
 scene.add(sun); scene.add(sun.target);
@@ -1833,7 +1833,9 @@ function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
   if(IS_QUEST&&!FLAT){ document.body.classList.add('quest'); $('vrBig').hidden=false; $('vrBig').onclick=()=>vrBtn.onclick(); }
   vrBtn.onclick=async()=>{ const cur=renderer.xr.getSession(); if(cur){ cur.end(); return; }
     let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ window.__diag('Enter VR refused: '+e.name+' '+e.message); return; }
-    try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(1); }catch(e){}
+    // sharper headset image: render at 1.4x the headset's default resolution, little edge foveation, and a 2 m visual high quality hint
+    try{ renderer.xr.setFramebufferScaleFactor&&renderer.xr.setFramebufferScaleFactor(params.has('soft')?1.0:1.4); }catch(e){}
+    try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(params.has('soft')?1:0.3); }catch(e){}
     sun.shadow.mapSize.set(1024,1024); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
     try{ await renderer.xr.setSession(s); }catch(e){ window.__diag('Starting VR failed: '+e.name+' '+e.message); try{ s.end(); }catch(_){} return; }
     vrBtn.textContent='Exit VR'; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; setView(1); panelSnap=true; hudDirty=true; $('vrBig').hidden=true;
