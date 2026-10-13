@@ -1108,8 +1108,10 @@ function buildRoads(){
   for(const r of RD){ const P0=r.p; if(P0.length<2) continue; const half=r.w/2;
     const P=[]; for(let i=0;i<P0.length-1;i++){ const a=P0[i], b=P0[i+1]; const n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/6)); for(let k=0;k<n;k++){ const t=k/n; P.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]); } } P.push([P0[P0.length-1][0],P0[P0.length-1][1]]);
     const soft=/track|path|footway|cycleway/.test(r.t);
-    ribbon(P,half,0,soft?groups.l:groups.a);
-    if(!soft&&r.w>=5){ ribbon(P,0.08,half-0.25,groups.e); ribbon(P,0.08,-(half-0.25),groups.e); } }   // white edge lines on real streets
+    // roads that cross the lock or the water (over the gates, on bridges) are cut there: the bridges are built separately
+    const runs=[]; let run=[]; for(const q of P){ const over=inLock(q[0],q[1],-30)||hAt(q[0],q[1])<-0.5; if(over){ if(run.length>1) runs.push(run); run=[]; } else run.push(q); } if(run.length>1) runs.push(run);
+    for(const Q of runs){ ribbon(Q,half,0,soft?groups.l:groups.a);
+      if(!soft&&r.w>=5){ ribbon(Q,0.08,half-0.25,groups.e); ribbon(Q,0.08,-(half-0.25),groups.e); } } }   // white edge lines on real streets
   for(const [key,mat,ro] of [['a',asphalt,1],['l',light,1],['e',line,2]]){ if(!groups[key].length) continue; const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(groups[key],3)); g.computeVertexNormals();
     const m=new THREE.Mesh(g,mat); m.receiveShadow=true; m.renderOrder=ro; if(key==='e') m.position.y=0.02; scene.add(m); }
 }
