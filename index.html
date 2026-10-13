@@ -390,6 +390,7 @@ const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
 const $=id=>document.getElementById(id);
 const IS_QUEST=/OculusBrowser|Quest/i.test(navigator.userAgent);
 const params=new URLSearchParams(location.search);
+const QLOW=IS_QUEST&&params.has('soft');   // the headset runs the scene at full laptop quality; ?soft is the lighter fallback
 const TEST=params.has('t');
 const FLAT=params.has('flat');   // ?flat: on the Quest, show the normal screen version without the big Enter VR banner
 
@@ -411,7 +412,7 @@ function kmOf(p){ let best=1e18,k=KM0; for(let i=0;i<CL.length-1;i++){ const a=C
    ============================================================ */
 const canvas=$('gl');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',logarithmicDepthBuffer:false});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,IS_QUEST?1:1.75));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,QLOW?1:1.75));
 renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.98;
 renderer.physicallyCorrectLights=false;
@@ -435,7 +436,7 @@ const pmrem=new THREE.PMREMGenerator(renderer); let ENV=null;
   ENV=pmrem.fromScene(s,0.02).texture; }
 const hemi=new THREE.HemisphereLight('#d9e5f1','#56603f',0.62); scene.add(hemi);
 const sun=new THREE.DirectionalLight('#fff3df',1.25); sun.castShadow=true;
-sun.shadow.mapSize.set(IS_QUEST?2048:4096,IS_QUEST?2048:4096);
+sun.shadow.mapSize.set(QLOW?2048:4096,QLOW?2048:4096);
 { const c=sun.shadow.camera; c.left=-260; c.right=260; c.top=260; c.bottom=-260; c.near=10; c.far=2400; }
 sun.shadow.bias=-0.00035; sun.shadow.normalBias=0.6;
 scene.add(sun); scene.add(sun.target);
@@ -501,7 +502,7 @@ const mapImg={night:new Image(),sat:new Image()};
 const hub=new THREE.Group(), lock=new THREE.Group(), barge=new THREE.Group();
 scene.add(hub,lock,barge);
 function index(root,prefix){ root.traverse(o=>{ if(o.name){ const n=o.name.replace(/[._]?\d{3}$/,''); if(!nodes[prefix+n]) nodes[prefix+n]=o; } }); }
-const BARGE_URL=(IS_QUEST||params.has('lod'))?'assets/models/ebarge_lod.gltf.json':'assets/models/ebarge_hero.gltf.json';
+const BARGE_URL=(QLOW||params.has('lod'))?'assets/models/ebarge_lod.gltf.json':'assets/models/ebarge_hero.gltf.json';
 let bargeGLTF=null, lodGLTF=null;
 gltfL.load(BARGE_URL,g=>{ bargeGLTF=g; });
 gltfL.load('assets/models/ebarge_lod.gltf.json',g=>{ lodGLTF=g; });
@@ -579,7 +580,7 @@ function loadGroundMask(){ if(!D.groundmask) return; const t=new THREE.TextureLo
   GROUND_U.tMask.value=t; GROUND_U.maskO.value.set(D.groundmask.x0,D.groundmask.z0); GROUND_U.maskS.value.set(D.groundmask.w,D.groundmask.h); }
 /* vegetation over the whole painted grass area: tufts every few metres and a low bush now and then, read from the mask once it has loaded */
 function buildExtraCover(img){ const M=D.groundmask; const c=document.createElement('canvas'); c.width=img.width; c.height=img.height; const x=c.getContext('2d'); x.drawImage(img,0,0); const px=x.getImageData(0,0,c.width,c.height).data;
-  const step=IS_QUEST?6:3.5, sx=c.width/M.w, sz=c.height/M.h; const list=[];
+  const step=QLOW?6:3.5, sx=c.width/M.w, sz=c.height/M.h; const list=[];
   for(let Z=M.z0+1;Z<M.z0+M.h-1;Z+=step) for(let X=M.x0+1;X<M.x0+M.w-1;X+=step){ const hh=Math.abs((Math.sin(X*12.9898+Z*78.233)*43758.5453)%1), h2=(hh*7.31)%1;
     const jx=X+(hh-0.5)*step, jz=Z+(h2-0.5)*step; const i=((Math.floor((jz-M.z0)*sz)*c.width)+Math.floor((jx-M.x0)*sx))*4; if(px[i]<140) continue;
     if(inHub(jx,jz)||inLock(jx,jz,-12)) continue; list.push([jx,jz,hh,h2]); }
@@ -625,7 +626,7 @@ function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
   };
   m.customProgramCacheKey=()=>'ground3'; return m; }
 function buildTerrain(){
-  const vr=IS_QUEST;
+  const vr=QLOW;
   for(const c of D.chunks.chunks){
     const step=c.core?(vr?3:2):c.t==='hi'?(vr?6:4):c.t==='mid'?(vr?12:8):(vr?24:16);
     const nx=Math.max(2,Math.round(c.w/step)), nz=Math.max(2,Math.round(c.h/step));
@@ -1834,8 +1835,8 @@ function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
   vrBtn.onclick=async()=>{ const cur=renderer.xr.getSession(); if(cur){ cur.end(); return; }
     let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ window.__diag('Enter VR refused: '+e.name+' '+e.message); return; }
     // sharper headset image: render at 1.4x the headset's default resolution, little edge foveation, and a 2 m visual high quality hint
-    try{ renderer.xr.setFramebufferScaleFactor&&renderer.xr.setFramebufferScaleFactor(params.has('soft')?1.0:1.4); }catch(e){}
-    try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(params.has('soft')?1:0.3); }catch(e){}
+    try{ renderer.xr.setFramebufferScaleFactor&&renderer.xr.setFramebufferScaleFactor(params.has('soft')?1.0:2.0); }catch(e){}
+    try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(params.has('soft')?1:0); }catch(e){}
     sun.shadow.mapSize.set(1024,1024); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
     try{ await renderer.xr.setSession(s); }catch(e){ window.__diag('Starting VR failed: '+e.name+' '+e.message); try{ s.end(); }catch(_){} return; }
     vrBtn.textContent='Exit VR'; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; setView(1); panelSnap=true; hudDirty=true; $('vrBig').hidden=true;
