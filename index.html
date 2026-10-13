@@ -1297,7 +1297,11 @@ let BK=[];
 function makeBargeKeys(){
   DOCK_LOCAL={x:21.4,z:6.9};
   const dock=hubPose(DOCK_LOCAL.x,DOCK_LOCAL.z);
-  const raw=[[0,bargeAt(50.72,-24)],[8,bargeAt(51.45,-30)],[13.5,hubPose(78,15)],[17,dock],[46.5,dock],[51.5,hubPose(-24,21)],
+  // casting off: the bow swings out first around the stern (yawed pose with the bow pushed off the quay), then the stern follows
+  const hubYaw=(x,z,bowOut)=>{ const base=hubPose(x,z); const inv=hub.matrixWorld.clone().invert(); const d=Math.asin(Math.min(0.9,bowOut/135));
+    let best=null; for(const sg of [1,-1]){ const ry=base.ry+sg*d; const bow=base.p.clone().add(new V3(-Math.sin(ry),0,-Math.cos(ry)).multiplyScalar(135)); const lz=bow.clone().applyMatrix4(inv).z; if(!best||lz>best.lz) best={lz,ry}; }
+    return {p:base.p,ry:best.ry}; };
+  const raw=[[0,bargeAt(50.72,-24)],[8,bargeAt(51.45,-30)],[13.5,hubPose(78,15)],[17,dock],[46.5,dock],[49.5,hubYaw(14,7.6,9)],[53,hubYaw(-16,13,12)],[56,hubPose(-52,24)],
     [60,lockAt(-300)],[70,lockAt(-235)],[79,lockAt(-85)],[84,lockAt(-85)],[104,lockAt(-85,KEEL+10)],[110,lockAt(-85,KEEL+10)],[125,lockAt(330,KEEL+10)]];
   let prev=null; BK=raw.map(([t,k])=>{ let r=k.ry; if(prev!==null){ while(r-prev>Math.PI)r-=2*Math.PI; while(r-prev<-Math.PI)r+=2*Math.PI; } prev=r; return {t,p:k.p.clone(),r}; });
 }
