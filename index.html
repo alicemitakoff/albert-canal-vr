@@ -1054,7 +1054,8 @@ function buildTrees(){
   const geo=new THREE.InstancedBufferGeometry(); const pl=new THREE.PlaneGeometry(1,1); pl.translate(0,0.5,0);
   geo.index=pl.index; geo.attributes.position=pl.attributes.position; geo.attributes.uv=pl.attributes.uv;
   const pos=new Float32Array(n*3), size=new Float32Array(n*2), vari=new Float32Array(n*2); let k=0;
-  for(let i=0;i<n;i++){ const X=T[i*5], Z=T[i*5+1], G=T[i*5+2], H=T[i*5+3]; if(inHub(X,Z)||inLock(X,Z,-12)) continue;
+  const onWater=(X,Z)=>{ const p=lockLocal(X,Z); if(p.x>90&&p.x<320&&p.z>-112&&p.z<22) return true; return surfaceH(X,Z)<-0.5; };   // no trees in the lock approaches or on the water
+  for(let i=0;i<n;i++){ const X=T[i*5], Z=T[i*5+1], G=T[i*5+2], H=T[i*5+3]; if(inHub(X,Z)||inLock(X,Z,-12)||onWater(X,Z)) continue;
     const h=(Math.sin(X*12.9898+Z*78.233)*43758.5453)%1, hh=Math.abs(h);
     let v=T[i*5+4]?3:(H>17&&hh<0.35?2:(H<9?1:0));
     const w=v===2?clamp(H*0.3,3,7):v===3?clamp(H*0.42,3,9):clamp(H*0.62,3.5,15);
