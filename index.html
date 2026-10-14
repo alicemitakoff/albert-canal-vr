@@ -1314,13 +1314,14 @@ function makeDeparture(){
   const fwd=ry=>new V3(-Math.sin(ry),0,-Math.cos(ry));
   const s0=new V3(hermite(BK,DEP_T0,k=>k.p.x),0,hermite(BK,DEP_T0,k=>k.p.z)), r0=hermite(BK,DEP_T0,k=>k.r);
   const b0=toL(s0.clone().addScaledVector(fwd(r0),HULL));                 // bow at the quay, in lock coordinates
-  const bSwing=new V3(b0.x+18,0,Math.sign(b0.z)*3);                        // after the swing the bow sits just off the centreline
+  const bSwing=new V3(b0.x,0,Math.sign(b0.z)*3);                        // after the swing the bow sits just off the centreline
   const sEnd=new V3(-85,0,0), bEnd=new V3(-85+HULL,0,0);                     // stern at the berth in the chamber
   const T_SW=53, out=[]; let stern=s0.clone(); let ry=r0;
   for(let t=DEP_T0;t<=DEP_T1+1e-6;t+=DEP_DT){
     let bowL;
-    if(t<=T_SW){ const k=smooth((t-DEP_T0)/(T_SW-DEP_T0)); bowL=b0.clone().lerp(bSwing,k);                       // bow swings out, stern only creeps
-      const sp=toL(s0); sp.x+=4*k; stern=toW(sp.x,sp.z); }
+    if(t<=T_SW){ const k=smooth((t-DEP_T0)/(T_SW-DEP_T0));                                                   // bow swings out round the stern, stern only creeps
+      const sp=toL(s0); sp.x+=4*k; stern=toW(sp.x,sp.z); const bz=b0.z+(bSwing.z-b0.z)*k, dz=bz-sp.z;
+      bowL=new V3(sp.x+Math.sqrt(Math.max(1,HULL*HULL-dz*dz)),0,bz); if(t+DEP_DT>T_SW) bSwing.x=bowL.x; }
     else { const k=(t-T_SW)/(DEP_T1-T_SW); const e=k<0.5?2*k*k:1-2*(1-k)*(1-k);                                  // ease in and out along the centreline
       const x=bSwing.x+(bEnd.x-bSwing.x)*e; const z=bSwing.z*Math.exp(-Math.max(0,x-bSwing.x)/25); bowL=new V3(x,0,z);
       const bw=toW(bowL.x,bowL.z); const d=bw.clone().sub(stern); stern=bw.clone().addScaledVector(d.normalize(),-HULL); }  // the stern trails the bow at one hull length
