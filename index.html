@@ -1301,8 +1301,8 @@ function makeBargeKeys(){
   const hubYaw=(x,z,bowOut)=>{ const base=hubPose(x,z); const inv=hub.matrixWorld.clone().invert(); const d=Math.asin(Math.min(0.9,bowOut/135));
     let best=null; for(const sg of [1,-1]){ const ry=base.ry+sg*d; const bow=base.p.clone().add(new V3(-Math.sin(ry),0,-Math.cos(ry)).multiplyScalar(135)); const lz=bow.clone().applyMatrix4(inv).z; if(!best||lz>best.lz) best={lz,ry}; }
     return {p:base.p,ry:best.ry}; };
-  const raw=[[0,bargeAt(50.72,-24)],[8,bargeAt(51.45,-30)],[13.5,hubPose(78,15)],[17,dock],[46.5,dock],[49.5,hubYaw(14,7.6,9)],[53,hubYaw(-16,13,12)],[56,hubPose(-52,24)],
-    [60,lockAt(-300)],[70,lockAt(-235)],[79,lockAt(-85)],[84,lockAt(-85)],[104,lockAt(-85,KEEL+10)],[110,lockAt(-85,KEEL+10)],[125,lockAt(330,KEEL+10)]];
+  const raw=[[0,bargeAt(50.72,-24)],[8,bargeAt(51.45,-30)],[13.5,hubPose(78,15)],[17,dock],[46.5,dock],[49.5,hubYaw(14,7.6,9)],[53,hubYaw(-16,13,12)],[56.5,hubPose(-52,24)],
+    [63,lockAt(-300)],[67,lockAt(-235)],[79,lockAt(-85)],[84,lockAt(-85)],[104,lockAt(-85,KEEL+10)],[110,lockAt(-85,KEEL+10)],[125,lockAt(330,KEEL+10)]];
   let prev=null; BK=raw.map(([t,k])=>{ let r=k.ry; if(prev!==null){ while(r-prev>Math.PI)r-=2*Math.PI; while(r-prev<-Math.PI)r+=2*Math.PI; } prev=r; return {t,p:k.p.clone(),r}; });
 }
 function hermite(keys,t,get){
@@ -1343,7 +1343,9 @@ function setupSwap(){
   base.gd=nodes['l:Gate_PushTow_Down'].position.y; base.gu=nodes['l:Gate_PushTow_Up'].position.y; base.wc=nodes['l:Water_Chamber_PushTow'].position.y;
 }
 function applyTime(t){
-  const x=hermite(BK,t,k=>k.p.x), y=hermite(BK,t,k=>k.p.y), z=hermite(BK,t,k=>k.p.z), r=hermite(BK,t,k=>k.r);
+  const x=hermite(BK,t,k=>k.p.x), y=hermite(BK,t,k=>k.p.y), z=hermite(BK,t,k=>k.p.z); let r=hermite(BK,t,k=>k.r);
+  // from the quay to the lock the bow always points where the barge is going (keyframe headings let it crab towards the bank)
+  { const w=smooth((t-50.5)/3)*(1-smooth((t-77)/2)); if(w>0){ const x1=hermite(BK,t+0.4,k=>k.p.x), z1=hermite(BK,t+0.4,k=>k.p.z); if(Math.hypot(x1-x,z1-z)>0.05){ let mv=Math.atan2(-(x1-x),-(z1-z)); while(mv-r>Math.PI) mv-=2*Math.PI; while(mv-r<-Math.PI) mv+=2*Math.PI; r=r+(mv-r)*w; } } }
   barge.position.set(x,y,z); barge.rotation.set(0,r,0);
   const sx=hermite(SK,t,k=>k.x), sy=hermite(SK,t,k=>k.y), sz=hermite(SK,t,k=>k.z);
   nodes['h:Crane_structure'].position.x=base.gant.x+sx;
