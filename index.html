@@ -1305,6 +1305,32 @@ function makeBargeKeys(){
     [63,lockAt(-300)],[67,lockAt(-235)],[79,lockAt(-85)],[84,lockAt(-85)],[104,lockAt(-85,KEEL+10)],[110,lockAt(-85,KEEL+10)],[125,lockAt(330,KEEL+10)]];
   let prev=null; BK=raw.map(([t,k])=>{ let r=k.ry; if(prev!==null){ while(r-prev>Math.PI)r-=2*Math.PI; while(r-prev<-Math.PI)r+=2*Math.PI; } prev=r; return {t,p:k.p.clone(),r}; });
 }
+/* Departure from the quay into the lock, simulated once at load: the bow swings out over the stern, then the bow runs along
+   the lock centreline and the stern trails behind it (each step the hull points from the stern to the bow), so the hull lines up
+   with the guide walls before it reaches them and enters the chamber straight. */
+let DEP=null; const DEP_T0=46.5, DEP_T1=79, DEP_DT=0.05, HULL=133;
+function makeDeparture(){
+  const L=lock.matrixWorld, Li=L.clone().invert(); const toL=v=>v.clone().applyMatrix4(Li), toW=(x,z)=>new V3(x,0,z).applyMatrix4(L);
+  const fwd=ry=>new V3(-Math.sin(ry),0,-Math.cos(ry));
+  const s0=new V3(hermite(BK,DEP_T0,k=>k.p.x),0,hermite(BK,DEP_T0,k=>k.p.z)), r0=hermite(BK,DEP_T0,k=>k.r);
+  const b0=toL(s0.clone().addScaledVector(fwd(r0),HULL));                 // bow at the quay, in lock coordinates
+  const bSwing=new V3(b0.x+18,0,Math.sign(b0.z)*3);                        // after the swing the bow sits just off the centreline
+  const sEnd=new V3(-85,0,0), bEnd=new V3(-85+HULL,0,0);                     // stern at the berth in the chamber
+  const T_SW=53, out=[]; let stern=s0.clone(); let ry=r0;
+  for(let t=DEP_T0;t<=DEP_T1+1e-6;t+=DEP_DT){
+    let bowL;
+    if(t<=T_SW){ const k=smooth((t-DEP_T0)/(T_SW-DEP_T0)); bowL=b0.clone().lerp(bSwing,k);                       // bow swings out, stern only creeps
+      const sp=toL(s0); sp.x+=4*k; stern=toW(sp.x,sp.z); }
+    else { const k=(t-T_SW)/(DEP_T1-T_SW); const e=k<0.5?2*k*k:1-2*(1-k)*(1-k);                                  // ease in and out along the centreline
+      const x=bSwing.x+(bEnd.x-bSwing.x)*e; const z=bSwing.z*Math.exp(-Math.max(0,x-bSwing.x)/25); bowL=new V3(x,0,z);
+      const bw=toW(bowL.x,bowL.z); const d=bw.clone().sub(stern); stern=bw.clone().addScaledVector(d.normalize(),-HULL); }  // the stern trails the bow at one hull length
+    const bw=toW(bowL.x,bowL.z); const d=bw.clone().sub(stern); let r=Math.atan2(-d.x,-d.z); while(r-ry>Math.PI) r-=2*Math.PI; while(r-ry<-Math.PI) r+=2*Math.PI; ry=r;
+    out.push({t,x:stern.x,z:stern.z,r}); }
+  // pin the last moments exactly onto the berth so the lock sequence starts where it always did
+  const sw=toW(sEnd.x,sEnd.z), rw=hermite(BK,DEP_T1,k=>k.r); const n=out.length;
+  for(let i=0;i<n;i++){ const w=smooth((out[i].t-(DEP_T1-3))/3); out[i].x+=(sw.x-out[n-1].x)*w; out[i].z+=(sw.z-out[n-1].z)*w; let rr=rw; while(rr-out[i].r>Math.PI) rr-=2*Math.PI; while(rr-out[i].r<-Math.PI) rr+=2*Math.PI; out[i].r+=(rr-out[i].r)*w; }
+  DEP=out; }
+function depAt(t){ const f=(t-DEP_T0)/DEP_DT, i=Math.max(0,Math.min(DEP.length-2,Math.floor(f))), u=Math.min(1,Math.max(0,f-i)), a=DEP[i], b=DEP[i+1]; return {x:a.x+(b.x-a.x)*u, z:a.z+(b.z-a.z)*u, r:a.r+(b.r-a.r)*u}; }
 function hermite(keys,t,get){
   if(t<=keys[0].t) return get(keys[0]); const L=keys.length; if(t>=keys[L-1].t) return get(keys[L-1]);
   let i=0; while(keys[i+1].t<t) i++;
@@ -1343,9 +1369,8 @@ function setupSwap(){
   base.gd=nodes['l:Gate_PushTow_Down'].position.y; base.gu=nodes['l:Gate_PushTow_Up'].position.y; base.wc=nodes['l:Water_Chamber_PushTow'].position.y;
 }
 function applyTime(t){
-  const x=hermite(BK,t,k=>k.p.x), y=hermite(BK,t,k=>k.p.y), z=hermite(BK,t,k=>k.p.z); let r=hermite(BK,t,k=>k.r);
-  // from the quay to the lock the bow always points where the barge is going (keyframe headings let it crab towards the bank)
-  { const w=smooth((t-50.5)/3)*(1-smooth((t-77)/2)); if(w>0){ const x1=hermite(BK,t+0.4,k=>k.p.x), z1=hermite(BK,t+0.4,k=>k.p.z); if(Math.hypot(x1-x,z1-z)>0.05){ let mv=Math.atan2(-(x1-x),-(z1-z)); while(mv-r>Math.PI) mv-=2*Math.PI; while(mv-r<-Math.PI) mv+=2*Math.PI; r=r+(mv-r)*w; } } }
+  let x=hermite(BK,t,k=>k.p.x), y=hermite(BK,t,k=>k.p.y), z=hermite(BK,t,k=>k.p.z); let r=hermite(BK,t,k=>k.r);
+  if(DEP&&t>DEP_T0&&t<DEP_T1){ const d=depAt(t); x=d.x; z=d.z; r=d.r; }
   barge.position.set(x,y,z); barge.rotation.set(0,r,0);
   const sx=hermite(SK,t,k=>k.x), sy=hermite(SK,t,k=>k.y), sz=hermite(SK,t,k=>k.z);
   nodes['h:Crane_structure'].position.x=base.gant.x+sx;
@@ -2004,7 +2029,7 @@ function build(){
   WATER_MAT.envMap=ENV; WATER_MAT.envMapIntensity=0.16; WATER_MAT.needsUpdate=true;
   scene.traverse(o=>{ if(!o.isMesh) return; (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m&&m.isMeshStandardMaterial&&m.transparent){ m.envMap=ENV; m.envMapIntensity=1.0; m.needsUpdate=true; } }); });
   barge.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m.isMeshStandardMaterial&&!m.transparent){ m.envMap=ENV; m.envMapIntensity=0.35; m.needsUpdate=true; } }); });
-  makeBargeKeys(); setupSwap(); buildBatteryFX(); buildLabels(); buildPlaces(); tm('labels');
+  makeBargeKeys(); makeDeparture(); setupSwap(); buildBatteryFX(); buildLabels(); buildPlaces(); tm('labels');
   // fewer draw calls for the headset: merge every part that never moves, per material
   const DYN=/Crane_|Hub_Battery|Battery_|Gate_|Water_Chamber|_LED|HL/;
   mergeStatic(lock,DYN); mergeStatic(hub,DYN); mergeStatic(barge,DYN); realCranes.forEach(g=>mergeStatic(g,/^$/)); if(moored) mergeStatic(moored,/^$/); if(traffic) mergeStatic(traffic,/^$/);
