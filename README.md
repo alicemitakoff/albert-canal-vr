@@ -5,7 +5,7 @@ Everything needed to recreate the CMA CGM e-barge battery swap at BCTN Meerhout 
 1. **Download** this branch: [one click zip](https://github.com/alicemitakoff/albert-canal-vr/archive/refs/heads/downloads.zip) (about 1 GB), or
    `git clone --depth 1 --branch downloads --single-branch https://github.com/alicemitakoff/albert-canal-vr AlbertCanal_download`
 2. **Unpack**: on Windows double click `Unpack_Windows.bat`, on a Mac double click `Unpack_Mac.command`. Everything lands in a folder called `AlbertCanal`.
-3. Follow the recreation guide.
+3. Follow the Windows guide (PDF). The Unreal code was updated on 14 October 2026 to match the web version.
 
 | Inside `AlbertCanal` | What it is |
 | --- | --- |
