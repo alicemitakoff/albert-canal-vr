@@ -2048,7 +2048,7 @@ function frame(now){
   if(!started){ renderer.render(scene,camera); return; }
   const dt=clamp((now-last)/1000,0,0.1); last=now;
   // the run from the quay to the lock gate (56 s to 78 s of story time) plays 1.8 times faster, it was the longest wait
-  const boost=(tNow>56.5&&tNow<78)?1.8:1;
+  const boost=(tNow>56.5&&tNow<78)?1.8:(tNow>84&&tNow<104)?1.7:1;   // the chamber fills 1.7 times faster too
   if(!paused&&!waiting&&!ended){ let nt=tNow+dt*speed*boost;
     if(guided&&cpNext<CP.length&&nt>=CP[cpNext].t){ nt=CP[cpNext].t; arrive(CP[cpNext]); }
     if(nt>=T_END){ nt=T_END; finish(); }
