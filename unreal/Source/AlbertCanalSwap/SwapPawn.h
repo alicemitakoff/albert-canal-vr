@@ -28,11 +28,20 @@ public:
 	bool bNextPlacePressed = false;
 	bool bPrevPlacePressed = false;
 	bool bPausePressed = false;
+	/** Movement asked for with the Quest sticks since the last frame, in world cm. ASwapExperience applies it and sets it back to zero. */
+	FVector PendingMove = FVector::ZeroVector;
 
 private:
 	void OnContinue() { bContinuePressed = true; }
 	void OnNextPlace() { bNextPlacePressed = true; }
 	void OnPrevPlace() { bPrevPlacePressed = true; }
 	void OnPause() { bPausePressed = true; }
+	// Quest sticks (axis mappings in Config/DefaultInput.ini)
+	void OnMoveX(float V) { AxMoveX = V; }
+	void OnMoveY(float V) { AxMoveY = V; }
+	void OnTurn(float V) { AxTurn = V; }
+	void OnUp(float V) { AxUp = V; }
+	void OnFast(float V) { AxFast = V; }
+	float AxMoveX = 0.f, AxMoveY = 0.f, AxTurn = 0.f, AxUp = 0.f, AxFast = 0.f;
 	float DeskYaw = 0.f, DeskPitch = -8.f;
 };

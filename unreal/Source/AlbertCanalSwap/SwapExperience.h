@@ -8,6 +8,7 @@
 
 class UTextRenderComponent;
 class UStaticMeshComponent;
+class UStaticMesh;
 class UMaterialInstanceDynamic;
 class ASwapPawn;
 
@@ -58,7 +59,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Story") void Continue();
 	/** Jump to a story time in seconds (used by the tests and for screenshots). */
 	UFUNCTION(BlueprintCallable, Category="Story") void SeekTo(float Seconds);
-	/** 0 wheelhouse, 1 quay, 2 lock wall, 3 drone. */
+	/** 0 wheelhouse, 1 quay, 2 lock wall, 3 drone following the barge, 4 high above the canal. In VR only 3 and 4 are used. */
 	UFUNCTION(BlueprintCallable, Category="Story") void SetPlace(int32 Index);
 	UFUNCTION(BlueprintPure, Category="Story") float GetStoryTime() const { return T; }
 
@@ -73,9 +74,43 @@ private:
 	float KmOf(const FVector& P) const;
 	FVector KmPoint(float Km) const; FVector2D KmTangent(float Km) const;
 	FSwapKey BargeAt(float Km, float LatN) const; FSwapKey HubPose(float X, float Y) const; FSwapKey LockAt(float XL, float Z) const;
+	FSwapKey KeyAt(float Time) const;
+
+	// departure from the quay into the lock, worked out once: x, y in cm and the yaw in degrees for every 0.05 s of story time
+	TArray<FVector> Dep;
+	void BuildDeparture();
+
+	// changes that bring the scene in line with the web version (14 Oct 2026)
+	bool bLayoutDone = false;
+	void HideOldParts();      // first container row, old battery bay, bollards, masts, anchors, the old lift gates and their towers
+	void MoveBatteryBay();    // the packs sit one container row further forward, in an open bay on the deck (game only)
+	UPROPERTY() UStaticMesh* CubeMesh = nullptr;
+	UPROPERTY() UStaticMesh* CylMesh = nullptr;
+	UPROPERTY() UMaterialInterface* LitMaterial = nullptr;
+	UStaticMeshComponent* MakeBlock(USceneComponent* Parent, const FVector& Centre, const FVector& SizeCm, const FLinearColor& Colour, bool bCylinder = false);
+	UPROPERTY() TArray<UStaticMeshComponent*> BayParts;
+	UPROPERTY() TArray<UMaterialInstanceDynamic*> BlockMats;
+	TArray<FLinearColor> BlockCols;
+
+	// mitre gates: two doors per gate that swing open, built from simple blocks
+	struct FLeaf { USceneComponent* Pivot = nullptr; FVector Hinge = FVector::ZeroVector; float Side = 1.f; int32 Gate = 0; };
+	TArray<FLeaf> Leaves;
+	UPROPERTY() TArray<USceneComponent*> LeafPivots;
+	void BuildMitreGates();
+	void SetMitre(int32 Gate, float Open);
+
+	// the wake behind the barge
+	UPROPERTY() UStaticMeshComponent* WakeL = nullptr;
+	UPROPERTY() UStaticMeshComponent* WakeR = nullptr;
+	UPROPERTY() UStaticMeshComponent* WakeT = nullptr;
+	UPROPERTY() TArray<UMaterialInstanceDynamic*> WakeMats;
+	FVector LastBargePos = FVector::ZeroVector; float LastWakeT = -1.f; float WakeK = 0.f;
+	void UpdateWake();
 
 	// viewer
 	ASwapPawn* Viewer = nullptr; int32 Spot = 0; void ApplySpot(bool bSnapPanel);
+	FVector VrOff = FVector::ZeroVector;   // how far the viewer has moved away from the drone's spot with the sticks
+	void ChangePlace(int32 Step);
 	void UpdateDrone(float Dt);
 
 	// panel
