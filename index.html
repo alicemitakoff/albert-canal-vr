@@ -1455,17 +1455,17 @@ const CH=[
  {t:0,  tl:20, h:'Under way on battery power', b:'The CMA CGM e-barge heads east from Antwerp with 180 TEU. It runs on one leased 20 ft battery pack of 1.96 MWh, now down to about 44% after 50 km.'},
  {t:8,  tl:20, h:'Approaching BCTN Meerhout', b:'The swap point is the existing BCTN container terminal at Meerhout, canal km 51.9. NatPower Marine adds a charging station at the east end of its 330 m quay.'},
  {t:13.5,tl:10, h:'Coming alongside', b:'The barge berths bow east, its battery bay lined up under the swap crane, so it can carry straight on to the lock afterwards.'},
- {t:19, tl:30, h:'Lifting out the spent pack', b:'The crane locks onto pack A in the battery bay behind the steel bulkhead and lifts it clear of the hold.'},
+ {t:19, tl:30, h:'Lifting out the spent pack', b:'The crane locks onto pack A in its bay on the deck and lifts it clear of the barge.'},
  {t:23.5,tl:30, h:'Spent pack to the charger', b:'Pack A crosses the quay to the docking station.'},
  {t:29.2,tl:30, h:'Charging ashore', b:'Grid power, the solar canopy and on-site storage recharge pack A in about 2.5 hours, ready for the next barge. Operators lease packs as a service and never own them.'},
  {t:30.8,tl:30, h:'Collecting a charged pack', b:'The crane picks up pack C, already full.'},
  {t:37.8,tl:30, h:'Charged pack on board', b:'Pack C drops into the same slot and connects to the fixed power, data and fire-safety lines.'},
  {t:44, tl:10, h:'Swap complete', b:'Around 30 minutes alongside instead of hours on a charger. The barge casts off with a full pack.'},
- {t:51.5,tl:20, h:'Heading for the lock', b:'Kwaadmechelen lock is 400 m upstream. The lower lift gate of the push-tow chamber is raised.'},
- {t:70, tl:20, h:'Into the chamber', b:'The barge slides under the lower gate into the 200 m chamber.'},
- {t:79, tl:45, h:'Lower gate closes', b:'The gate drops behind the stern and seals the chamber.'},
+ {t:51.5,tl:20, h:'Heading for the lock', b:'Kwaadmechelen lock is 400 m upstream. The two doors of the lower gate of the push tow chamber stand open.'},
+ {t:70, tl:20, h:'Into the chamber', b:'The barge passes between the open doors into the 200 m chamber.'},
+ {t:79, tl:45, h:'Lower gate closes', b:'The two doors swing shut behind the stern and meet in a V that holds back the water.'},
  {t:84, tl:45, h:'Rising ten metres', b:'Water flows in until the chamber matches the upper reach, 10.1 m higher. The barge rises with it.'},
- {t:104,tl:30, h:'Upper gate opens', b:'With the levels equal, the upper gate lifts.'},
+ {t:104,tl:30, h:'Upper gate opens', b:'With the levels equal, the two doors of the upper gate swing open.'},
  {t:110,tl:20, h:'On to Genk', b:'36 km and four more locks to the Genk east hub at Genk Cargo Connect, with a full pack and a healthy reserve.'}
 ];
 const chapIdx=t=>{ let i=0; CH.forEach((c,j)=>{ if(t>=c.t) i=j; }); return i; };
@@ -1561,7 +1561,7 @@ function buildLabels(){
   addLabel({id:'bctn',n:'BCTN Meerhout',s:'Container terminal · 330 m quay',minor:true,from:0,to:126,when:(t,v)=>v==='over',at:()=>new V3(720,30,330),
     info:{e:'Existing terminal',h:'BCTN Meerhout',p:'An inland container terminal of the Inland Terminals Group on the south bank, just downstream of Kwaadmechelen lock. The swap hub is planned at the east end of its quay.',d:[['Quay','330 m'],['Cranes','2 rail-mounted gantries'],['Canal km','51.9']]}});
   addLabel({id:'lock',n:'Kwaadmechelen lock',s:'3 chambers · lift 10.1 m',from:51.5,to:79,at:()=>lock.localToWorld(new V3(0,32,-26)),
-    info:{e:'Albert Canal',h:'Kwaadmechelen lock',p:'The third of six lock complexes between Antwerp and Genk. Lift gates hang from concrete towers at each end of the chambers.',d:[['Chambers','push-tow plus two barge chambers'],['Lift','10.1 m (20.0 to 30.2 m TAW)'],['Canal km','52.3 to 52.5']]}});
+    info:{e:'Albert Canal',h:'Kwaadmechelen lock',p:'The third of six lock complexes between Antwerp and Genk. Each end of the chambers is closed by a mitre gate: two steel doors that meet in a V pointing upstream.',d:[['Chambers','push-tow plus two barge chambers'],['Lift','10.1 m (20.0 to 30.2 m TAW)'],['Canal km','52.3 to 52.5']]}});
   addLabel({id:'gd',max:950,n:t=>t<79.2?'Lower gate':'Lower gate closing',s:'',from:76,to:84,at:()=>wp(nodes['l:Gate_PushTow_Down'],0,26,0)});
   addLabel({id:'wl',max:950,n:t=>'Chamber filling +'+Math.max(0,hermite(WC,t,k=>k.v)).toFixed(1)+' m',s:'',col:'var(--water)',from:84,to:104,at:()=>lock.localToWorld(new V3(60,(nodes['l:Water_Chamber_PushTow'].position.y)+2,0))});
   addLabel({id:'gu',max:950,n:t=>t<104.2?'Upper gate':'Upper gate opening',s:'',from:102,to:112,at:()=>wp(nodes['l:Gate_PushTow_Up'],0,22,0)});
