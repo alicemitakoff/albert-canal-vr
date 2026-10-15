@@ -1,6 +1,7 @@
 name: Frozen links check
-# The three live links (/demo/, /flat/, /vr/) and the files they load are frozen at the tag frozen-2026-10-15.
-# This check turns red if any of those files differs from the tag. New work goes in the v2 folder.
+# The three live links (/demo/, /flat/, /vr/) and the files they load are frozen as on 15 October 2026.
+# A full copy is kept on the branch frozen-2026-10-15 and every file's fingerprint is in FROZEN.sha256.
+# This check turns red if any frozen file changes. New work goes in the v2 folder.
 on:
   push:
   pull_request:
@@ -12,12 +13,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Compare the frozen files with the tag
+      - name: Fingerprints of the frozen files
+        run: sha256sum --check --quiet FROZEN.sha256
+      - name: Same files as the frozen branch
         run: |
-          git fetch --tags --force
-          if git diff --exit-code --stat frozen-2026-10-15 HEAD -- index.html demo flat vr assets; then
-            echo "The three frozen links are unchanged."
-          else
-            echo "::error::Files behind the frozen links changed. Put new work in the v2 folder and restore these files from the tag frozen-2026-10-15."
-            exit 1
-          fi
+          git fetch origin frozen-2026-10-15
+          git diff --exit-code --stat origin/frozen-2026-10-15 HEAD -- index.html demo flat vr assets
+      - name: Explain a failure
+        if: failure()
+        run: echo "::error::Files behind the frozen links changed. Restore them from the branch frozen-2026-10-15 and put new work in the v2 folder."

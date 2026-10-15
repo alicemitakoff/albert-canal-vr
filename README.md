@@ -26,7 +26,7 @@ The step by step guide (data pipeline, live APIs, Unreal build, Quest install) i
 | Cinema (flat on the Quest) | https://alicemitakoff.github.io/albert-canal-vr/flat/ |
 | Immersive (VR on Meta Quest 3) | https://alicemitakoff.github.io/albert-canal-vr/vr/ |
 
-These three links and the files they load (`index.html`, `assets`, `demo`, `flat`, `vr` at the top of this repo) are frozen at the tag `frozen-2026-10-15`. The **Frozen links check** in the Actions tab turns red if any of them changes. `FROZEN.sha256` lists the fingerprint of every frozen file.
+These three links and the files they load (`index.html`, `assets`, `demo`, `flat`, `vr` at the top of this repo) are frozen as on 15 October 2026. A full copy is kept on the branch `frozen-2026-10-15`. The **Frozen links check** in the Actions tab turns red if any of them changes. `FROZEN.sha256` lists the fingerprint of every frozen file.
 
 ### New version (v2), work here
 
