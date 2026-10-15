@@ -1017,7 +1017,16 @@ function buildDetails(){
     const mp=new THREE.MeshStandardMaterial({color:'#8d939a',roughness:0.6,metalness:0.4}), mh=new THREE.MeshStandardMaterial({color:'#d9dde2',roughness:0.4,metalness:0.3});
     for(const [x,z,g0] of LA){ const y=Math.min(g0,hAt(x,z)); const a=new THREE.Mesh(pole,mp), b=new THREE.Mesh(head,mh); a.position.set(x,y,z); b.position.set(x,y,z); b.rotation.y=-Math.atan2(0.2453,0.9694)+Math.PI/2; a.castShadow=b.castShadow=true; scene.add(a); scene.add(b); } }
 }
-function buildQuayWall(){
+function buildQuayFurniture(){ const qz=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2]; const y0=F.hub.quayTop+0.1, ry=-Math.atan2(F.quayDir[1],F.quayDir[0]);
+  // bollards every 30 m on the quay edge and ladders recessed in the wall every 45 m (painted yellow so they are seen from the water)
+  const bg=[], lg=[];
+  for(let X=605;X<=850;X+=30){ const z=qz(X)+1.3; const b=new THREE.CylinderGeometry(0.3,0.36,0.75,14); b.translate(X,y0+0.375,z); bg.push(b); const h=new THREE.CylinderGeometry(0.46,0.46,0.12,14); h.translate(X,y0+0.75,z); bg.push(h); }
+  for(let X=620;X<=850;X+=45){ for(let k=0;k<2;k++){ const r=new THREE.BoxGeometry(0.06,y0+1.6,0.06); r.translate(X+(k?0.25:-0.25),(y0-1.6)/2,qz(X)+0.32); lg.push(r); }
+    for(let y=-1.4;y<y0;y+=0.3){ const r=new THREE.BoxGeometry(0.56,0.04,0.04); r.translate(X,y,qz(X)+0.32); lg.push(r); } }
+  const M=(arr,mat)=>{ const g=THREE.BufferGeometryUtils.mergeBufferGeometries(arr.map(x=>x.index?x.toNonIndexed():x),false); const m=new THREE.Mesh(g,mat); m.castShadow=true; scene.add(m); };
+  if(bg.length) M(bg,new THREE.MeshStandardMaterial({color:'#1d1f22',roughness:0.6,metalness:0.4})); if(lg.length) M(lg,new THREE.MeshStandardMaterial({color:'#e8b400',roughness:0.5,metalness:0.3}));
+}
+function buildQuayWall(){ buildQuayFurniture();
   const qz=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2]; const pts=[];
   for(let X=596;X<=1004;X+=4) pts.push(new V3(X,0,qz(X)+0.4));
   const pos=[],uv=[]; let u=0;
@@ -1412,6 +1421,12 @@ function buildModels(){
   // the two real rail-mounted gantry cranes of BCTN Meerhout, built from the same crane model
   for(const [x,z] of F.realCranes){ const g=new THREE.Group(); g.position.set(x,hub.position.y,z); g.rotation.y=F.hub.ry;
     for(const n of ['h:Crane_structure','h:Crane_trolley','h:Crane_spreader']){ const c=nodes[n].clone(true); g.add(c); if(n==='h:Crane_spreader') c.position.y+=6; }
+    if(nodes['h:Crane_cab']) g.add(nodes['h:Crane_cab'].clone(true));
+    // amber beacons on the four top corners and an anemometer mast on the girder
+    const amber=new THREE.MeshStandardMaterial({color:'#ffae00',emissive:'#ff9a00',emissiveIntensity:1.4,roughness:0.3});
+    for(const [bx,bz] of [[-10,-46.5],[10,-46.5],[-10,20.5],[10,20.5]]){ const b=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.3,10),amber); b.position.set(bx,29.75,bz); g.add(b); }
+    const mast=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.05,2.6,8),new THREE.MeshStandardMaterial({color:'#d9dde2',metalness:0.5,roughness:0.4})); mast.position.set(0,30.85,-44); g.add(mast);
+    const cups=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,0.06,6),new THREE.MeshStandardMaterial({color:'#e9ecef',roughness:0.4})); cups.position.set(0,32.2,-44); g.add(cups);
     scene.add(g); realCranes.push(g); }
   // a moored barge at the western berth and a passing barge, both from the light model with neutral boxes
   const neutral=(root,seed)=>{ const pal=['#5b6b78','#8a3b34','#3d6650','#b8b4a8','#2f4f6f','#8b6a3a']; let s=seed; root.traverse(o=>{ if(o.isMesh){ const ms=Array.isArray(o.material)?o.material:[o.material];
