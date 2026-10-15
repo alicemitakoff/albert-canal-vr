@@ -80,7 +80,8 @@ body.hidden-ui .chrome,body.hidden-ui #labels{opacity:0;visibility:hidden}
 .stat .v{display:flex;align-items:baseline;gap:6px;margin-top:4px;font:400 16px/1.3 var(--sans);color:var(--ivory)}
 .stat .v b{font:700 20px var(--mono);color:var(--ivory)}
 .bar{height:7px;border-radius:2px;background:rgba(255,255,255,.1);margin-top:7px;overflow:hidden}
-.bar i{display:block;height:100%;border-radius:2px;background:var(--full);transition:width .4s ease, background .4s}
+.bar i{display:block;height:100%;border-radius:2px;background:var(--full);transition:width .4s ease}
+.duo{display:flex;gap:6px}.duo .bar{flex:1}.duo[hidden]{display:none}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:2px;flex:none}
 .story.min .body,.story.min .status,.story.min h2{display:none}
 .story.min{width:auto;max-width:calc(100vw - 32px)}
@@ -131,6 +132,9 @@ body.hidden-ui .chrome,body.hidden-ui #labels{opacity:0;visibility:hidden}
 .lbl.batt .s{font-size:15px}
 .lbl .bb{height:5px;border-radius:2px;background:rgba(255,255,255,.14);margin-top:7px;overflow:hidden}
 .lbl .bb i{display:block;height:100%;width:0}
+.lbl.clk .card{background:rgba(6,20,40,.82);border-color:rgba(255,255,255,.22);min-width:150px}
+.lbl.clk .s{display:block;font:700 13px/1.3 var(--mono);color:var(--mist);margin-top:3px}
+.lbl.clk .n svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:2}
 .lbl.batt .stem{width:2px}
 .lbl.batt .pin{width:9px;height:9px}
 
@@ -286,7 +290,7 @@ body.hidden-ui .restore{display:flex}
   <header class="brand panel">
     <div class="eyebrow">CMA CGM × NatPower Marine</div>
     <h1>Albert Canal Battery Swap</h1>
-    <p>Kwaadmechelen · BCTN Meerhout quay · canal km 51.9</p>
+    <p>Kwaadmechelen · BCTN Meerhout quay · 52 km from Antwerp</p>
     <div class="pwr">Digital twin powered by <img src="assets/brand/natpower-digital-inverted.svg" alt="NatPower Digital"></div>
   </header>
 
@@ -337,7 +341,7 @@ body.hidden-ui .restore{display:flex}
       <h2 id="stepTitle">Under way on battery power</h2>
       <p class="body" id="stepBody"></p>
       <div class="status">
-        <div class="stat"><div class="k">On-board pack</div><div class="v"><b id="socV">12%</b><span id="socT">Pack A</span></div><div class="bar"><i id="socBar" style="width:12%"></i></div></div>
+        <div class="stat"><div class="k" id="socK">On-board pack</div><div class="v"><b id="socV">12%</b><span id="socT">Pack A</span></div><div class="bar" id="socOne"><i id="socBar" style="width:12%"></i></div><div class="duo" id="socDuo" hidden><div class="bar"><i id="pk1"></i></div><div class="bar"><i id="pk2"></i></div></div></div>
         <div class="stat"><div class="k" id="st2k">Pack A ashore</div><div class="v"><span class="dot" id="st2d"></span><span id="st2v">On board</span></div><div class="bar"><i id="st2Bar" style="width:0%;background:var(--amber)"></i></div></div>
       </div>
     </div>
@@ -798,6 +802,42 @@ function buildPeople(){
   const opA=makePerson({vest:'#ff7a00',helmet:'#ffffff',radio:true,height:1.02}); opA.position.set(-26,1.85,-16); opA.rotation.y=0.9; hubRoot.add(opA);
   const opB=makePerson({vest:'#ff7a00',helmet:'#f2c200',tablet:true,height:0.97}); opB.position.set(24,1.85,-16.5); opB.rotation.y=-2.2; hubRoot.add(opB);
 }
+/* more crew where the cameras go, all at true size with helmets and high visibility vests:
+   two deckhands on the tender, a deckhand on the barge, two lashers on the quay under the cranes, a lock keeper */
+/* small marks a skipper would look for: the two white masthead lights (vessel over 110 m), the blue board on the starboard
+   side of the wheelhouse, the side lights and the Belgian flag at the stern */
+function buildBargeDetails(){ const root=bargeGLTF.scene;
+  const lamp=(c,x,y,z,r=0.16)=>{ const m=new THREE.Mesh(new THREE.SphereGeometry(r,12,10),new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:1.6,roughness:0.3})); m.position.set(x,y,z); root.add(m); const h=new THREE.Mesh(new THREE.CylinderGeometry(r*1.05,r*1.05,r*0.6,12),new THREE.MeshStandardMaterial({color:'#1b1d20',roughness:0.6})); h.position.set(x,y+r*0.9,z); root.add(h); };
+  lamp('#fff6e0',0,9.45,-131.85); lamp('#fff6e0',0,15.1,-15.7);
+  lamp('#ff2a1a',-3.85,11.6,-16.6,0.12); lamp('#18e05a',3.85,11.6,-16.6,0.12);
+  const bb=new THREE.Mesh(new THREE.BoxGeometry(0.06,1.0,1.0),new THREE.MeshStandardMaterial({color:'#1546b8',roughness:0.4})); bb.position.set(3.95,11.0,-15.4); root.add(bb);
+  const bl=new THREE.Mesh(new THREE.CircleGeometry(0.12,16),new THREE.MeshStandardMaterial({color:'#ffffff',emissive:'#ffffff',emissiveIntensity:1.5})); bl.position.set(3.99,11.0,-15.4); bl.rotation.y=Math.PI/2; root.add(bl);
+  const c=document.createElement('canvas'); c.width=96; c.height=64; const x=c.getContext('2d'); x.fillStyle='#111'; x.fillRect(0,0,32,64); x.fillStyle='#f5d000'; x.fillRect(32,0,32,64); x.fillStyle='#d4141e'; x.fillRect(64,0,32,64);
+  const ft=new THREE.CanvasTexture(c); ft.colorSpace=THREE.SRGBColorSpace; const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.05,3.2,8),new THREE.MeshStandardMaterial({color:'#d9dde2',metalness:0.5,roughness:0.4})); pole.position.set(-1.6,6.1,-0.7); root.add(pole);
+  const fl=new THREE.Mesh(new THREE.PlaneGeometry(1.2,0.8),new THREE.MeshStandardMaterial({map:ft,side:THREE.DoubleSide,roughness:0.8})); fl.position.set(-1.6,7.2,-0.1); fl.rotation.y=Math.PI/2; root.add(fl);
+}
+/* class 9 placards (UN3536, lithium batteries installed in cargo transport units) on both long sides of the packs carried on the tender */
+function buildPlacards(){
+  const c=document.createElement('canvas'); c.width=c.height=256; const x=c.getContext('2d'); x.translate(128,128); x.rotate(Math.PI/4);
+  x.fillStyle='#ffffff'; x.fillRect(-88,-88,176,176); x.strokeStyle='#111'; x.lineWidth=6; x.strokeRect(-80,-80,160,160); x.setTransform(1,0,0,1,0,0);
+  x.save(); x.beginPath(); x.moveTo(128,18); x.lineTo(238,128); x.lineTo(18,128); x.closePath(); x.clip(); x.fillStyle='#111'; for(let i=0;i<7;i++) x.fillRect(58+i*20,0,10,128); x.restore();
+  x.fillStyle='#111'; x.font='700 64px Arial'; x.textAlign='center'; x.fillText('9',128,205); x.fillRect(100,212,56,6);
+  const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace; const mat=new THREE.MeshStandardMaterial({map:tex,transparent:true,alphaTest:0.3,roughness:0.6});
+  const geo=new THREE.PlaneGeometry(0.42,0.42);
+  for(const [n,p] of T_PACK){ p.updateMatrixWorld(true); const inv=p.matrixWorld.clone().invert(); const bb=new THREE.Box3(); p.traverse(o=>{ if(o.isMesh&&!/LED/.test(o.name)){ o.geometry.computeBoundingBox(); bb.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld).applyMatrix4(inv)); } });
+    const sz=bb.getSize(new V3()), ce=bb.getCenter(new V3()); const longX=sz.x>sz.z;
+    for(const sgn of [-1,1]){ const m=new THREE.Mesh(geo,mat); if(longX){ m.position.set(ce.x+sz.x*0.3,ce.y,ce.z+sgn*(sz.z/2+0.02)); m.rotation.y=sgn>0?0:Math.PI; } else { m.position.set(ce.x+sgn*(sz.x/2+0.02),ce.y,ce.z+sz.z*0.3); m.rotation.y=sgn>0?Math.PI/2:-Math.PI/2; } p.add(m); } }
+}
+function buildPeople2(){
+  const V=new V3(); tender.updateMatrixWorld(true);
+  for(const [slot,side,ry,o] of [['Slot_r2_c0',-1,Math.PI/2,{vest:'#ff7a00',helmet:'#ffffff',radio:true}],['Slot_r2_c2',1,-Math.PI/2,{vest:'#e8e80c',helmet:'#2b6cd6',tablet:true,height:0.97}]]){
+    const sl=SLOT[slot]; if(!sl) continue; sl.getWorldPosition(V); const L=tender.worldToLocal(V.clone()); const pr=makePerson(o); pr.position.set(side*3.75,L.y,L.z); pr.rotation.y=ry; tender.add(pr); }
+  const root=bargeGLTF.scene; const deck=root.getObjectByName('Deck_plating'); if(deck){ root.updateMatrixWorld(true); const inv=root.matrixWorld.clone().invert(); const bb=new THREE.Box3().setFromObject(deck); const mn=bb.min.clone().applyMatrix4(inv), mx=bb.max.clone().applyMatrix4(inv);
+    const pr=makePerson({vest:'#ff7a00',helmet:'#ffffff',height:1.01}); pr.position.set(Math.max(mn.x,mx.x)-0.55,Math.max(mn.y,mx.y),-58); pr.rotation.y=-Math.PI/2; root.add(pr); }
+  realCranes.forEach((g,ci)=>{ g.updateMatrixWorld(true); for(const [lx,lz,ry,o] of [[ci?-9:9,-8,0.6,{vest:'#ff7a00',helmet:'#ffffff',radio:true}],[ci?-12:12,-25,2.4,{vest:'#e8e80c',helmet:'#ffffff'}]]){
+    const w=new V3(lx,0,lz).applyMatrix4(g.matrixWorld); w.y=hAt(w.x,w.z); const pr=makePerson(o); pr.position.copy(w); pr.rotation.y=g.rotation.y+ry; scene.add(pr); } });
+  const tw=lock.getObjectByName('Lock_control_tower'); if(tw){ const bb=new THREE.Box3().setFromObject(tw); const c=bb.getCenter(new V3()); const pr=makePerson({vest:'#e8e80c',helmet:'#ffffff',radio:true}); pr.position.set(bb.max.x+1.5,hAt(bb.max.x+1.5,c.z),c.z); pr.rotation.y=Math.PI/2; scene.add(pr); }
+}
 function updatePeople(dt){ const t=performance.now()/1000; for(const p of PEOPLE){ const k=p.userData.idle; p.rotation.z=Math.sin(t*0.9+k)*0.012; p.rotation.x=Math.sin(t*0.6+k*2)*0.008; } }
 function buildWater(){
   const mk=(polys,y)=>{ for(const p of polys){ const sh=new THREE.Shape(p.o.map(([x,z])=>new THREE.Vector2(x,-z)));
@@ -961,7 +1001,16 @@ function buildDetails(){
     const im=new THREE.InstancedMesh(g,m,TR.length); const M=new THREE.Matrix4(), q=new THREE.Quaternion(), sc=new V3(), p=new V3(), col=new THREE.Color();
     TR.forEach(([x,z,g0,yaw,L,W,h,hex],i)=>{ q.setFromAxisAngle(new V3(0,1,0),-yaw); sc.set(L,h,W); p.set(x,Math.min(g0,hAt(x,z))+0.9,z); M.compose(p,q,sc); im.setMatrixAt(i,M);
       col.set(hex); const hsl={}; col.getHSL(hsl); col.setHSL(hsl.h,Math.min(0.5,hsl.s*1.4),clamp(hsl.l*1.05,0.25,0.85)); im.setColorAt(i,col); });
-    im.castShadow=im.receiveShadow=true; scene.add(im); }
+    im.castShadow=im.receiveShadow=true; scene.add(im);
+    // so they stand on the road instead of hovering: a dark frame and wheels under every trailer, a cab in front of the long ones
+    const fr=new THREE.BoxGeometry(1,0.3,1); fr.translate(0,0.75,0); const wh=new THREE.CylinderGeometry(0.45,0.45,1,14); wh.rotateX(Math.PI/2); wh.translate(0,0.45,0);
+    const cb=new THREE.BoxGeometry(2.4,2.6,1); cb.translate(0,1.3+0.6,0);
+    const longs=TR.filter(r=>r[4]>8);
+    const fm=new THREE.InstancedMesh(fr,new THREE.MeshStandardMaterial({color:'#1b1d20',roughness:0.8,metalness:0.4}),TR.length), wm=new THREE.InstancedMesh(wh,new THREE.MeshStandardMaterial({color:'#121212',roughness:0.95}),TR.length*2), cm=new THREE.InstancedMesh(cb,new THREE.MeshStandardMaterial({color:'#e9ecef',roughness:0.45,metalness:0.2}),Math.max(1,longs.length));
+    let ci=0; TR.forEach(([x,z,g0,yaw,L,W,h],i)=>{ const y=Math.min(g0,hAt(x,z)); q.setFromAxisAngle(new V3(0,1,0),-yaw); sc.set(L*0.96,1,W*0.9); p.set(x,y,z); M.compose(p,q,sc); fm.setMatrixAt(i,M);
+      for(let j=0;j<2;j++){ const off=new V3((j?-1:1)*L*0.34,0,0).applyQuaternion(q); sc.set(1,1,W*0.95); p.set(x+off.x,y,z+off.z); M.compose(p,q,sc); wm.setMatrixAt(i*2+j,M); }
+      if(L>8){ const off=new V3(L/2+1.3,0,0).applyQuaternion(q); sc.set(1,1,W*0.98); p.set(x+off.x,y,z+off.z); M.compose(p,q,sc); cm.setMatrixAt(ci++,M); } });
+    cm.count=ci; fm.castShadow=wm.castShadow=cm.castShadow=true; scene.add(fm); scene.add(wm); scene.add(cm); }
   // lamp posts along the quay road
   const LA=D.objects.lamps||[]; if(LA.length){
     const pole=new THREE.CylinderGeometry(0.09,0.13,10,8); pole.translate(0,5,0); const head=new THREE.BoxGeometry(1.4,0.22,0.5); head.translate(0.6,10,0);
@@ -1109,7 +1158,7 @@ function buildTrees(){
   geo.index=pl.index; geo.attributes.position=pl.attributes.position; geo.attributes.uv=pl.attributes.uv;
   const pos=new Float32Array(n*3), size=new Float32Array(n*2), vari=new Float32Array(n*2); let k=0;
   const onWater=(X,Z)=>{ const p=lockLocal(X,Z); if(p.x>90&&p.x<320&&p.z>-112&&p.z<22) return true; return surfaceH(X,Z)<-0.5; };   // no trees in the lock approaches or on the water
-  for(let i=0;i<n;i++){ const X=T[i*5], Z=T[i*5+1], G=T[i*5+2], H=T[i*5+3]; if(inHub(X,Z)||inLock(X,Z,-12)||onWater(X,Z)) continue;
+  for(let i=0;i<n;i++){ const X=T[i*5], Z=T[i*5+1], G=T[i*5+2], H=T[i*5+3]; if(inHub(X,Z)||inLock(X,Z,-12)||onWater(X,Z)||onPave(X,Z)) continue;
     const h=(Math.sin(X*12.9898+Z*78.233)*43758.5453)%1, hh=Math.abs(h);
     let v=T[i*5+4]?3:(H>17&&hh<0.35?2:(H<9?1:0));
     const w=v===2?clamp(H*0.3,3,7):v===3?clamp(H*0.42,3,9):clamp(H*0.62,3.5,15);
@@ -1141,10 +1190,10 @@ function buildGroundCover(){
   geo.index=pl.index; geo.attributes.position=pl.attributes.position; geo.attributes.uv=pl.attributes.uv;
   const pos=new Float32Array(n*3), size=new Float32Array(n*2), vari=new Float32Array(n*2); let k=0;
   const put=(X,Z,Y,w,h,v,tint)=>{ pos[k*3]=X; pos[k*3+1]=Y; pos[k*3+2]=Z; size[k*2]=w; size[k*2+1]=h; vari[k*2]=v; vari[k*2+1]=tint; k++; };
-  for(let i=0;i<BU.length/4;i++){ const X=BU[i*4], Z=BU[i*4+1], G=BU[i*4+2], H=BU[i*4+3]; if(inHub(X,Z)||inLock(X,Z,-12)) continue;
+  for(let i=0;i<BU.length/4;i++){ const X=BU[i*4], Z=BU[i*4+1], G=BU[i*4+2], H=BU[i*4+3]; if(inHub(X,Z)||inLock(X,Z,-12)||onPave(X,Z)) continue;
     const hh=Math.abs((Math.sin(X*12.9898+Z*78.233)*43758.5453)%1), y=Math.min(G,hAt(X,Z))-0.15;
     for(let j=0;j<2;j++){ const o=hh*(j+1)*3%1; put(X+(o-0.5)*2.2,Z+((o*7)%1-0.5)*2.2,y,clamp(H*1.3,2.4,5),H*1.05+0.4,H>3?1:0,0.7+((o*13)%1)*0.25); } }
-  for(let i=0;i<GR.length/3;i++){ const X=GR[i*3], Z=GR[i*3+1], G=GR[i*3+2]; if(inHub(X,Z)||inLock(X,Z,-12)) continue;
+  for(let i=0;i<GR.length/3;i++){ const X=GR[i*3], Z=GR[i*3+1], G=GR[i*3+2]; if(inHub(X,Z)||inLock(X,Z,-12)||onPave(X,Z)) continue;
     const hh=Math.abs((Math.sin(X*31.7+Z*17.3)*43758.5453)%1), y=Math.min(G,hAt(X,Z))-0.05;
     for(let j=0;j<3;j++){ const o=(hh*(j+1)*2.7)%1, o2=(hh*(j+2)*5.3)%1; put(X+(o-0.5)*2.4,Z+(o2-0.5)*2.4,y,1.8+o2*1.2,0.55+o*0.55,o>0.85?3:2,0.75+o*0.3); } }
   geo.setAttribute('aPos',new THREE.InstancedBufferAttribute(pos.subarray(0,k*3),3));
@@ -1236,6 +1285,37 @@ function upgradeMaterials(root){
     o.material=Array.isArray(o.material)?out:out[0]; });
 }
 let realCranes=[], traffic=null, moored=null;
+const HUB_EXTRA=[];
+/* the stair tower on the gantry crane leg: the model only had floating landing plates. They are cut out and replaced by a real
+   switchback stair: two lanes of flights with side stringers, closed treads, landings at both ends and yellow handrails. */
+function rebuildCraneStair(root){
+  if(!root) return; const X0=10.45, Z0=-42.0, Z1=-38.0;
+  root.traverse(o=>{ if(!o.isMesh) return; const nm=(o.material&&o.material.name)||''; if(!/Hub_Steel|Hub_Safety_Yellow|Hub_Black/.test(nm)) return;
+    const g=o.geometry, P=g.attributes.position, I=g.index; if(!I) return; const keep=[];
+    for(let i=0;i<I.count;i+=3){ let cx=0,cy=0,cz=0; for(let k=0;k<3;k++){ const v=I.getX(i+k); cx+=P.getX(v); cy+=P.getY(v); cz+=P.getZ(v); } cx/=3; cy/=3; cz/=3;
+      if(cx>X0&&cz>Z0&&cz<Z1&&cy>2.2&&cy<24.5) continue; keep.push(I.getX(i),I.getX(i+1),I.getX(i+2)); }
+    if(keep.length<I.count) g.setIndex(keep); });
+  const steel=new THREE.MeshStandardMaterial({color:'#8a9096',roughness:0.55,metalness:0.6}), yel=new THREE.MeshStandardMaterial({color:'#e8b400',roughness:0.45,metalness:0.2}), grate=new THREE.MeshStandardMaterial({color:'#5d6369',roughness:0.7,metalness:0.5});
+  const GS=[], GY=[], GG=[]; const box=(arr,w,h,d,x,y,z,rx=0)=>{ const b=new THREE.BoxGeometry(w,h,d); if(rx) b.rotateX(rx); b.translate(x,y,z); arr.push(b); };
+  const rod=(arr,a,b,r=0.025)=>{ const d=new V3().subVectors(b,a), L=d.length(); const c=new THREE.CylinderGeometry(r,r,L,6); c.translate(0,L/2,0); c.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0,1,0),d.normalize())); c.translate(a.x,a.y,a.z); arr.push(c); };
+  const yb=2.1, yt=24.33, N=18, rise=(yt-yb)/N, LS=[10.62,11.52], W=0.86, zS=-41.9, zN=-38.1, run=2.2, zA=zS+0.9, zB=zA+run;  // landings 0.9 deep at both ends
+  for(let i=0;i<N;i++){ const y0=yb+i*rise, y1=y0+rise, north=i%2===0, xl=LS[north?0:1], xc=xl+W/2, za=north?zA:zB, zb=north?zB:zA;
+    const ang=Math.atan2(rise,run)*(north?-1:1), L=Math.hypot(rise,run), zm=(za+zb)/2, ym=(y0+y1)/2;
+    for(const sx of [xl+0.03,xl+W-0.03]) box(GS,0.06,0.22,L,sx,ym,zm,ang);                                 // stringers
+    const nT=Math.round(rise/0.19); for(let k=1;k<=nT;k++){ const f=k/(nT+0.5); box(GG,W-0.08,0.04,0.26,xc,y0+rise*k/(nT+0.5)-0.02,za+(zb-za)*f); }  // treads
+    const xo=north?xl+0.02:xl+W-0.02; rod(GY,new V3(xo,y0+1.0,za),new V3(xo,y1+1.0,zb),0.024);              // handrail on the open side
+    rod(GY,new V3(xo,y0,za),new V3(xo,y0+1.0,za),0.022); rod(GY,new V3(xo,y1,zb),new V3(xo,y1+1.0,zb),0.022);
+    if(north){ // landing at the north end of this flight and the south end below it
+      box(GG,2*W,0.06,0.9,LS[0]+W,y1-0.03,zB+0.45); }
+    else box(GG,2*W,0.06,0.9,LS[0]+W,y1-0.03,zA-0.45); }
+  // guard rails round the landings and the corner posts of the tower
+  for(const zc of [zA-0.45,zB+0.45]){ const ze=zc<zA?zS:zN; for(let i=1;i<=N;i++){ const y=yb+i*rise; rod(GY,new V3(LS[0],y+1.0,ze),new V3(LS[1]+W,y+1.0,ze),0.022); rod(GY,new V3(LS[1]+W,y+1.0,ze),new V3(LS[1]+W,y+1.0,zc<zA?zA:zB),0.022); } }
+  for(const [x,z] of [[LS[1]+W,zS],[LS[1]+W,zN],[LS[0],zS],[LS[0],zN]]) box(GS,0.12,yt-yb+1.1,0.12,x,(yb+yt+1.1)/2,z);
+  const merge=a=>THREE.BufferGeometryUtils.mergeBufferGeometries(a.map(g=>g.index?g.toNonIndexed():g),false);
+  const grp=new THREE.Group(); grp.name='Crane_stair';
+  for(const [arr,m] of [[GS,steel],[GY,yel],[GG,grate]]){ const g=merge(arr); if(!g) continue; const me=new THREE.Mesh(g,m); me.castShadow=true; me.receiveShadow=true; grp.add(me); }
+  root.add(grp);
+}
 const MITRE={};   // id -> {leaves:[group,group], ang}
 function buildMitreGates(){
   const steel=new THREE.MeshStandardMaterial({color:'#4b5257',roughness:0.6,metalness:0.55}), dark=new THREE.MeshStandardMaterial({color:'#2a2e31',roughness:0.7,metalness:0.4}), rail=new THREE.MeshStandardMaterial({color:'#d8d8d4',roughness:0.5,metalness:0.3});
@@ -1325,6 +1405,10 @@ function buildModels(){
   scene.updateMatrixWorld(true);
   lockBox=new THREE.Box3(); const inv=toLock;
   lock.traverse(o=>{ if(o.isMesh&&!/Water_Approach/.test(o.name)){ o.geometry.computeBoundingBox(); lockBox.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld).applyMatrix4(inv)); } });
+  rebuildCraneStair(nodes['h:Crane_structure']);
+  // a second double docking station east of the first, on the same crane rails, with three packs on charge
+  { const ds=nodes['h:Docking_station']; if(ds){ const c=ds.clone(); c.name='Docking_station_2'; c.position.x+=62; ds.parent.add(c);
+      HUB_EXTRA.length=0; [['h:Hub_Battery_1',100],['h:Hub_Battery_2',82],['h:Hub_Battery_3',46]].forEach(([n,p])=>{ const b=nodes[n]; if(!b) return; const k=b.clone(true); k.name='Hub_Battery_x'+n.slice(-1); k.position.x+=62; b.parent.add(k); HUB_EXTRA.push([k,p]); }); } }
   // the two real rail-mounted gantry cranes of BCTN Meerhout, built from the same crane model
   for(const [x,z] of F.realCranes){ const g=new THREE.Group(); g.position.set(x,hub.position.y,z); g.rotation.y=F.hub.ry;
     for(const n of ['h:Crane_structure','h:Crane_trolley','h:Crane_spreader']){ const c=nodes[n].clone(true); g.add(c); if(n==='h:Crane_spreader') c.position.y+=6; }
@@ -1451,8 +1535,8 @@ const beamGeo=new THREE.CylinderGeometry(1.5,2.6,52,32,1,true); beamGeo.translat
 const ringGeo=new THREE.RingGeometry(0.8,1,64); ringGeo.rotateX(-Math.PI/2);
 function fxShell(){ return new THREE.ShaderMaterial({uniforms:{c:{value:new THREE.Color()},k:{value:1},h:{value:BOX.h},time:fxTime},
   vertexShader:'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-  fragmentShader:'uniform vec3 c; uniform float k; uniform vec3 h; uniform float time; varying vec3 vP;\nvoid main(){ vec3 d=h-abs(vP); float m1=min(d.x,min(d.y,d.z)), m3=max(d.x,max(d.y,d.z)), m2=d.x+d.y+d.z-m1-m3;\n float e=1.0-smoothstep(0.05,0.32,m2); float p=0.82+0.18*sin(time*4.0);\n gl_FragColor=vec4(mix(c,vec3(1.0),e*0.25),(0.22+0.78*e)*k*p); }',
-  transparent:true,depthWrite:false,depthTest:false,side:THREE.DoubleSide,fog:false}); }
+  fragmentShader:'uniform vec3 c; uniform float k; uniform vec3 h; uniform float time; varying vec3 vP;\nvoid main(){ vec3 d=h-abs(vP); float m1=min(d.x,min(d.y,d.z)), m3=max(d.x,max(d.y,d.z)), m2=d.x+d.y+d.z-m1-m3;\n float e=1.0-smoothstep(0.05,0.32,m2); float p=0.82+0.18*sin(time*4.0);\n gl_FragColor=vec4(mix(c,vec3(1.0),e*0.25),0.9*e*k*p); }',
+  transparent:true,depthWrite:false,depthTest:true,side:THREE.DoubleSide,fog:false}); }
 function fxBeam(){ return new THREE.ShaderMaterial({uniforms:{c:{value:new THREE.Color()},k:{value:1},time:fxTime},
   vertexShader:'varying float vY; varying vec3 vN; varying vec3 vV; void main(){ vY=uv.y; vec4 mv=modelViewMatrix*vec4(position,1.0); vN=normalize(normalMatrix*normal); vV=normalize(-mv.xyz); gl_Position=projectionMatrix*mv; }',
   fragmentShader:'uniform vec3 c; uniform float k; uniform float time; varying float vY; varying vec3 vN; varying vec3 vV;\nvoid main(){ float core=pow(abs(dot(normalize(vN),normalize(vV))),1.1); float fade=pow(1.0-vY,1.15);\n float band=0.72+0.28*sin(vY*42.0-time*5.0);\n gl_FragColor=vec4(mix(c,vec3(1.0),0.3*core*core),min(1.0,fade*(0.12+core*0.85)*band*k)); }',
@@ -1507,7 +1591,7 @@ function battRect(node,W,H){ if(!node) return null; let x0=1e9,x1=-1e9,y0=1e9,y1
    ============================================================ */
 let CH=[
  {t:0,  tl:20, h:'Under way on battery power', b:'The CMA CGM e-barge heads east from Antwerp with 180 TEU. It runs on one leased 20 ft battery pack of 1.96 MWh, now down to about 12% after 50 km.'},
- {t:8,  tl:20, h:'Approaching BCTN Meerhout', b:'The swap point is the existing BCTN container terminal at Meerhout, canal km 51.9. NatPower Marine adds a charging station at the east end of its 330 m quay.'},
+ {t:8,  tl:20, h:'Approaching BCTN Meerhout', b:'The swap point is the existing BCTN container terminal at Meerhout, 52 km up the canal from Antwerp. NatPower Marine adds a charging station at the east end of its 330 m quay.'},
  {t:13.5,tl:10, h:'Coming alongside', b:'The barge berths bow east, its battery bay lined up under the swap crane, so it can carry straight on to the lock afterwards.'},
  {t:19, tl:30, h:'Lifting out the spent pack', b:'The crane locks onto pack A in its bay on the deck and lifts it clear of the barge.'},
  {t:23.5,tl:30, h:'Spent pack to the charger', b:'Pack A crosses the quay to the docking station.'},
@@ -1535,7 +1619,7 @@ let VIEWS=[
  {id:'follow',name:'Follow',  vr:'Drone, following the barge',     type:'orbit', target:followTarget, rel:true, az:-0.62, el:0.36, dist:175, min:28, max:1400},
  {id:'bridge',name:'Wheelhouse',vr:'On the barge',type:'fps',  eye:()=>barge.localToWorld(new V3(0,13.9,-17.4)), yaw:0, pitch:-0.13, fov:62},
  {id:'quay',  name:'Quay',    vr:'On the quay by the swap crane',type:'orbit', target:()=>hub.localToWorld(new V3(0,7,-8)), rel:false, az:-2.75, el:0.30, dist:125, min:18, max:900},
- {id:'lock',  name:'Lock',    vr:'On the lock wall',type:'orbit', target:()=>lock.localToWorld(new V3(-10,8,-18)), rel:false, az:-0.9, el:0.5, dist:300, min:30, max:1500},
+ {id:'lock',  name:'Lock',    vr:'On the lock wall',type:'orbit', target:()=>lock.localToWorld(new V3(-10,8,-18)), rel:false, az:-0.75, el:0.36, dist:195, min:30, max:1500},
  {id:'over',  name:'Overview',vr:'High above the canal',type:'orbit', target:()=>new V3(1050,0,330), rel:false, az:-2.6, el:0.62, dist:1500, min:250, max:5200}
 ];
 /* the drone looks ahead of the barge, and swings over to the crane while the packs are swapped */
@@ -1596,7 +1680,7 @@ buildViewSeg();
    ============================================================ */
 const LABELS=[];
 const wp=(o,dx=0,dy=0,dz=0)=>o?o.getWorldPosition(new V3()).add(new V3(dx,dy,dz)):new V3();
-function addLabel(o){ const el=document.createElement('div'); el.className='lbl'+(o.minor?' minor':'')+(o.batt?' batt':'');
+function addLabel(o){ const el=document.createElement('div'); el.className='lbl'+(o.minor?' minor':'')+(o.batt?' batt':'')+(o.clock?' clk':'');
   el.innerHTML='<div class="card" role="button" tabindex="0"><div class="n"></div><div class="s"></div>'+(o.pct?'<div class="bb"><i></i></div>':'')+'</div><div class="stem"></div><div class="pin"></div>';
   el.querySelector('.card').addEventListener('click',ev=>{ ev.stopPropagation(); if(o.info) showInfo(o.info,el); });
   el.querySelector('.card').addEventListener('keydown',ev=>{ if(ev.key==='Enter'&&o.info) showInfo(o.info,el); });
@@ -1616,7 +1700,7 @@ function buildLabels(){
   addLabel({id:'bctn',n:'BCTN Meerhout',s:'Container terminal · 330 m quay',minor:true,from:0,to:126,when:(t,v)=>v==='over',at:()=>new V3(720,30,330),
     info:{e:'Existing terminal',h:'BCTN Meerhout',p:'An inland container terminal of the Inland Terminals Group on the south bank, just downstream of Kwaadmechelen lock. The swap hub is planned at the east end of its quay.',d:[['Quay','330 m'],['Cranes','2 rail-mounted gantries'],['Canal km','51.9']]}});
   addLabel({id:'lock',n:'Kwaadmechelen lock',s:'3 chambers · lift 10.1 m',from:51.5,to:79,at:()=>lock.localToWorld(new V3(0,32,-26)),
-    info:{e:'Albert Canal',h:'Kwaadmechelen lock',p:'The third of six lock complexes between Antwerp and Genk. Each end of the chambers is closed by a mitre gate: two steel doors that meet in a V pointing upstream.',d:[['Chambers','push-tow plus two barge chambers'],['Lift','10.1 m (20.0 to 30.2 m TAW)'],['Canal km','52.3 to 52.5']]}});
+    info:{e:'Albert Canal',h:'Kwaadmechelen lock',p:'The third of six lock complexes between Antwerp and Genk. Each end of the chambers is closed by a mitre gate: two steel doors that meet in a V pointing upstream.',d:[['Chambers','one push tow chamber of 200 × 24 m and two of 136 × 16 m'],['Lift','10.1 m (20.0 to 30.2 m TAW)'],['Canal km board','about 77 (counted from Liège)'],['From Antwerp','52.4 km']]}});
   addLabel({id:'gd',max:950,n:t=>t<79.2?'Lower gate':'Lower gate closing',s:'',from:76,to:84,at:()=>wp(nodes['l:Gate_PushTow_Down'],0,26,0)});
   addLabel({id:'wl',max:950,n:t=>'Chamber filling +'+Math.max(0,hermite(WC,t,k=>k.v)).toFixed(1)+' m',s:'',col:'var(--water)',from:84,to:104,at:()=>lock.localToWorld(new V3(60,(nodes['l:Water_Chamber_PushTow'].position.y)+2,0))});
   addLabel({id:'gu',max:950,n:t=>t<104.2?'Upper gate':'Upper gate opening',s:'',from:102,to:112,at:()=>wp(nodes['l:Gate_PushTow_Up'],0,22,0)});
@@ -1625,7 +1709,7 @@ function buildLabels(){
       info:{e:'Around the canal',h:'Wind turbines',p:'Fourteen turbines stand along this stretch of the Albert Canal, part of the renewable supply a corridor charging network can draw on.',d:[['In this scene','14'],['Hub height','about 65 to 100 m']]}}); }
   const beam=(arr,a,b,w)=>{ const d=b.clone().sub(a), L=d.length(); if(L<0.05) return; const g=new THREE.BoxGeometry(w,L,w); g.translate(0,L/2,0);
     g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0,1,0),d.normalize()))); g.translate(a.x,a.y,a.z); arr.push(g); };
-  if(traffic) addLabel({id:'sim',n:'Simulated barge',s:'',minor:true,col:'#c5d3e4',from:0,to:126,at:()=>traffic.localToWorld(new V3(0,12,0)),
+  if(traffic) addLabel({id:'sim',n:'Barge under way',s:'',minor:true,col:'#c5d3e4',from:0,to:126,at:()=>traffic.localToWorld(new V3(0,12,0)),
     info:{e:'Not live',h:'Simulated traffic',p:'This barge is part of the animation. Real vessels appear with a green LIVE label when the AIS receivers pick them up near Kwaadmechelen.',d:[]}});
   for(const br of D.objects.bridges){ if(!br.name||!br._mid) continue;
     addLabel({id:'br'+br.name,n:br.name+' bridge',s:'Clearance '+Math.max(0,br._deck-1.2-(br._mid.x>1347?10.2:0)).toFixed(1)+' m',minor:true,from:0,to:126,when:(t,v)=>v==='over',at:()=>br._mid.clone().setY(br._deck+(br.kind==='cycleway'?3:9))}); }
@@ -1638,7 +1722,7 @@ function uiRects(){ if(document.body.classList.contains('hidden-ui')) return [];
 function updateLabels(t){
   const W=window.innerWidth, H=window.innerHeight, vid=VIEWS[cam.v].id; const vis=[];
   for(const L of LABELS){
-    const on=labelsOn&&!renderer.xr.isPresenting&&(L.scn==='*'||(Array.isArray(L.scn)?L.scn.includes(SC.id):(L.scn||'hub')===SC.id))&&t>=L.from&&t<L.to&&!(L.hide&&L.hide.includes(vid))&&(!L.when||L.when(t,vid));
+    const on=(L.clock?!labelsOn:labelsOn)&&!renderer.xr.isPresenting&&(L.scn==='*'||(Array.isArray(L.scn)?L.scn.includes(SC.id):(L.scn||'hub')===SC.id))&&t>=L.from&&t<L.to&&!(L.hide&&L.hide.includes(vid))&&(!L.when||L.when(t,vid));
     if(!on){ if(L.el.style.display!=='none') L.el.style.display='none'; continue; }
     const p=L.at(); _v.copy(p).project(camera);
     const dist=camera.position.distanceTo(p);
@@ -1650,7 +1734,8 @@ function updateLabels(t){
     L.el.style.opacity=String(clamp(1.4-dist/(L.minor?1600:3600),0.35,1));
     const n=typeof L.n==='function'?L.n(t):L.n, s=typeof L.s==='function'?L.s(t):L.s, c=typeof L.col==='function'?L.col(t):(L.col||'var(--brass)');
     const pc=L.pct?Math.round(L.pct(t)):null;
-    const key=n+'|'+s+'|'+c+'|'+pc; if(key!==L.k){ L.k=key; L.el.querySelector('.n').innerHTML='<span class="dot" style="background:'+c+'"></span>'+n+(pc!==null?'<b class="pc" style="color:'+pctCol(pc)+'">'+pc+'%</b>':''); L.el.querySelector('.s').textContent=s; L.el.querySelector('.pin').style.background=c; if(L.batt) L.el.querySelector('.stem').style.background=c;
+    const key=n+'|'+s+'|'+c+'|'+pc; if(key!==L.k&&L.clock){ L.k=key; L.el.querySelector('.n').innerHTML='<svg viewBox="0 0 24 24" style="color:'+c+'"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'+n; L.el.querySelector('.s').textContent=s; L.el.querySelector('.pin').style.background=c; const bi=L.el.querySelector('.bb i'); if(bi){ bi.style.width=pc+'%'; bi.style.background=c; } L._w=0; }
+    else if(key!==L.k){ L.k=key; L.el.querySelector('.n').innerHTML='<span class="dot" style="background:'+c+'"></span>'+n+(pc!==null?'<b class="pc" style="color:'+pctCol(pc)+'">'+pc+'%</b>':''); L.el.querySelector('.s').textContent=s; L.el.querySelector('.pin').style.background=c; if(L.batt) L.el.querySelector('.stem').style.background=c;
       if(pc!==null){ const bi=L.el.querySelector('.bb i'); bi.style.width=pc+'%'; bi.style.background=pctCol(pc); } L._w=0; }
   }
   // place the nearest and most important first, lift later ones above anything they would cover
@@ -1733,12 +1818,13 @@ function updateHUD(t){
   [...chaps.children].forEach((b,j)=>{ const s=CH[j].t, e=j<CH.length-1?CH[j+1].t:T_END; b.firstChild.style.width=(clamp((t-s)/(e-s),0,1)*100)+'%'; });
   $('time').textContent=fmt(t)+' / '+fmt(T_END);
   if(SC.id!=='hub'){ hud2(t); return; }
+  $('socOne').hidden=false; $('socDuo').hidden=true; $('socK').textContent='On-board pack';
   const soc=socAt(t); $('socV').textContent=Math.round(soc)+'%'; $('socT').textContent=t<43.6?'Pack A':'Pack C';
   const sb=$('socBar'); sb.style.width=soc+'%'; sb.style.background=pctCol(soc);
   const a=packAState(t); $('st2v').textContent=a.v; $('st2d').style.background=a.c; $('st2Bar').style.width=a.p+'%';
   if(t>=79){ $('st2k').textContent='Lock chamber'; const lv=hermite(WC,t,k=>k.v); $('st2v').textContent=(t<84?'Sealing':'+'+lv.toFixed(1)+' m'); $('st2d').style.background='var(--water)'; $('st2Bar').style.width=(lv/10*100)+'%'; $('st2Bar').style.background='var(--water)'; }
   else { $('st2k').textContent='Pack A ashore'; $('st2Bar').style.background='var(--amber)'; }
-  $('miniKm').textContent='km '+kmOf(barge.position).toFixed(1);
+  $('miniKm').textContent=kmOf(barge.position).toFixed(1)+' km from Antwerp';
 }
 
 /* ============================================================
@@ -2204,7 +2290,7 @@ function hubTimes(k){ const t0=S2.HUB0+k*S2.HUBL; return {on:t0+2.55,off:t0+5.45
 /* RAG colours by charge, the same scale everywhere: red at 20% or less, amber below 60%, green from 60% */
 function socE(k,t){ const H=hubTimes(k); if(t<H.off) return SC.soc0; return clamp(SC.soc0+(t-H.off)*1.6,SC.soc0,100); }   // charging on the rack (time lapse)
 const RAG_SHELL=[];
-function ragShell(pack){ const sh=new THREE.Mesh(new THREE.BoxGeometry(BOX.h.x*2,BOX.h.y*2,BOX.h.z*2),fxShell()); sh.position.copy(BOX.c); sh.renderOrder=12; pack.add(sh); RAG_SHELL.push(sh); return sh; }
+function ragShell(pack){ const sh=new THREE.Mesh(new THREE.BoxGeometry(BOX.h.x*2+0.08,BOX.h.y*2+0.08,BOX.h.z*2+0.08),fxShell()); sh.position.copy(BOX.c); sh.renderOrder=12; pack.add(sh); RAG_SHELL.push(sh); return sh; }
 function setRAG(pack,p,k){ setLED(pack,pctColor(p)); tintPack(pack,p); if(k>0) k=0.35; const sh=pack.userData.rag; if(sh){ sh.visible=k>0; sh.material.uniforms.c.value.copy(pctColor(p)); sh.material.uniforms.k.value=k; } }
 function applyScenario2(t){
   // vessel
@@ -2233,6 +2319,7 @@ function applyScenario2(t){
   nodes['h:Crane_structure'].position.x=base.gant.x+sx; ['h:Crane_sign_1','h:Crane_sign_-1'].forEach(n=>{ if(nodes[n]) nodes[n].position.x=base[n].x+sx; });
   nodes['h:Crane_trolley'].position.set(sx,base.trol.y,sz); nodes['h:Crane_spreader'].position.set(sx,sy,sz);
   // the lock stays as the viewer last saw it: lower gate open, chamber low
+  if(LOCKWAIT){ LOCKWAIT.g.visible=!!S2.lock; LOCKWAIT.lines.visible=t>=11&&t<74.5; }
   if(S2.lock){ const t1=t-S2.lockOff; setMitre('down',hermite(GD,t1,k=>k.v)/23); setMitre('up',hermite(GU,t1,k=>k.v)/17); const full=hermite(WC,t1,k=>k.v)>9.9; if(WATER_SILL) for(const m of WATER_SILL) m.visible=full; nodes['l:Water_Chamber_PushTow'].position.y=base.wc+hermite(WC,t1,k=>k.v);
     if(base.boll){ base.boll.position.y=base.bollY; } }
   else { setMitre('down',1); setMitre('up',0); nodes['l:Water_Chamber_PushTow'].position.y=base.wc; if(WATER_SILL) for(const m of WATER_SILL) m.visible=false; }
@@ -2273,7 +2360,7 @@ function updateTerminal(t){
 }
 /* ---------------- scenario descriptions ---------------- */
 const CH2=[
- {t:0,  h:'Alongside at BCTN Meerhout', b:'The quay is busy. The CMA CGM e-barge is moored at the terminal and the two gantry cranes are unloading its containers. It sails on two 20 ft ZESpacks of 2.9 MWh, now down to 10% after 69 km from Antwerp, close to their safe minimum.'},
+ {t:0,  h:'Alongside at BCTN Meerhout', b:'The quay is busy. The CMA CGM e-barge is moored at the terminal. Bay by bay the two gantry cranes take off the white import boxes and load blue CMA CGM export boxes: about 1 hour to unload and 45 minutes to load. Its two 2.9 MWh ZESpacks are down to 10% after 69 km from Antwerp, close to their safe minimum.'},
  {t:6,  h:'Energy check for the return leg', b:'Loaded, the barge uses about 60 kWh per km, so the 69 km back to Antwerp take 4.1 MWh. Two full packs give 5.2 MWh of usable energy, enough with a 20% reserve, so both packs are swapped.'},
  {t:12, h:'The battery tender sets off', b:'The charging hub at the east end of the quay is busy with another barge, so the battery tender brings the packs instead. It waits there with 12 charged packs forward and room for empties aft.'},
  {t:27, h:'Coming alongside', b:'The tender moors on the canal side of the barge, its crane right next to the battery bay. The cargo work on the quay side carries on.'},
@@ -2281,7 +2368,7 @@ const CH2=[
  {t:55, h:'Swapping pack 2', b:'Each pack connects to the fixed power, data and fire safety lines in its slot, as the CESNI rules require. About 15 minutes per pack, all inside the cargo handling, so the barge loses no time.'},
  {t:76, h:'Back to the hub', b:'The tender casts off with the two empty packs and turns for the charging hub, 150 m along the quay.'},
  {t:96, h:'Empty packs on charge', b:'The gantry crane at the hub lifts the empty packs into the double docking station. The MW charging system recharges both at once in about 3 hours, from a 2 MVA grid connection.'},
- {t:116,h:'Cargo work finished', b:'With the boxes loaded, the barge casts off with two full packs.'},
+ {t:116,h:'Cargo work finished', b:'After 1 h 45 of cargo work every bay carries CMA CGM export boxes. The barge casts off with two full packs.'},
  {t:121,h:'Heading for the lock', b:'The barge heads for Kwaadmechelen lock and the loaded leg home, with its reserve intact.'}
 ];
 const CP2=[
@@ -2308,8 +2395,8 @@ const VIEWS2=[
 const JOURNEY={
  hub:{title:'Antwerp to Genk', foot:'88 km · 6 locks · one swap', segs:[['sail',65],['lock',30],['sail',160],['lock',30],['sail',143],['swap',30],['sail',15],['lock',30],['sail',100],['lock',30],['sail',70],['lock',30],['sail',70],['lock',30]],
    map:[[0,420],[13.5,428],[17,431],[46.5,461],[79,476],[110,506],[126,516]]},
- berth:{title:'Antwerp to Meerhout and back', foot:'138 km · 4 locks · swap during cargo', segs:[['sail',65],['lock',30],['sail',230],['lock',30],['sail',165],['moor',15],['cargo',35],['swapc',30],['cargo',175],['moor',15],['sail',165],['lock',30],['sail',230],['lock',30],['sail',65]],
-   map:[[0,535],[6,540],[12,545],[30,565],[34,570],[76,600],[96,640],[116,670],[120,775],[121,778],[140,795]]}
+ berth:{title:'Antwerp to Meerhout and back', foot:'138 km · 4 locks · swap during cargo', segs:[['sail',65],['lock',30],['sail',230],['lock',30],['sail',165],['moor',15],['cargo',15],['swapc',30],['cargo',60],['moor',15],['sail',165],['lock',30],['sail',230],['lock',30],['sail',65]],
+   map:[[0,535],[3,537],[34,550],[76,580],[116,635],[120,640],[121,643],[140,660]]}
 };
 const SEGC={sail:'#4f8fd1',lock:'#a98bff',moor:'#9fb0c4',cargo:'#e8a33d',swap:'#22f08f',swapc:'#22f08f'};
 const SEGN={sail:'Sailing',lock:'Locks',moor:'Mooring',cargo:'Cargo handling',swap:'Battery swap',swapc:'Battery swap'};
@@ -2337,6 +2424,27 @@ const SCN={
 let SC=SCN.hub;
 /* ---------------- scenario 3: the tender swaps the packs while the barge waits for the lock ---------------- */
 const lockAtZ=(x,z,y=KEEL)=>new V3(x,0,z).applyMatrix4(lock.matrixWorld).setY(y);
+/* the waiting berth below the lock: three mooring dolphins with a catwalk, and the mooring lines while the barge waits */
+let LOCKWAIT=null;
+function buildWaitingBerth(wait,ry,fwd,out){
+  const g=new THREE.Group(); g.name='lockWaiting'; const lines=new THREE.Group(); g.add(lines);
+  const pile=new THREE.MeshStandardMaterial({color:'#3b4046',roughness:0.6,metalness:0.5}), cap=triplanar(new THREE.MeshStandardMaterial({color:'#9a958a',roughness:0.9}),TEX.concrete,0.2,0.8), yel=new THREE.MeshStandardMaterial({color:'#e8b400',roughness:0.5}), blk=new THREE.MeshStandardMaterial({color:'#15171a',roughness:0.6,metalness:0.4}), rope=new THREE.MeshStandardMaterial({color:'#d8cfa8',roughness:0.9});
+  const wy=wait.y-KEEL, top=wy+3.4, off=11.45/2+3.2; const tops=[];
+  for(const a of [-18,-62,-112]){ const c=wait.clone().addScaledVector(fwd,-a).addScaledVector(out,off); 
+    for(const [dx,dz] of [[-0.9,0],[0.9,0],[0,1.4]]){ const q=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,top-wy+9,14),pile); const o=new V3(dx,0,dz).applyAxisAngle(new V3(0,1,0),ry); q.position.set(c.x+o.x,(top+wy-9)/2,c.z+o.z); g.add(q);
+      const band=new THREE.Mesh(new THREE.CylinderGeometry(0.47,0.47,0.6,14),yel); band.position.set(c.x+o.x,top-0.9,c.z+o.z); g.add(band); }
+    const cp=new THREE.Mesh(new THREE.BoxGeometry(3.4,1.0,3.4),cap); cp.position.set(c.x,top+0.5,c.z); cp.rotation.y=ry; g.add(cp);
+    const bol=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.34,0.7,12),blk); bol.position.set(c.x,top+1.35,c.z); g.add(bol); const bh=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.12,12),blk); bh.position.set(c.x,top+1.7,c.z); g.add(bh);
+    tops.push(c.clone().setY(top+1.5)); }
+  // catwalk between the dolphins, with yellow rails
+  for(let i=0;i+1<tops.length;i++){ const a=tops[i], b=tops[i+1], m=a.clone().add(b).multiplyScalar(0.5), L=a.distanceTo(b)-3.4; const w=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.12,L),new THREE.MeshStandardMaterial({color:'#5d6369',roughness:0.7,metalness:0.5})); w.position.set(m.x,top+0.9,m.z); w.lookAt(b.x,top+0.9,b.z); g.add(w);
+    for(const sx of [-0.6,0.6]){ const r=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,L,6),yel); r.rotation.x=Math.PI/2; const o=new V3(sx,0,0).applyQuaternion(w.quaternion); r.position.set(m.x+o.x,top+1.95,m.z+o.z); r.quaternion.multiplyQuaternions(w.quaternion,new THREE.Quaternion().setFromAxisAngle(new V3(1,0,0),Math.PI/2)); g.add(r); } }
+  // mooring lines from the barge's deck to the bollards
+  barge.position.copy(wait); barge.rotation.set(0,ry,0); barge.updateMatrixWorld(true);
+  const sgn=new V3(1,0,0).applyQuaternion(barge.quaternion).dot(out)>0?1:-1;
+  tops.forEach((b,i)=>{ const a=barge.localToWorld(new V3(sgn*5.3,4.8,[-14,-64,-118][i]||-60)); const d=b.clone().sub(a), L=d.length(); const r=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,L,6),rope); r.position.copy(a).addScaledVector(d,0.5); r.quaternion.setFromUnitVectors(new V3(0,1,0),d.normalize()); lines.add(r); });
+  scene.add(g); g.visible=false; LOCKWAIT={g,lines,tops};
+}
 function setupScenario3(){
   const ryL=lock.rotation.y-Math.PI/2;                 // bow upstream (into the lock)
   const fwd=new V3(-Math.sin(ryL),0,-Math.cos(ryL)), side=new V3(0,0,1).applyQuaternion(lock.quaternion).setY(0).normalize();
@@ -2360,8 +2468,9 @@ function setupScenario3(){
   S3L.TK=unwrap([[0,hubDockW,rH],[12,hubDockW,rH],[15,hubL(-24,24),rH],[19,lockAtZ(-545,zW*0.2).setY(0),ryL],[23,lockAtZ(-530,zW+sd*sep*1.7).setY(0),ryL],[27,out,ryL],[30,alongside,ryL],[72,alongside,ryL],
     [75,alongside.clone().addScaledVector(side,sd*24),ryL],[81,alongside.clone().addScaledVector(side,sd*30).addScaledVector(fwd,-12),ryL+Math.PI],[90,hubL(70,28),rH+Math.PI],[95,hubDockW,rH+Math.PI],[T,hubDockW,rH+Math.PI]]);
   const inCh=lockAt(-85), up=lockAt(-85,KEEL+10), exit=lockAt(330,KEEL+10);
-  S3L.BK=unwrap([[0,lockAtZ(-1000,zW*0.6),ryL],[8,lockAtZ(-470,zW),ryL],[11,wait,ryL],[74,wait,ryL],[80,lockAtZ(-330,zW*0.3),ryL],[90,inCh.p,inCh.ry],[95,inCh.p,inCh.ry],[115,up.p,up.ry],[119,up.p,up.ry],[T,exit.p,exit.ry]]);
+  S3L.BK=unwrap([[0,lockAtZ(-1000,zW*0.6),ryL],[6,lockAtZ(-560,zW),ryL],[11,wait,ryL],[74,wait,ryL],[79,lockAtZ(-305,zW),ryL],[90,inCh.p,inCh.ry],[95,inCh.p,inCh.ry],[115,up.p,up.ry],[119,up.p,up.ry],[T,exit.p,exit.ry]]);
   S3L.HK=[{t:0,x:0,z:6.4,y:6.8},{t:T,x:0,z:6.4,y:6.8}];
+  buildWaitingBerth(wait,ryL,fwd,side.clone().multiplyScalar(-sd));
   barge.position.set(0,0,0); barge.rotation.set(0,0,0);
 }
 const CH3=[
@@ -2388,13 +2497,36 @@ const VIEWS3=[
  {id:'follow',name:'Follow',vr:'Drone, following the action',type:'orbit',target:followTarget3,rel:true,heading:()=>(tNow>11&&tNow<73)?tender.rotation.y:barge.rotation.y,az:-0.9,el:0.42,dist:150,min:28,max:1400},
  {id:'crane', name:'Tender crane',vr:'Next to the tender crane',type:'orbit',target:()=>tender.localToWorld(new V3(IK?IK.S.x:0,8,IK?IK.S.z:-10)),rel:true,heading:tenderHeading,az:2.1,el:0.36,dist:52,min:16,max:600},
  {id:'bridge',name:'Wheelhouse',vr:'On the barge',type:'fps',eye:()=>barge.localToWorld(new V3(0,13.9,-17.4)),yaw:0,pitch:-0.13,fov:62},
- {id:'lock',  name:'Lock',vr:'On the lock wall',type:'orbit',target:()=>lock.localToWorld(new V3(-10,8,-18)),rel:false,az:-0.9,el:0.5,dist:300,min:30,max:1500},
+ {id:'lock',  name:'Lock',vr:'On the lock wall',type:'orbit',target:()=>lock.localToWorld(new V3(-10,8,-18)),rel:false,az:-0.75,el:0.36,dist:195,min:30,max:1500},
  {id:'over',  name:'Overview',vr:'High above the canal',type:'orbit',target:()=>lock.localToWorld(new V3(-350,0,0)),rel:false,az:-2.5,el:0.6,dist:900,min:200,max:5200}
 ];
 JOURNEY.lock={title:'Antwerp to Genk', foot:'88 km · 6 locks · swap while waiting', segs:[['sail',65],['lock',30],['sail',160],['lock',30],['sail',143],['wait',7],['swapw',30],['wait',8],['lock',30],['sail',100],['lock',30],['sail',70],['lock',30],['sail',70],['lock',30]],
   map:[[0,420],[11,428],[26,433],[30,435],[72,465],[90,480],[95,483],[115,500],[128,508]]};
 SEGC.wait='#9fb0c4'; SEGC.swapw='#22f08f'; SEGN.wait='Waiting for the lock'; SEGN.swapw='Battery swap';
 SCN.lock={id:'lock',S:S3L,soc0:10,T_END:S3L.T_END,CH:CH3,CP:CP3,VIEWS:VIEWS3,apply:applyScenario2,end:{h:'Full packs, no time lost at the lock',p:'The swap happened during the wait for the lock, so it cost the barge nothing. It sails on to Genk with full packs while the tender takes the empties back to the hub to charge.'},swapT:26};
+/* activity clocks: when the labels are hidden, small clocks over the action say how long each job takes in real time */
+function activityAt(t){ const J=JOURNEY[SC.id]; const m=journeyMin(t); let acc=0, i=0; for(;i<J.segs.length;i++){ if(m<acc+J.segs[i][1]) break; acc+=J.segs[i][1]; } if(i>=J.segs.length) return null;
+  const base=k=>k==='swapc'?'cargo':k==='swapw'?'wait':k; const b=base(J.segs[i][0]); let a=acc, j=i; while(j>0&&base(J.segs[j-1][0])===b){ j--; a-=J.segs[j][1]; } let e=acc+J.segs[i][1], k=i; while(k<J.segs.length-1&&base(J.segs[k+1][0])===b){ k++; e+=J.segs[k][1]; }
+  return {b,m,a,e}; }
+const ACTN={sail:'Sailing',lock:'Lock passage',moor:'Mooring',cargo:'Cargo work',swap:'Battery swap',wait:'Waiting for the lock'};
+function buildDock2Label(){ const d=nodes['h:Docking_station']; if(!d||!HUB_EXTRA.length) return;
+  addLabel({id:'dock2',scn:'*',max:1400,n:'Second docking station',s:'',col:'#ffb21e',from:0,to:999,at:()=>HUB_EXTRA[1][0].getWorldPosition(new V3()).add(new V3(0,7,0)),
+    info:{e:'Charging hub',h:'Two double docking stations',p:'Six slots in two docking stations on the same crane rails, so more packs can wait here. With the 2 MVA grid connection two packs charge at full power at a time, about 3 hours each; the other slots hold packs that are full or waiting their turn.',d:[['Slots','6'],['At full power','2 packs at a time'],['Charging','about 3 h per pack'],['Grid','2 MVA']]}}); }
+function buildActivityClocks(){ buildDock2Label();
+  const C=o=>addLabel(Object.assign({clock:true,s:'',max:2600,pct:null},o));
+  C({id:'ck_main',scn:'*',n:t=>{ const A=activityAt(t); return A?ACTN[A.b]+' · '+hm(A.e-A.a):''; },s:t=>{ const A=activityAt(t); return A?hm(A.m-A.a)+' done':''; },pct:t=>{ const A=activityAt(t); return A?clamp((A.m-A.a)/(A.e-A.a),0,1)*100:0; },
+    col:t=>{ const A=activityAt(t); return A?(SEGC[A.b]||'#fff'):'#fff'; },from:0,to:999,when:t=>!!activityAt(t),at:()=>barge.localToWorld(new V3(0,24,-70))});
+  const swapK=t=>{ for(let k=0;k<NP;k++){ const a=liftTimes(2*k).on, b=liftTimes(2*k+1).off; if(t>=a&&t<b) return {k,f:(t-a)/(b-a)}; } return null; };
+  C({id:'ck_swap',scn:['berth','lock'],n:t=>{ const w=swapK(t); return w?'Swap pack '+(w.k+1)+' · 15 min':''; },s:t=>{ const w=swapK(t); return w?Math.round(w.f*15)+' min done':''; },pct:t=>{ const w=swapK(t); return w?w.f*100:0; },col:'#22f08f',from:0,to:999,when:t=>!!swapK(t),
+    at:()=>tender.localToWorld(new V3(0,22,10))});
+  const TRIPS={berth:[[12,27],[76,96]],lock:[[12,26],[72,90]]};
+  const trip=t=>{ const L=TRIPS[SC.id]||[]; for(const [a,b] of L) if(t>=a&&t<b) return {a:journeyMin(a),b:journeyMin(b),m:journeyMin(t)}; return null; };
+  C({id:'ck_trip',scn:['berth','lock'],n:t=>{ const r=trip(t); return r?'Tender trip · '+hm(r.b-r.a):''; },s:t=>{ const r=trip(t); return r?hm(r.m-r.a)+' done':''; },pct:t=>{ const r=trip(t); return r?(r.m-r.a)/(r.b-r.a)*100:0; },col:'#9fd3ff',from:0,to:999,when:t=>!!trip(t),
+    at:()=>tender.localToWorld(new V3(0,22,-6))});
+  const chg=t=>{ const a=hubTimes(0).off; if(t<a) return null; return clamp(journeyMin(t)-journeyMin(a),0,180); };
+  C({id:'ck_chg',scn:'berth',n:'Charging · 3 h',s:t=>{ const c=chg(t); return c===null?'':hm(c)+' done'; },pct:t=>(chg(t)||0)/180*100,col:'#ffb21e',from:0,to:999,when:t=>chg(t)!==null,
+    at:()=>base.hubRoot.localToWorld(RACK[1].clone().add(new V3(0,9,0)))});
+}
 function buildLabels3(){ addLabel({id:'b3',scn:'lock',n:'CMA CGM e-barge',s:'',col:'#fff',from:0,to:200,hide:['bridge'],when:t=>t<11||t>=74,at:()=>barge.localToWorld(new V3(0,14,-100)),
     info:{e:'The vessel',h:'CMA CGM e-barge',p:'Heading upstream to Genk on two swappable ZESpacks of 2.9 MWh.',d:[['Packs','2 × 2.9 MWh'],['On arrival','10%'],['To Genk','36 km · 3 locks']]}});
   addLabel({id:'lk3',scn:'lock',n:'Kwaadmechelen lock',s:'',from:0,to:96,at:()=>lock.localToWorld(new V3(0,32,-26))});
@@ -2402,12 +2534,13 @@ function buildLabels3(){ addLabel({id:'b3',scn:'lock',n:'CMA CGM e-barge',s:'',c
 function setScenario(id){
   if(!SCN[id]) return; SC=SCN[id]; if(SC.S){ S2=SC.S; TK2=S2.TK; BK2=S2.BK; HK2=S2.HK; } if(!SCN.hub.CH){ SCN.hub.CH=CH; SCN.hub.CP=CP; SCN.hub.VIEWS=VIEWS; }
   T_END=SC.T_END; CH=SC.CH; CP=SC.CP; VIEWS=SC.VIEWS; buildChaps(); buildViewSeg(); JOURNEY[SC.id].tot=0; _clkK=''; buildClock();
+  if(LOCKWAIT) LOCKWAIT.g.visible=id==='lock';
   const two=SC.id!=='hub'; tender.visible=two; if(moored) moored.visible=SC.id!=='berth';
   for(let k=0;k<NP;k++) if(E_PACK[k]&&E_PACK[k]!==BA) E_PACK[k].visible=two;
   ['h:Hub_Battery_1','h:Hub_Battery_2','h:Hub_Battery_3'].forEach(n=>{ if(nodes[n]) nodes[n].visible=!two; });
   for(const sh of RAG_SHELL) sh.visible=false;
   for(const f of FX){ f.shell.visible=!two; if(f.beam) f.beam.visible=false; if(f.ring) f.ring.visible=false; if(f.tag) f.tag.s.visible=false; }
-  resetUnloading(); for(const C of UNLOAD.cranes) for(const m of C.moves) if(m.start.parent===scene) m.piv.visible=(SC.id==='berth'); for(const E of EXTRA) E.o.visible=false;
+  resetUnloading(); for(const E of EXTRA) E.o.visible=false;
   if(traffic) traffic.visible=true;
   if(!two){ // restore the hub story parents and positions
     put(BA,base.BAparent,pA_barge,qA_barge); BA.visible=true; }
@@ -2420,13 +2553,15 @@ function setScenario(id){
 document.querySelectorAll('#scnTabs button').forEach(b=>b.onclick=()=>{ if(SC.id!==b.dataset.s) setScenario(b.dataset.s); });
 function hud2(t){
   const done=[...Array(NP).keys()].filter(k=>t>=liftTimes(2*k+1).off).length; const onCrane=cranePhase(t).carry;
-  const avg=(done*100+(NP-done)*SC.soc0)/NP;
-  $('socV').textContent=Math.round(avg)+'%'; $('socT').textContent=done?done+' of '+NP+' packs swapped':NP+' packs on board'; const sb=$('socBar'); sb.style.width=avg+'%'; sb.style.background=pctCol(avg);
+  const pk=[...Array(NP).keys()].map(k=>k<done?100:SC.soc0);
+  $('socOne').hidden=true; $('socDuo').hidden=false; $('socK').textContent='On-board packs';
+  $('socV').textContent=pk.map(v=>v+'%').join(' · '); $('socT').textContent=done?done+' of '+NP+' swapped':'Pack 1 · Pack 2';
+  pk.forEach((v,k)=>{ const e=$('pk'+(k+1)); e.style.width=v+'%'; e.style.background=pctCol(v); });
   $('st2k').textContent='Battery tender';
   const charged=12-done, empties=[...Array(NP).keys()].filter(k=>t>=liftTimes(2*k).off&&t<hubTimes(k).off).length, racked=[...Array(NP).keys()].filter(k=>t>=hubTimes(k).off).length;
   $('st2v').textContent=racked?racked+' empty '+(racked>1?'packs':'pack')+' on charge at the hub':charged+' charged'+(empties?' · '+empties+' empty':'')+(onCrane?' · one on the crane':'');
   $('st2d').style.background=racked?'var(--amber)':'var(--full)'; $('st2Bar').style.width=(racked?racked/NP*100:charged/12*100)+'%'; $('st2Bar').style.background=racked?'var(--amber)':'var(--full)';
-  $('miniKm').textContent=SC.id==='berth'?(t<121?'BCTN Meerhout berth':'km '+kmOf(barge.position).toFixed(1)):(t<76?'Waiting at Kwaadmechelen lock':t<104?'In the lock chamber':'Upper reach, km 52.6');
+  $('miniKm').textContent=SC.id==='berth'?(t<121?'BCTN Meerhout berth':kmOf(barge.position).toFixed(1)+' km from Antwerp'):(t<76?'Waiting at Kwaadmechelen lock':t<104?'In the lock chamber':'Upper reach, 52.6 km from Antwerp');
 }
 function buildLabels2(){
   const L=(o)=>{ o.scn='berth'; return addLabel(o); };
@@ -2440,7 +2575,7 @@ function buildLabels2(){
   L({id:'zch',scn:['berth','lock'],max:600,n:'Charged packs',s:'',col:'#22f08f',from:0,to:200,at:()=>SLOT['Slot_r4_c1_u'].getWorldPosition(new V3()).add(new V3(0,5,0))});
   const bayPct=t=>{ const done=[...Array(NP).keys()].filter(k=>t>=liftTimes(2*k+1).off).length; return (done*100+(NP-done)*SC.soc0)/NP; };
   L({id:'bay2',scn:['berth','lock'],max:900,n:'Barge packs',s:'',pct:bayPct,col:t=>pctCol(bayPct(t)),from:0,to:200,when:t=>(t<S2.LIFT0-1||t>=S2.LIFT0+43)&&(SC.id==='berth'?t<121:t<78),at:()=>bargeSlotWorld(1).add(new V3(0,4.5,0)),
-    info:{e:'Battery as a service',h:'The two packs on the barge',p:'Each 20 ft ZESpack holds 2.9 MWh, 2.6 MWh usable. The colour shows the charge: red at 20% or less, amber below 60%, green from 60%.',d:[['Packs','2 × 2.9 MWh'],['Power','up to 1 MW'],['Range','60 to 90 km per pack'],['After the swap','100%']]}});
+    info:{e:'Battery as a service',h:'The two packs on the barge',p:'Each 20 ft ZESpack holds 2.9 MWh, 2.6 MWh usable. The colour shows the charge: red at 20% or less, amber below 60%, green from 60%.',d:[['Packs','2 × 2.9 MWh'],['Power','up to 1 MW'],['Range','60 to 120 km on two packs'],['After the swap','100%']]}});
   L({id:'rack2',max:900,n:'Empty packs charging',s:'',pct:t=>socE(0,t),col:t=>pctCol(socE(0,t)),from:113,to:141,at:()=>base.hubRoot.localToWorld(RACK[1].clone().add(new V3(0,5,0)))});
   L({id:'hub2',n:'Charging hub',s:'',col:'#ffb21e',from:90,to:141,at:()=>hub.localToWorld(new V3(0,10,-24)),
     info:{e:'NatPower Marine hub',h:'Docking and charging station',p:'A double docking station charges two packs at once over the MW charging system (MCS). The tender reloads here.',d:[['Grid','2 MVA'],['Charging','MCS, 2 packs at once'],['Charge time','about 3 h']]}});
@@ -2595,23 +2730,52 @@ function boxMaterials(){ const m=(map,r)=>new THREE.MeshStandardMaterial({map,ro
 const BOXPAL=[['#1d4f91',14],['#22324e',6],['#7d1f26',6],['#a3261f',5],['#2e6b3f',6],['#1f6a6e',4],['#6e7377',7],['#b5b9bc',6],['#e2e2dc',6],['#c35a1b',4],['#c99a1b',2],['#6b3b22',4],['#3b4a5c',4]];
 const BOXPW=BOXPAL.reduce((a,c)=>a+c[1],0);
 function boxColour(r){ let u=r*BOXPW; for(const [c,w] of BOXPAL){ if(u<w) return c; u-=w; } return BOXPAL[0][0]; }
+/* CMA CGM boxes: dark blue with the official logo file in white on the long sides, the way the line paints its fleet */
+function cmaBoxMaterials(){ const c=document.createElement('canvas'); c.width=1024; c.height=256; const x=c.getContext('2d');
+  const paint=()=>{ x.drawImage(BOXTEX.side.image,0,0,1024,256); x.globalCompositeOperation='multiply'; x.fillStyle='#16306b'; x.fillRect(0,0,1024,256); x.globalCompositeOperation='source-over'; };
+  paint(); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8;
+  const img=new Image(); img.onload=()=>{ const lc=document.createElement('canvas'); const H=150, W=Math.round(H*530/340.4); lc.width=W; lc.height=H; const lx=lc.getContext('2d'); lx.drawImage(img,0,0,W,H);
+    const d=lx.getImageData(0,0,W,H); for(let i=0;i<d.data.length;i+=4){ const r=d.data[i],g=d.data[i+1],b=d.data[i+2]; if(!(r>150&&g<90&&b<90)){ d.data[i]=d.data[i+1]=d.data[i+2]=246; } } lx.putImageData(d,0,0);
+    paint(); x.drawImage(lc,512-W/2,128-H/2-6); t.needsUpdate=true; }; img.src='assets/brand/cma-cgm.svg';
+  const m=(map,r)=>new THREE.MeshStandardMaterial({map,roughness:r,metalness:0.25,color:'#ffffff'}); const base=boxMaterials(); const side=m(t,0.6);
+  const blue=mt=>{ const k=mt.clone(); k.color.set('#1d3a7a'); return k; };
+  return [blue(base[0]),blue(base[1]),blue(base[2]),base[3],side,side]; }
 function buildContainersV2(){
   const C=D.objects.containers, list=C.list; let n=0; for(const c of list) n+=c[3];
   const g=new THREE.BoxGeometry(6.06,2.59,2.44); g.translate(0,1.295,0);
-  const im=new THREE.InstancedMesh(g,boxMaterials(),n); const M=new THREE.Matrix4(), q=new THREE.Quaternion(), s=new V3(1,1,1), p=new V3(), col=new THREE.Color();
-  let k=0, rnd=3; const R=()=>{ rnd=(rnd*16807)%2147483647; return rnd/2147483647; };
+  const im=new THREE.InstancedMesh(g,boxMaterials(),n), ic=new THREE.InstancedMesh(g,cmaBoxMaterials(),n); const M=new THREE.Matrix4(), q=new THREE.Quaternion(), s=new V3(1,1,1), p=new V3(), col=new THREE.Color();
+  let k=0, kc=0, rnd=3; const R=()=>{ rnd=(rnd*16807)%2147483647; return rnd/2147483647; };
   for(const [x,z,g0,lev,hex] of list){
-    for(let l=0;l<lev;l++){ const flip=R()<0.5?Math.PI:0; q.setFromAxisAngle(new V3(0,1,0),-C.yaw+flip+(R()-0.5)*0.012); p.set(x+(R()-0.5)*0.08,g0+l*2.6,z+(R()-0.5)*0.08); M.compose(p,q,s); im.setMatrixAt(k,M);
-      col.set(boxColour(R())); col.offsetHSL(0,0,(R()-0.5)*0.05); im.setColorAt(k,col); k++; } }
-  im.count=k; im.castShadow=im.receiveShadow=true; im.name='yardBoxes'; scene.add(im);
+    for(let l=0;l<lev;l++){ const flip=R()<0.5?Math.PI:0; q.setFromAxisAngle(new V3(0,1,0),-C.yaw+flip+(R()-0.5)*0.012); p.set(x+(R()-0.5)*0.08,g0+l*2.6,z+(R()-0.5)*0.08); M.compose(p,q,s);
+      const cma=R()<0.5; if(cma){ ic.setMatrixAt(kc++,M); continue; }
+      im.setMatrixAt(k,M); col.set(boxColour(R())); col.offsetHSL(0,0,(R()-0.5)*0.05); im.setColorAt(k,col); k++; } }
+  im.count=k; ic.count=kc; for(const o of [im,ic]){ o.castShadow=o.receiveShadow=true; scene.add(o); } im.name='yardBoxes'; ic.name='yardBoxesCMA';
 }
 /* the terminal apron: boxes found in the LiDAR survey become containers on chassis aligned with the quay; outside the terminal
    the survey boxes stay as they were */
 function inTerminal(x,z){ const qz=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2]; return x>500&&x<905&&z>qz(x)-2&&z<qz(x)+200; }
+/* the terminal pavement: the aerial photo has the real boxes and trucks printed into it, which showed as blurred ghosts
+   under the 3D boxes, so the paved terminal gets clean concrete over the photo */
+let PAVE=null; const onPave=(x,z)=>!!PAVE&&x>PAVE.x0&&x<PAVE.x1&&z>PAVE.qz(x)&&z<PAVE.qz(x)+PAVE.dM;
+function buildTerminalPavement(){
+  const qz=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2]; const L=D.objects.containers.list.filter(c=>inTerminal(c[0],c[1])); if(!L.length) return;
+  let x0=1e9,x1=-1e9,dM=0; for(const c of L){ x0=Math.min(x0,c[0]); x1=Math.max(x1,c[0]); dM=Math.max(dM,c[1]-qz(c[0])); }
+  x0=Math.max(500,x0-18); x1=Math.min(905,x1+18); dM=Math.min(200,dM+14); PAVE={x0,x1,dM,qz};
+  const nx=Math.ceil((x1-x0)/4), nd=Math.ceil(dM/4); const pos=[], uv=[], idx=[];
+  for(let j=0;j<=nd;j++) for(let i=0;i<=nx;i++){ const x=x0+(x1-x0)*i/nx, d=0.5+(dM-0.5)*j/nd, z=qz(x)+d; pos.push(x,hAt(x,z)+0.07,z); uv.push(i/nx,j/nd); }
+  for(let j=0;j<nd;j++) for(let i=0;i<nx;i++){ const a=j*(nx+1)+i, b=a+1, c=a+nx+1, e=c+1; idx.push(a,c,b,b,c,e); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.setIndex(idx); g.computeVertexNormals();
+  const m=triplanar(new THREE.MeshStandardMaterial({color:'#5f625f',roughness:0.93,metalness:0,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),TEX.concrete,0.07,0.7);
+  const mesh=new THREE.Mesh(g,m); mesh.receiveShadow=true; mesh.name='terminalPavement'; scene.add(mesh);
+}
+function yardNear(x,z,r){ const L=D.objects.containers.list; for(const c of L) if(Math.abs(c[0]-x)<r+6&&Math.abs(c[1]-z)<r+6&&Math.hypot(c[0]-x,c[1]-z)<r+3) return true; return false; }
 function buildApronV2(){
   const TR=D.objects.trailers||[]; const keep=[], ch=[]; const qyaw=Math.atan2(F.quayDir[1],F.quayDir[0]);
   for(const t of TR){ const [x,z,g0,yaw,L,W,h,hex]=t; if(!inTerminal(x,z)){ keep.push(t); continue; } if(L<5) continue;
-    let y=yaw; const d=((y-(-qyaw))%Math.PI+Math.PI)%Math.PI; const dq=Math.min(d,Math.PI-d); if(dq<0.35) y=-qyaw; else { const d2=Math.abs(dq-Math.PI/2); if(d2<0.35) y=-qyaw+Math.PI/2; }
+    // only boxes that line up with the quay or square to it stay; skewed survey boxes and doubles are dropped
+    let y=yaw; const d=((y-(-qyaw))%Math.PI+Math.PI)%Math.PI; const dq=Math.min(d,Math.PI-d); if(dq<0.35) y=-qyaw; else { const d2=Math.abs(dq-Math.PI/2); if(d2<0.35) y=-qyaw+Math.PI/2; else continue; }
+    if(ch.some(c=>Math.hypot(c[0]-x,c[1]-z)<4.5)) continue;
+    if(yardNear(x,z,5.5)) continue;
     ch.push([x,z,Math.min(g0,hAt(x,z)),y,L>8.5?12.19:6.06]); }
   D.objects.trailers=keep;
   if(!ch.length) return;
@@ -2627,10 +2791,31 @@ function buildApronV2(){
   ch.forEach(([x,z,y0,yaw,L],i)=>{ q.setFromAxisAngle(new V3(0,1,0),yaw); s.set(L,1,1); p.set(x,y0,z); M.compose(p,q,s); fm.setMatrixAt(i,M); s.set(1,1,1);
     for(let j=0;j<2;j++){ const off=new V3((j?-1:1)*L*0.36,0,0).applyQuaternion(q); p.set(x+off.x,y0,z+off.z); M.compose(p,q,s); wm.setMatrixAt(i*2+j,M); } });
   fm.castShadow=wm.castShadow=true; scene.add(fm); scene.add(wm);
+  // a terminal tractor in front of every chassis: cab, dark windscreen and its own wheels
+  const cabG=new THREE.BoxGeometry(2.6,2.7,2.5); cabG.translate(0,1.35+0.75,0); const winG=new THREE.BoxGeometry(0.06,0.9,2.2); winG.translate(1.31,2.55,0);
+  const cab=new THREE.InstancedMesh(cabG,new THREE.MeshStandardMaterial({color:'#ffffff',roughness:0.45,metalness:0.2}),ch.length), win=new THREE.InstancedMesh(winG,new THREE.MeshStandardMaterial({color:'#0d1418',roughness:0.15,metalness:0.6}),ch.length);
+  const cw=new THREE.InstancedMesh(wheel,new THREE.MeshStandardMaterial({color:'#121212',roughness:0.95}),ch.length); const CABC=['#e9ecef','#c62828','#1f4e9a','#e9ecef','#f2b400'];
+  ch.forEach(([x,z,y0,yaw,L],i)=>{ q.setFromAxisAngle(new V3(0,1,0),yaw); const off=new V3(L/2+1.5,0,0).applyQuaternion(q); p.set(x+off.x,y0,z+off.z); s.set(1,1,1); M.compose(p,q,s); cab.setMatrixAt(i,M); win.setMatrixAt(i,M); cw.setMatrixAt(i,M); col.set(CABC[i%CABC.length]); cab.setColorAt(i,col); });
+  cab.castShadow=win.castShadow=cw.castShadow=true; scene.add(cab); scene.add(win); scene.add(cw);
 }
 
+/* ---------- the cargo on the e-barge in bays: white import boxes arrive, CMA CGM blue export boxes leave ---------- */
+const BAYS=[]; const BOX_WHITE=new THREE.Color('#c9cecd'), BOX_BLUE=new THREE.Color('#030b30');
+function groupBargeBays(){
+  const root=bargeGLTF.scene; root.updateMatrixWorld(true); const inv=root.matrixWorld.clone().invert(); const boxes=[];
+  root.traverse(o=>{ if(/^Box(20|40)/.test(o.name)&&!(o.parent&&/^Box(20|40)/.test(o.parent.name))) boxes.push(o); });
+  const list=boxes.map(o=>({o,z:new THREE.Box3().setFromObject(o).getCenter(new V3()).applyMatrix4(inv).z})).sort((a,b)=>a.z-b.z);
+  let cur=null, lastZ=-1e9;
+  for(const e of list){ if(!cur||e.z-lastZ>4){ cur={g:new THREE.Group(),z:e.z,paint:[],cache:new Map(),white:null}; cur.g.name='Bay_'+BAYS.length; root.add(cur.g); BAYS.push(cur); } lastZ=e.z; cur.g.attach(e.o); e.o.userData.bay=BAYS.length-1; }
+  for(const B of BAYS){ B.g.traverse(o=>{ if(!o.isMesh) return; const ms=Array.isArray(o.material)?o.material:[o.material];
+      const out=ms.map(m=>{ if(!m||!/Box_CMA_Blue|Box_Reefer_White|Box_Text_White/.test(m.name)) return m; if(!B.cache.has(m)){ const k=m.clone(); k.name=m.name; B.cache.set(m,k); B.paint.push({m:k,text:/Text/.test(m.name),orig:m.color.clone()}); } return B.cache.get(m); });
+      o.material=Array.isArray(o.material)?out:out[0]; }); }
+}
+function paintBay(B,white){ if(B.white===white) return; B.white=white; for(const P of B.paint) P.m.color.copy(white?BOX_WHITE:(P.text?P.orig:(/Reefer/.test(P.m.name)?BOX_BLUE:P.orig))); }
+// a box (with its own materials) painted for good: white import box or blue CMA CGM export box
+function paintBox(o,white){ o.traverse(m=>{ if(!m.isMesh) return; const ms=(Array.isArray(m.material)?m.material:[m.material]).map(x=>{ if(!x||!/Box_CMA_Blue|Box_Reefer_White|Box_Text_White/.test(x.name)) return x; const k=x.clone(); k.name=x.name; if(white) k.color.copy(BOX_WHITE); else if(/Reefer/.test(x.name)) k.color.copy(BOX_BLUE); return k; }); m.material=Array.isArray(m.material)?ms:ms[0]; }); }
 /* ---------- the gantry cranes unload the e-barge in scenario 2 ---------- */
-const UNLOAD={cranes:[],T:18, t0:1.0, ok:false};
+const UNLOAD={cranes:[],T:13, t0:3.0, t1:114, ok:false, flips:[]};
 /* each crane works three slots on the top tier: it lifts the import box off the barge onto the apron, then picks up the export box
    waiting under the crane and sets it into the same slot, the way the tender swaps the packs */
 function setupUnloading(berth){
@@ -2641,7 +2826,10 @@ function setupUnloading(berth){
   const maxY=Math.max(...info.map(i=>i.bb.max.y)); const topTier=info.filter(i=>i.bb.max.y>maxY-0.6);
   realCranes.forEach((g,ci)=>{ g.updateMatrixWorld(true); const g0=g.position.clone(); const gInv=g.matrixWorld.clone().invert(); const gq=g.getWorldQuaternion(new THREE.Quaternion());
     const spr=g.children.find(c=>/Crane_spreader/.test(c.name)), trol=g.children.find(c=>/Crane_trolley/.test(c.name)); if(!spr||!trol) return;
-    const mine=topTier.map(b=>({b,lx:b.top.clone().applyMatrix4(gInv).x})).sort((a,b)=>a.b.top.x-b.b.top.x).filter((e,i,arr)=>ci===0?i<3:i>=arr.length-3);
+    // one top tier box per bay, the one on the quay side row; bays sorted along the quay, crane 0 takes the first half, crane 1 the second
+    const byBay=new Map(); for(const b of topTier){ const k=b.o.userData.bay; const d=gInv.elements; const lz=b.top.clone().applyMatrix4(gInv).z; if(!byBay.has(k)||lz>byBay.get(k).lz) byBay.set(k,{b,lz}); }
+    const bays=[...byBay.entries()].sort((a,b)=>a[1].b.top.x-b[1].b.top.x); const half=Math.ceil(bays.length/2);
+    const mine=(ci===0?bays.slice(0,half):bays.slice(half)).map(([k,e])=>({b:e.b,bay:k}));
     const sq=spr.getWorldQuaternion(new THREE.Quaternion()).invert();
     const moves=[]; const apron=(x,z)=>{ const w=new V3(x,0,z).applyMatrix4(g.matrixWorld); w.y=F.hub.quayTop+2.59+0.02; return w; };
     mine.forEach((e,k)=>{ const b=e.b, o=b.o;
@@ -2651,19 +2839,22 @@ function setupUnloading(berth){
       const L=b.top.clone().applyMatrix4(gInv);
       const dropW=apron(L.x,-14.5), expW=apron(L.x,-21.0);
       // the export box: a twin of the slot's box, waiting on the apron under the crane
-      const exp=new THREE.Group(); exp.name='BoxPivot'; const oc=o.clone(true); oc.position.copy(o.position); oc.quaternion.copy(o.quaternion); oc.scale.copy(o.scale); exp.add(oc); scene.add(exp);
+      const exp=new THREE.Group(); exp.name='BoxPivot'; const oc=o.clone(true); oc.position.copy(o.position); oc.quaternion.copy(o.quaternion); oc.scale.copy(o.scale); paintBox(oc,false); paintBox(o,true); exp.add(oc); scene.add(exp);
       const atW=(w)=>({parent:scene,pos:w.clone(),quat:qW.clone()});
-      moves.push({piv,qRel,from:L.clone(),to:g.worldToLocal(dropW.clone()),start:rest,end:atW(dropW)});
-      moves.push({piv:exp,qRel,from:g.worldToLocal(expW.clone()),to:L.clone(),start:atW(expW),end:rest});
+      moves.push({piv,qRel,from:L.clone(),to:g.worldToLocal(dropW.clone()),start:rest,end:atW(dropW),imp:true});
+      moves.push({piv:exp,qRel,from:g.worldToLocal(expW.clone()),to:L.clone(),start:atW(expW),end:rest,bay:e.bay});
     });
-    UNLOAD.cranes.push({g,g0,spr,trol,s0:spr.position.clone(),t0:trol.position.clone(),moves,phase:ci*7}); });
+    UNLOAD.cranes.push({g,g0,spr,trol,s0:spr.position.clone(),t0:trol.position.clone(),moves,phase:ci*4}); });
+  const nMax=Math.max(...UNLOAD.cranes.map(C=>C.moves.length)); UNLOAD.T=(UNLOAD.t1-UNLOAD.t0-4)/nMax;
+  for(const C of UNLOAD.cranes) C.moves.forEach((m,k)=>{ if(m.bay!==undefined) UNLOAD.flips.push({bay:BAYS[m.bay],t:UNLOAD.t0+C.phase+k*UNLOAD.T+0.80*UNLOAD.T}); });
   barge.position.set(0,0,0); barge.rotation.set(0,0,0); UNLOAD.ok=true;
 }
 const placeAt=(o,st)=>{ if(o.parent!==st.parent) st.parent.add(o); o.position.copy(st.pos); o.quaternion.copy(st.quat); };
-function resetUnloading(){ for(const C of UNLOAD.cranes){ C.g.position.copy(C.g0); C.spr.position.copy(C.s0); C.trol.position.copy(C.t0);
-  for(const m of C.moves){ placeAt(m.piv,m.start); m.piv.visible=SC.id==='berth'||m.start.parent!==scene; } } }
+function resetUnloading(){ const b=SC.id==='berth'; for(const C of UNLOAD.cranes){ C.g.position.copy(C.g0); C.spr.position.copy(C.s0); C.trol.position.copy(C.t0);
+  for(const m of C.moves){ if(b){ placeAt(m.piv,m.start); m.piv.visible=true; } else if(m.imp){ m.piv.visible=false; } else { placeAt(m.piv,m.end); m.piv.visible=true; } } }
+  for(const B of BAYS) paintBay(B,b); }
 function updateUnloading(t){
-  if(!UNLOAD.ok) return; const T=UNLOAD.T;
+  if(!UNLOAD.ok) return; const T=UNLOAD.T; for(const B of BAYS) B._w=true; for(const f of UNLOAD.flips) if(t>=f.t) f.bay._w=false; for(const B of BAYS) paintBay(B,B._w);
   for(const C of UNLOAD.cranes){ const n=C.moves.length; const tt=t-UNLOAD.t0-C.phase; const idx=Math.floor(tt/T), u=(tt-idx*T)/T; const yHi=C.s0.y+9.5;
     C.moves.forEach((m,k)=>{ m.piv.visible=true; const on=UNLOAD.t0+C.phase+k*T+0.34*T, off=UNLOAD.t0+C.phase+k*T+0.80*T;
       if(t<on) placeAt(m.piv,m.start); else if(t<off){ if(m.piv.parent!==C.spr) C.spr.add(m.piv); m.piv.position.set(0,0,0); m.piv.quaternion.copy(m.qRel); } else placeAt(m.piv,m.end); });
@@ -2735,22 +2926,24 @@ function build(){
   const T0=performance.now(), tm=n=>{ if(TEST) console.warn('BUILD '+n+' '+(performance.now()-T0).toFixed(0)+'ms'); };
   HF=decodeHF(D.height); if(D.height_core) HC=decodeHF(D.height_core);   // banks are shaped offline from the exact canal outline (scripts/data/banks.py)
   GF=decodeHF(D.ground); MB=D.route_base; tm('hf');
-  buildModels(); tm('models'); loadGroundMask(); buildTerrain(); tm('terrain'); buildWater(); buildTreesV2(); tm('trees'); buildBuildings(); buildLogos(); tm('buildings'); buildContainersV2(); buildApronV2(); buildDetails(); buildGroundCover(); buildRoads(); buildWake(); buildPeople(); buildQuayWall(); buildBankWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
+  buildModels(); tm('models'); loadGroundMask(); buildTerrain(); tm('terrain'); buildWater(); buildTerminalPavement(); buildTreesV2(); tm('trees'); buildBuildings(); buildLogos(); tm('buildings'); buildContainersV2(); buildApronV2(); buildDetails(); buildGroundCover(); buildRoads(); buildWake(); buildPeople(); buildQuayWall(); buildBankWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
   // sky reflections only where they belong: water, glass and the painted barge
   WATER_MAT.envMap=ENV; WATER_MAT.envMapIntensity=0.16; WATER_MAT.needsUpdate=true;
   scene.traverse(o=>{ if(!o.isMesh) return; (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m&&m.isMeshStandardMaterial&&m.transparent){ m.envMap=ENV; m.envMapIntensity=1.0; m.needsUpdate=true; } }); });
   barge.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m.isMeshStandardMaterial&&!m.transparent){ m.envMap=ENV; m.envMapIntensity=0.35; m.needsUpdate=true; } }); });
   makeBargeKeys(); makeDeparture(); setupSwap(); buildBatteryFX(); buildLabels(); buildPlaces(); tm('labels');
   for(const L of LABELS) if(/^(bctn|wind|sim|br)/.test(L.id)) L.scn='*';
-  setupTender(); setupScenario2(); setupScenario3(); buildLabels2(); buildLabels3(); buildBannerV2(); tm('scenarios');
+  groupBargeBays(); setupTender(); setupScenario2(); setupScenario3(); buildLabels2(); buildLabels3(); buildActivityClocks(); buildPeople2(); buildBargeDetails(); buildPlacards(); buildBannerV2(); tm('scenarios');
   // fewer draw calls for the headset: merge every part that never moves, per material
-  const DYN=/Crane_|Hub_Battery|Battery_|Gate_|Water_Chamber|_LED|HL|BoxPivot/;
+  const DYN=/Crane_|Hub_Battery|Battery_|Gate_|Water_Chamber|_LED|HL|BoxPivot|Bay_/;
+  for(const B of BAYS) mergeStatic(B.g,/BoxPivot/);
   mergeStatic(lock,DYN); mergeStatic(hub,DYN); mergeStatic(barge,DYN); realCranes.forEach(g=>mergeStatic(g,/Crane_trolley|Crane_spreader|termbox/)); mergeStatic(tenderGLTF.scene,/Crane_|Pack|Slot_|_LED/); if(moored) mergeStatic(moored,/^$/); if(traffic) mergeStatic(traffic,/^$/);
   { const models=new Set([hub,lock,barge,moored,traffic,rig,sky,tender,...realCranes]); const rot=new Set(turbines);
     mergeStatic(scene,/^merged$/,o=>models.has(o)||o.name==='BoxPivot'||rot.has(o)||(o.material&&(o.material.isShaderMaterial||o.material.isSpriteMaterial||(o.material.map&&o.material.isMeshLambertMaterial)))); }
-  tm('merged'); setupExtras();
+  tm('merged'); setupExtras(); resetUnloading(); for(const [k,p] of HUB_EXTRA){ tintPack(k,p); setLED(k,pctColor(p)); }
   buildComposer(); resizeComposer(innerWidth,innerHeight);
-  if(TEST) window.__T={seek:t=>{ seek(t); setPaused(true); },view:i=>setView(i),scn:id=>setScenario(id),cam,get t(){ return tNow; },unload:()=>UNLOAD.cranes.map(c=>({n:c.jobs.length,p:c.g.position.toArray().map(v=>+v.toFixed(1))})),collide:(margin=3)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); if(moored&&moored.visible) L.push(['moored',moored,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i+':'+E.label,E.o,5.73,-135,0]); }); return L; };
+  if(TEST) window.__T={get scene(){ return scene; },V3,dolph:()=>{ if(!LOCKWAIT) return 'none'; const hits=[]; const ships=[['barge',barge,5.73,-135,0],['tender',tender,4.3,-28,28],...EXTRA.map((E,i)=>['extra'+i,E.o,5.73,-135,0])];
+    for(let t=0;t<T_END;t+=0.5){ SC.apply(t); scene.updateMatrixWorld(true); for(const [n,o,hw,z0,z1] of ships){ if(!o.visible) continue; const inv=o.matrixWorld.clone().invert(); for(const d of LOCKWAIT.tops){ const l=d.clone().applyMatrix4(inv); if(Math.abs(l.x)<hw+2.5&&l.z>z0-2.5&&l.z<z1+2.5) hits.push(n+'@'+t); } } } SC.apply(tNow); return hits.slice(0,20); },seek:t=>{ seek(t); setPaused(true); },view:i=>setView(i),scn:id=>setScenario(id),cam,get t(){ return tNow; },unload:()=>UNLOAD.cranes.map(c=>({n:c.jobs.length,p:c.g.position.toArray().map(v=>+v.toFixed(1))})),collide:(margin=3)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); if(moored&&moored.visible) L.push(['moored',moored,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i+':'+E.label,E.o,5.73,-135,0]); }); return L; };
   const corners=(o,hw,z0,z1)=>{ o.updateMatrixWorld(true); return [[-hw,z0],[hw,z0],[hw,z1],[-hw,z1]].map(([x,z])=>new V3(x,0,z).applyMatrix4(o.matrixWorld)); };
   const sep=(A,B)=>{ for(const P of [A,B]) for(let i=0;i<4;i++){ const a=P[i],b=P[(i+1)%4]; const nx=-(b.z-a.z), nz=b.x-a.x; const l=Math.hypot(nx,nz); const pa=A.map(p=>(p.x*nx+p.z*nz)/l), pb=B.map(p=>(p.x*nx+p.z*nz)/l); if(Math.max(...pa)+margin<Math.min(...pb)||Math.max(...pb)+margin<Math.min(...pa)) return true; } return false; };
   for(let t=0;t<T_END;t+=0.25){ SC.apply(t); scene.updateMatrixWorld(true); const L=ships(); const C=L.map(s=>corners(s[1],s[2],s[3],s[4]));
