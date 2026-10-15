@@ -1,0 +1,23 @@
+name: Frozen links check
+# The three live links (/demo/, /flat/, /vr/) and the files they load are frozen at the tag frozen-2026-10-15.
+# This check turns red if any of those files differs from the tag. New work goes in the v2 folder.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  frozen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compare the frozen files with the tag
+        run: |
+          git fetch --tags --force
+          if git diff --exit-code --stat frozen-2026-10-15 HEAD -- index.html demo flat vr assets; then
+            echo "The three frozen links are unchanged."
+          else
+            echo "::error::Files behind the frozen links changed. Put new work in the v2 folder and restore these files from the tag frozen-2026-10-15."
+            exit 1
+          fi
