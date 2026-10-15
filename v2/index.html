@@ -337,7 +337,7 @@ body.hidden-ui .restore{display:flex}
       <h2 id="stepTitle">Under way on battery power</h2>
       <p class="body" id="stepBody"></p>
       <div class="status">
-        <div class="stat"><div class="k">On-board pack</div><div class="v"><b id="socV">44%</b><span id="socT">Pack A</span></div><div class="bar"><i id="socBar" style="width:44%"></i></div></div>
+        <div class="stat"><div class="k">On-board pack</div><div class="v"><b id="socV">12%</b><span id="socT">Pack A</span></div><div class="bar"><i id="socBar" style="width:12%"></i></div></div>
         <div class="stat"><div class="k" id="st2k">Pack A ashore</div><div class="v"><span class="dot" id="st2d"></span><span id="st2v">On board</span></div><div class="bar"><i id="st2Bar" style="width:0%;background:var(--amber)"></i></div></div>
       </div>
     </div>
@@ -749,7 +749,7 @@ void main(){
   WAKE.mesh=new THREE.Mesh(g,m); WAKE.mesh.renderOrder=2; WAKE.mesh.frustumCulled=false; scene.add(WAKE.mesh); WAKE.dist=0; }
 function updateWake(dt){ const w=WAKE.mesh; if(!w) return; const p=barge.position;
   // speed along the story timeline, so the wake looks the same at any frame rate
-  const a=new V3(hermite(BK,tNow,k=>k.p.x),0,hermite(BK,tNow,k=>k.p.z)), b=new V3(hermite(BK,tNow+0.1,k=>k.p.x),0,hermite(BK,tNow+0.1,k=>k.p.z));
+  const KK=SC.id==='hub'?BK:BK2; const a=new V3(hermite(KK,tNow,k=>k.p.x),0,hermite(KK,tNow,k=>k.p.z)), b=new V3(hermite(KK,tNow+0.1,k=>k.p.x),0,hermite(KK,tNow+0.1,k=>k.p.z));
   WAKE.speed=lerp(WAKE.speed,paused?0:a.distanceTo(b)/0.1,1-Math.exp(-dt*3));
   const k=clamp(WAKE.speed/25,0,1);                                                  // full wake under way, fading out as the barge slows at the hub and in the lock
   w.material.uniforms.k.value=0.85*k; w.visible=k>0.02; if(!w.visible) return;
@@ -1506,7 +1506,7 @@ function battRect(node,W,H){ if(!node) return null; let x0=1e9,x1=-1e9,y0=1e9,y1
    8. Story
    ============================================================ */
 let CH=[
- {t:0,  tl:20, h:'Under way on battery power', b:'The CMA CGM e-barge heads east from Antwerp with 180 TEU. It runs on one leased 20 ft battery pack of 1.96 MWh, now down to about 44% after 50 km.'},
+ {t:0,  tl:20, h:'Under way on battery power', b:'The CMA CGM e-barge heads east from Antwerp with 180 TEU. It runs on one leased 20 ft battery pack of 1.96 MWh, now down to about 12% after 50 km.'},
  {t:8,  tl:20, h:'Approaching BCTN Meerhout', b:'The swap point is the existing BCTN container terminal at Meerhout, canal km 51.9. NatPower Marine adds a charging station at the east end of its 330 m quay.'},
  {t:13.5,tl:10, h:'Coming alongside', b:'The barge berths bow east, its battery bay lined up under the swap crane, so it can carry straight on to the lock afterwards.'},
  {t:19, tl:30, h:'Lifting out the spent pack', b:'The crane locks onto pack A in its bay on the deck and lifts it clear of the barge.'},
@@ -1524,9 +1524,9 @@ let CH=[
 ];
 const chapIdx=t=>{ let i=0; CH.forEach((c,j)=>{ if(t>=c.t) i=j; }); return i; };
 const SOC_KM=1.117; // %/km: 1.93 MWh design energy over 88 km, on a 1.96 MWh pack
-function socAt(t){ const km=kmOf(barge.position); if(t<43.6) return clamp(44-(km-50.72)*SOC_KM,0,100); return clamp(100-(km-51.95)*SOC_KM,0,100); }
+function socAt(t){ const km=kmOf(barge.position); if(t<43.6) return clamp(12-(km-50.72)*SOC_KM,0,100); return clamp(100-(km-51.95)*SOC_KM,0,100); }
 function packAState(t){ if(t<21.6) return {v:'On board',c:'var(--low)',p:0}; if(t<29.2) return {v:'On the crane',c:'var(--low)',p:0};
-  const p=clamp(42+(t-29.2)/(T_END-29.2)*40,0,100); return {v:'Charging '+Math.round(p)+'%',c:'var(--amber)',p}; }
+  const p=clamp(11+(t-29.2)/(T_END-29.2)*70,0,100); return {v:'Charging '+Math.round(p)+'%',c:'var(--amber)',p}; }
 
 /* ============================================================
    9. Camera views with orbit and zoom
@@ -1691,8 +1691,8 @@ $('infoX').onclick=hideInfo;
 let tNow=0, paused=false, speed=1, started=false, last=0, hudDirty=true, lastStep=-1;
 /* Guided mode: the story waits at each key moment until the viewer acts. At the end it stops, it never loops. */
 let CP=[
- {t:0,    btn:'Start the journey',       p:'The e-barge is 1.2 km downstream of the swap hub. Pack A, its only battery, is down to 44%.'},
- {t:17,   btn:'Start the battery swap',  p:'The barge is alongside with its battery bay right under the swap crane. Pack A is at 43%.', batt:true},
+ {t:0,    btn:'Start the journey',       p:'The e-barge is 1.2 km downstream of the swap hub. Pack A, its only battery, is down to 12%.'},
+ {t:17,   btn:'Start the battery swap',  p:'The barge is alongside with its battery bay right under the swap crane. Pack A is at 11%.', batt:true},
  {t:29.3, btn:'Bring the charged pack',  p:'Pack A is on the charger ashore. Pack C, fully charged, is waiting in the docking station.', batt:true},
  {t:44.2, btn:'Cast off for the lock',   p:'Pack C is connected. The barge leaves with a full battery after about 30 minutes alongside.'},
  {t:79,   btn:'Close the lower gate',    p:'The barge is inside the 200 m push-tow chamber of Kwaadmechelen lock.'},
@@ -1759,9 +1759,10 @@ function drawRoute(ctx,view,opt){
   const line=(pts,col,w,dash)=>{ ctx.beginPath(); pts.forEach((p,i)=>{ const [x,y]=P(p[0],p[1]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.strokeStyle=col; ctx.lineWidth=w*dpr; ctx.setLineDash(dash?dash.map(d=>d*dpr):[]); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke(); ctx.setLineDash([]); };
   const sub=(a,b)=>{ const out=[routeKmLL(a)]; R.km.forEach((k,i)=>{ if(k>a&&k<b) out.push(R.canal[i]); }); out.push(routeKmLL(b)); return out; };
   // glow under the pilot route
-  line(sub(R.pilotEnd,R.km[R.km.length-1]),MAPC.rest,2.2);
-  line(sub(0,R.pilotEnd),'rgba(6,26,51,.75)',7.5);
-  line(sub(0,R.pilotEnd),MAPC.pilot,3.2);
+  const pEnd=SC.id==='berth'?51.95:R.pilotEnd;   // scenario 2 runs Antwerp to Meerhout and back
+  line(sub(pEnd,R.km[R.km.length-1]),MAPC.rest,2.2);
+  line(sub(0,pEnd),'rgba(6,26,51,.75)',7.5);
+  line(sub(0,pEnd),MAPC.pilot,3.2);
   line(sub(0,kmNow),MAPC.done,3.6);
   line(R.port.coords,'rgba(6,26,51,.75)',6.5); line(R.port.coords,MAPC.port,2.6,[5,5]);
   // km ticks
@@ -1784,7 +1785,8 @@ function drawRoute(ctx,view,opt){
     const lx=clamp(x-tw/2,8*dpr,W-tw-8*dpr), ly=opt.full?y-15*dpr:(y>H*0.6?y-14*dpr:y+24*dpr); ctx.fillStyle='rgba(6,26,51,.82)'; ctx.fillRect(lx-6*dpr,ly-13*dpr,tw+12*dpr,18*dpr); ctx.fillStyle='#ffffff'; ctx.fillText(label,lx,ly); }
   // live vessels from AIS
   if(opt.full) big.hits=[];
-  if(AIS.list.length){ for(const v of AIS.list){ const [x,y]=P(v.lon,v.lat); if(x<-10||y<-10||x>W+10||y>H+10) continue; if(opt.full) big.hits.push({x,y,v});
+  if(AIS.list.length){ for(const v of AIS.list){ if(!opt.full&&v.lon<4.52) continue;   // the small map shows live vessels on the canal only, not the many in the port of Antwerp
+      const [x,y]=P(v.lon,v.lat); if(x<-10||y<-10||x>W+10||y>H+10) continue; if(opt.full) big.hits.push({x,y,v});
       ctx.beginPath(); ctx.arc(x,y,3.4*dpr,0,7); ctx.fillStyle='#22f08f'; ctx.fill(); ctx.lineWidth=1.2*dpr; ctx.strokeStyle='#061a33'; ctx.stroke();
       if(opt.full&&s>0.9&&v.name){ ctx.font=`700 ${11*dpr}px Arial,sans-serif`; ctx.fillStyle='rgba(6,26,51,.85)'; ctx.fillText(v.name,x+7*dpr+1,y-5*dpr+1); ctx.fillStyle='#22f08f'; ctx.fillText(v.name,x+7*dpr,y-5*dpr); } } }
   // barge marker
@@ -2080,6 +2082,9 @@ function setupTender(){
   upgradeMaterials(root);
   root.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m.isMeshStandardMaterial&&!m.transparent){ m.envMap=ENV; m.envMapIntensity=0.35; } }); });
   TN.Pack_proto.visible=false;
+  // darker paint so the tender stands out against the light water: charcoal hull, dark deck, light grey superstructure
+  const recol={Tender_Hull:'#0b0f13',Tender_Deck:'#1c2125',Paint_White:'#4f5a63',Tender_Stripe:'#9aa3aa'}; const done=new Set();
+  root.traverse(o=>{ if(!o.isMesh) return; for(const m of (Array.isArray(o.material)?o.material:[o.material])){ if(m&&recol[m.name]&&!done.has(m)){ m.color.set(recol[m.name]); m.metalness=Math.min(m.metalness,0.2); m.envMapIntensity=0.15; done.add(m); } } });
   SLOT={}; for(const n in TN) if(/^Slot_r\d_c\d(_u)?$/.test(n)) SLOT[n]=TN[n];
   for(const n in SLOT){ const p=TN.Pack_proto.clone(true); p.visible=true; p.position.set(0,0,0); p.quaternion.identity(); p.traverse(o=>{ o.userData={}; }); SLOT[n].add(p); T_PACK.set(n,p); setLED(p,LED.full); }
   // spreader and cable hang from the tip in the tender frame
@@ -2091,6 +2096,15 @@ function setupTender(){
   const H=TN.Crane_boom.position.clone(), L1=TN.Crane_jib.position.length(), tp=TN.Crane_tip.position.clone();
   IK={S,H,L1,L2:Math.hypot(tp.y,tp.z),phi:Math.atan2(-tp.y,-tp.z)};
   T_PACK.forEach(p=>p.updateMatrixWorld(true));
+  // deck zones: red hatching aft for the spent packs, green forward for the charged ones
+  const zone=(rows,col,txt)=>{ const ps=rows.map(r=>tender.worldToLocal(SLOT['Slot_r'+r+'_c1'].getWorldPosition(new V3()))); const z0=Math.min(...ps.map(p=>p.z))-3.4, z1=Math.max(...ps.map(p=>p.z))+3.4, y=ps[0].y-0.1;
+    const c=document.createElement('canvas'); c.width=512; c.height=Math.round(512*(z1-z0)/8.2); const x=c.getContext('2d'); x.fillStyle=col; x.fillRect(0,0,c.width,c.height);
+    x.strokeStyle='rgba(255,255,255,.35)'; x.lineWidth=14; for(let i=-c.height;i<c.width+c.height;i+=60){ x.beginPath(); x.moveTo(i,0); x.lineTo(i+c.height,c.height); x.stroke(); }
+    x.strokeStyle='#ffffff'; x.lineWidth=16; x.strokeRect(8,8,c.width-16,c.height-16);
+    x.save(); x.translate(c.width/2,c.height/2); x.rotate(-Math.PI/2); x.fillStyle='#ffffff'; x.font='700 64px Arial,sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(txt,0,0); x.restore();
+    const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8;
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(8.2,z1-z0),new THREE.MeshStandardMaterial({map:t,roughness:0.8})); m.rotation.x=-Math.PI/2; m.position.set(0,y,(z0+z1)/2); m.receiveShadow=true; tender.add(m); };
+  zone([0,1],'#b3261e','SPENT PACKS'); zone([3,4],'#1f8a4c','CHARGED PACKS');
 }
 function tenderPose(x,z,ry){ tender.position.set(x,T_DRAFT,z); tender.rotation.set(0,ry,0); }
 /* aim the knuckle boom crane so its tip is at T (tender frame); elbow up like a real knuckle crane */
@@ -2130,7 +2144,7 @@ function setupScenario2(){
   // where the bay sits in the world when the vessel is at the berth
   barge.position.copy(berth.p); barge.rotation.set(0,berth.r,0); scene.updateMatrixWorld(true);
   const bayW=bargeSlotWorld(1);
-  const sep=11.45/2+8.6/2+0.9;
+  const sep=11.45/2+8.6/2+2.4;
   const craneW=bayW.clone().addScaledVector(NN,sep); craneW.y=0;
   const along=new V3(); // tender midship is 9.5 m east of its crane when the tender lies bow west
   const alongside=craneW.clone().addScaledVector(QD,-(IK.S.z));    // IK.S.z is the crane position along the tender (negative = forward)
@@ -2138,7 +2152,7 @@ function setupScenario2(){
   const hubDockW=hubL(3,5.6), out=alongside.clone().addScaledVector(NN,16);
   const rH=hub.rotation.y+Math.PI/2;   // bow east at the hub
   const unwrap=a=>{ let prev=null; return a.map(([t,p,r])=>{ if(prev!==null){ while(r-prev>Math.PI) r-=2*Math.PI; while(r-prev<-Math.PI) r+=2*Math.PI; } prev=r; return {t,p,r}; }); };
-  TK2=unwrap([[0,hubDockW,rH+Math.PI],[12,hubDockW,rH+Math.PI],[15.5,hubL(22,24),rH+Math.PI],[22,hubL(95,30),ryW],[27,out,ryW],[30,alongside,ryW],[76,alongside,ryW],
+  const tStart=hubL(3,18.2); TK2=unwrap([[0,tStart,rH+Math.PI],[12,tStart,rH+Math.PI],[15.5,hubL(22,24),rH+Math.PI],[22,hubL(95,30),ryW],[27,out,ryW],[30,alongside,ryW],[76,alongside,ryW],
     [79.5,alongside.clone().addScaledVector(NN,22),ryW],[83,alongside.clone().addScaledVector(NN,48).addScaledVector(QD,6),ryW],[89,alongside.clone().addScaledVector(NN,52).addScaledVector(QD,14),ryE],
     [93,hubL(70,30),rH],[96,hubDockW,rH],[S2.T_END,hubDockW,rH]]);
   const off=berth.p.clone().addScaledVector(NN,18).addScaledVector(QD,10);
@@ -2148,13 +2162,13 @@ function setupScenario2(){
   tenderPose(hubDockW.x,hubDockW.z,rH); tender.updateMatrixWorld(true);
   const hr=base.hubRoot; hr.updateMatrixWorld(true); HK2=[]; const push=(t,p,y)=>HK2.push({t,x:p.x,z:p.z,y});
   let cur=new V3(0,0,6.4); push(0,cur,6.8); push(S2.HUB0,cur,6.8);
-  for(let k=0;k<NP;k++){ const t0=S2.HUB0+k*S2.HUBL; const P=hr.worldToLocal(SLOT['Slot_r1_c'+k+'_u'].getWorldPosition(new V3())); const R=RACK[k];
+  for(let k=0;k<NP;k++){ const t0=S2.HUB0+k*S2.HUBL; const P=hr.worldToLocal(SLOT['Slot_r1_c'+k].getWorldPosition(new V3())); const R=RACK[k];
     push(t0+1.6,P,14); push(t0+2.4,P,P.y+2.591); push(t0+2.7,P,P.y+2.591); push(t0+3.3,P,14); push(t0+4.6,R,14); push(t0+5.3,R,R.y+2.591); push(t0+5.6,R,R.y+2.591); push(t0+6.2,R,14); }
   push(S2.HUB0+NP*S2.HUBL+1.2,new V3(0,0,6.4),6.8); push(S2.T_END,new V3(0,0,6.4),6.8);
   S2B.TK=TK2; S2B.BK=BK2; S2B.HK=HK2;
   base.packQ_hub=hr.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(tender.getWorldQuaternion(new THREE.Quaternion()));
   // the terminal cranes load boxes onto the vessel's top tier while it is alongside
-  setupTerminalBoxes(berth);
+  setupUnloading(berth);
   for(let k=0;k<NP;k++){ E_PACK[k].userData.rag=ragShell(E_PACK[k]); const c=T_PACK.get('Slot_r3_c'+k+'_u'); c.userData.rag=ragShell(c); }
   barge.position.set(0,0,0);
 }
@@ -2163,7 +2177,7 @@ function liftPlan(k2){ // k2 = 0..5
   const k=k2>>1, emptyLift=(k2%2===0);
   const bayL=()=>tender.worldToLocal(bargeSlotWorld(k));
   const slot=n=>tender.worldToLocal(SLOT[n].getWorldPosition(new V3()));
-  return emptyLift?{from:bayL,to:()=>slot('Slot_r1_c'+k+'_u'),pack:E_PACK[k],dest:'Slot_r1_c'+k+'_u'}:{from:()=>slot('Slot_r3_c'+k+'_u'),to:bayL,pack:T_PACK.get('Slot_r3_c'+k+'_u'),dest:'bay'+k};
+  return emptyLift?{from:bayL,to:()=>slot('Slot_r1_c'+k),pack:E_PACK[k],dest:'Slot_r1_c'+k}:{from:()=>slot('Slot_r3_c'+k+'_u'),to:bayL,pack:T_PACK.get('Slot_r3_c'+k+'_u'),dest:'bay'+k};
 }
 function restTip(){ const S=IK.S; return new V3(S.x,S.y+6.2,S.z+8.5); }
 function cranePhase(t){  // returns {tip, drop, carrying:{pack,lift}|null}
@@ -2191,7 +2205,7 @@ function hubTimes(k){ const t0=S2.HUB0+k*S2.HUBL; return {on:t0+2.55,off:t0+5.45
 function socE(k,t){ const H=hubTimes(k); if(t<H.off) return SC.soc0; return clamp(SC.soc0+(t-H.off)*1.6,SC.soc0,100); }   // charging on the rack (time lapse)
 const RAG_SHELL=[];
 function ragShell(pack){ const sh=new THREE.Mesh(new THREE.BoxGeometry(BOX.h.x*2,BOX.h.y*2,BOX.h.z*2),fxShell()); sh.position.copy(BOX.c); sh.renderOrder=12; pack.add(sh); RAG_SHELL.push(sh); return sh; }
-function setRAG(pack,p,k){ setLED(pack,pctColor(p)); const sh=pack.userData.rag; if(sh){ sh.visible=k>0; sh.material.uniforms.c.value.copy(pctColor(p)); sh.material.uniforms.k.value=k; } }
+function setRAG(pack,p,k){ setLED(pack,pctColor(p)); tintPack(pack,p); if(k>0) k=0.35; const sh=pack.userData.rag; if(sh){ sh.visible=k>0; sh.material.uniforms.c.value.copy(pctColor(p)); sh.material.uniforms.k.value=k; } }
 function applyScenario2(t){
   // vessel
   const x=hermite(BK2,t,k=>k.p.x), y=hermite(BK2,t,k=>k.p.y), z=hermite(BK2,t,k=>k.p.z), r=hermite(BK2,t,k=>k.r);
@@ -2199,15 +2213,15 @@ function applyScenario2(t){
   // tender
   tenderPose(hermite(TK2,t,k=>k.p.x),hermite(TK2,t,k=>k.p.z),hermite(TK2,t,k=>k.r)); scene.updateMatrixWorld(true);
   // packs to their resting places first
-  for(const [n,p] of T_PACK){ if(p.parent!==SLOT[n]) SLOT[n].add(p); p.position.set(0,0,0); p.quaternion.identity(); p.visible=!/^Slot_r1_c[01]_u$/.test(n); setRAG(p,100,0); }
+  for(const [n,p] of T_PACK){ if(p.parent!==SLOT[n]) SLOT[n].add(p); p.position.set(0,0,0); p.quaternion.identity(); const spent=/^Slot_r0_c\d$/.test(n); p.visible=spent||/^Slot_r[34]_c\d(_u)?$/.test(n); setRAG(p,spent?10:100,0); }
   const qBay=qA_barge;
   for(let k=0;k<NP;k++){ const e=E_PACK[k]; e.visible=true; const L=liftTimes(2*k), H=hubTimes(k);
     if(t<L.on) put(e,base.BAparent,pA_barge.clone().add(new V3(BAY[k],0,0)),qBay);
     else if(t<L.off) put(e,TN.Crane_spreader,new V3(0,-SPR_PACK,0),new THREE.Quaternion());
-    else if(t<H.on) put(e,SLOT['Slot_r1_c'+k+'_u'],new V3(),new THREE.Quaternion());
+    else if(t<H.on) put(e,SLOT['Slot_r1_c'+k],new V3(),new THREE.Quaternion());
     else if(t<H.off) put(e,nodes['h:Crane_spreader'],new V3(0,-2.591,0),base.packQ_hub);
     else put(e,base.hubRoot,RACK[k],base.packQ_hub);
-    const pe=socE(k,t), act=(t>=L.on-3&&t<L.off+2)||(t>=H.on-3&&t<H.off+2)?1:0.45; setRAG(e,pe,SC.id==='berth'?act:0);
+    const pe=socE(k,t), act=(t>=L.on-3&&t<L.off+2)||(t>=H.on-3&&t<H.off+2)?1:0.45; setRAG(e,pe,SC.id!=='hub'?act:0);
     const c=T_PACK.get('Slot_r3_c'+k+'_u'), Lc=liftTimes(2*k+1);
     if(t<Lc.on){} else if(t<Lc.off) put(c,TN.Crane_spreader,new V3(0,-SPR_PACK,0),new THREE.Quaternion()); else put(c,base.BAparent,pA_barge.clone().add(new V3(BAY[k],0,0)),qBay);
     setRAG(c,100,(t>=Lc.on-3&&t<Lc.off+2)?1:(t>=Lc.off?0.45:0));
@@ -2223,7 +2237,8 @@ function applyScenario2(t){
     if(base.boll){ base.boll.position.y=base.bollY; } }
   else { setMitre('down',1); setMitre('up',0); nodes['l:Water_Chamber_PushTow'].position.y=base.wc; if(WATER_SILL) for(const m of WATER_SILL) m.visible=false; }
   if(traffic){ const km=52.05-(t/S2.T_END)*3.3; const p=bargeAt(km,30); traffic.position.copy(p.p); traffic.rotation.y=p.ry+Math.PI; }
-  if(SC.id==='berth') updateTerminal(t);
+  if(SC.id==='berth') updateUnloading(t);
+  updateExtras(t);
 }
 /* terminal cranes: the crane over the hold brings a box from the quay to the vessel's top tier every 16 s while it is alongside */
 const TERM_P=16, TERM_N=4;
@@ -2258,9 +2273,9 @@ function updateTerminal(t){
 }
 /* ---------------- scenario descriptions ---------------- */
 const CH2=[
- {t:0,  h:'Alongside at BCTN Meerhout', b:'The CMA CGM e-barge is moored at the terminal and the two gantry cranes are handling its containers. It sails on two 20 ft ZESpacks of 2.9 MWh, now down to 29% after 69 km from Antwerp.'},
+ {t:0,  h:'Alongside at BCTN Meerhout', b:'The quay is busy. The CMA CGM e-barge is moored at the terminal and the two gantry cranes are unloading its containers. It sails on two 20 ft ZESpacks of 2.9 MWh, now down to 10% after 69 km from Antwerp, close to their safe minimum.'},
  {t:6,  h:'Energy check for the return leg', b:'Loaded, the barge uses about 60 kWh per km, so the 69 km back to Antwerp take 4.1 MWh. Two full packs give 5.2 MWh of usable energy, enough with a 20% reserve, so both packs are swapped.'},
- {t:12, h:'The battery tender sets off', b:'The tender waits at the charging hub at the east end of the quay with 22 charged packs on deck. It casts off and heads for the barge.'},
+ {t:12, h:'The battery tender sets off', b:'The charging hub at the east end of the quay is busy with another barge, so the battery tender brings the packs instead. It waits there with 12 charged packs forward and room for empties aft.'},
  {t:27, h:'Coming alongside', b:'The tender moors on the canal side of the barge, its crane right next to the battery bay. The cargo work on the quay side carries on.'},
  {t:34, h:'Swapping pack 1', b:'The knuckle boom crane lifts the first empty pack onto the tender, then sets a charged pack into the same slot on the barge.'},
  {t:55, h:'Swapping pack 2', b:'Each pack connects to the fixed power, data and fire safety lines in its slot, as the CESNI rules require. About 15 minutes per pack, all inside the cargo handling, so the barge loses no time.'},
@@ -2270,8 +2285,8 @@ const CH2=[
  {t:121,h:'Heading for the lock', b:'The barge heads for Kwaadmechelen lock and the loaded leg home, with its reserve intact.'}
 ];
 const CP2=[
- {t:0,   btn:'Start',                         p:'The e-barge is alongside at BCTN Meerhout while its containers are handled. Its two packs are down to 29%.'},
- {t:12,  btn:'Call the battery tender',       p:'The loaded return leg needs 4.1 MWh: two full packs. The tender at the hub has 22 charged packs on deck.'},
+ {t:0,   btn:'Start',                         p:'The e-barge is alongside at BCTN Meerhout while its containers are handled. Its two packs are down to 10%.'},
+ {t:12,  btn:'Call the battery tender',       p:'The loaded return leg needs 4.1 MWh: two full packs. The hub is busy with another barge, so call the tender with 12 charged packs forward and room for empties aft.'},
  {t:34,  btn:'Start the battery swap',        p:'The tender is alongside. Its crane will swap the two packs one by one while the cargo work goes on.', batt:true},
  {t:76,  btn:'Send the tender to the hub',    p:'Two full packs are connected. The cargo work is still going on, so the barge lost no time.'},
  {t:96,  btn:'Put the empty packs on charge', p:'The tender is back at the hub with the two empty packs.'},
@@ -2316,8 +2331,8 @@ function updateClock(t){ const J=JOURNEY[SC.id]; if(!J.tot) buildClock(); const 
 
 /* ---------------- switching scenarios ---------------- */
 const SCN={
- hub:{id:'hub',soc0:44,T_END:126,CH:null,CP:null,VIEWS:null,apply:t=>applyTime(t),end:{h:'On to Genk with a full pack',p:'One swap of about 30 minutes at Kwaadmechelen replaced hours on a charger. Pack A stays ashore to charge for the next barge, and the e-barge carries on with 36 km and four more locks to go.'},swapT:13.5},
- berth:{id:'berth',S:S2B,soc0:29,T_END:S2B.T_END,CH:CH2,CP:CP2,VIEWS:VIEWS2,apply:applyScenario2,end:{h:'Full packs, no time lost',p:'Both packs were swapped alongside while the containers were handled, so the barge sailed on time. The tender is back at the hub, where the empty packs are charging for the next vessel.'},swapT:27}
+ hub:{id:'hub',soc0:11,T_END:126,CH:null,CP:null,VIEWS:null,apply:t=>applyTime(t),end:{h:'On to Genk with a full pack',p:'One swap of about 30 minutes at Kwaadmechelen replaced hours on a charger. Pack A stays ashore to charge for the next barge, and the e-barge carries on with 36 km and four more locks to go.'},swapT:13.5},
+ berth:{id:'berth',S:S2B,soc0:10,T_END:S2B.T_END,CH:CH2,CP:CP2,VIEWS:VIEWS2,apply:applyScenario2,end:{h:'Full packs, no time lost',p:'Both packs were swapped alongside while the containers were handled, so the barge sailed on time. The tender is back at the hub, where the empty packs are charging for the next vessel.'},swapT:27}
 };
 let SC=SCN.hub;
 /* ---------------- scenario 3: the tender swaps the packs while the barge waits for the lock ---------------- */
@@ -2325,7 +2340,7 @@ const lockAtZ=(x,z,y=KEEL)=>new V3(x,0,z).applyMatrix4(lock.matrixWorld).setY(y)
 function setupScenario3(){
   const ryL=lock.rotation.y-Math.PI/2;                 // bow upstream (into the lock)
   const fwd=new V3(-Math.sin(ryL),0,-Math.cos(ryL)), side=new V3(0,0,1).applyQuaternion(lock.quaternion).setY(0).normalize();
-  const sep=11.45/2+8.6/2+0.9;
+  const sep=11.45/2+8.6/2+2.4;
   // pick the side of the lower approach with open water for both hulls
   const wet=(p,len,half)=>{ let bad=0; for(let a=0;a<=1;a+=0.1) for(const s of [-half,0,half]){ const q=p.clone().addScaledVector(fwd,a*len).addScaledVector(side,s); if(surfaceH(q.x,q.z)>-0.5) bad++; } return bad; };
   let best=null;
@@ -2350,9 +2365,9 @@ function setupScenario3(){
   barge.position.set(0,0,0); barge.rotation.set(0,0,0);
 }
 const CH3=[
- {t:0,  h:'Arriving at Kwaadmechelen', b:'The CMA CGM e-barge is heading upstream for Genk on two 2.9 MWh ZESpacks, now at 46% after 52 km. The lock is busy, so it ties up at the waiting berth.'},
- {t:9,  h:'Energy check before the lock', b:'Genk is 36 km and three more locks away: about 2.2 MWh loaded. What is left above the safe minimum of the packs is less than that plus the 20% reserve. A swap during the wait fixes it.'},
- {t:12, h:'The tender comes up from the hub', b:'The battery tender leaves the charging hub, 400 m downstream on the BCTN quay, with 22 charged packs on deck.'},
+ {t:0,  h:'Arriving at Kwaadmechelen', b:'The lock is busy, with barges coming down and another one waiting. The CMA CGM e-barge is heading upstream for Genk on two 2.9 MWh ZESpacks, now down to 10%. It ties up at the waiting berth.'},
+ {t:9,  h:'Energy check before the lock', b:'Genk is 36 km and three more locks away: about 2.2 MWh loaded. At 10% the packs cannot get there. A swap during the wait fixes it.'},
+ {t:12, h:'The tender comes up from the hub', b:'The battery tender leaves the charging hub, 400 m downstream on the BCTN quay, with 12 charged packs forward and room for empties aft.'},
  {t:26, h:'Alongside at the waiting berth', b:'The tender moors next to the barge, its crane right by the battery bay. No quay and no crane on land are needed.'},
  {t:30, h:'Swapping while waiting', b:'The knuckle boom crane swaps the two packs one by one, about 15 minutes each. The barge was waiting for the lock anyway, so the swap costs no time.'},
  {t:72, h:'The lock is ready', b:'The tender casts off with the empty packs and heads back to the hub to charge them. The barge sails into the push tow chamber.'},
@@ -2361,7 +2376,7 @@ const CH3=[
  {t:115,h:'On to Genk', b:'Full packs and a healthy reserve for the last 36 km. The empty packs are already back at the hub on charge.'}
 ];
 const CP3=[
- {t:0,  btn:'Start', p:'The e-barge is heading for Kwaadmechelen lock. Its two packs are at 46%.'},
+ {t:0,  btn:'Start', p:'The e-barge is heading for Kwaadmechelen lock. Its two packs are down to 10%.'},
  {t:11, btn:'Call the battery tender', p:'The lock is busy. The barge needs full packs to reach Genk with its reserve, and the wait is long enough for a swap.'},
  {t:30, btn:'Start the battery swap', p:'The tender is alongside at the waiting berth.', batt:true},
  {t:72, btn:'Into the lock', p:'Two full packs are connected. The lock is ready for the barge.'},
@@ -2379,9 +2394,9 @@ const VIEWS3=[
 JOURNEY.lock={title:'Antwerp to Genk', foot:'88 km · 6 locks · swap while waiting', segs:[['sail',65],['lock',30],['sail',160],['lock',30],['sail',143],['wait',7],['swapw',30],['wait',8],['lock',30],['sail',100],['lock',30],['sail',70],['lock',30],['sail',70],['lock',30]],
   map:[[0,420],[11,428],[26,433],[30,435],[72,465],[90,480],[95,483],[115,500],[128,508]]};
 SEGC.wait='#9fb0c4'; SEGC.swapw='#22f08f'; SEGN.wait='Waiting for the lock'; SEGN.swapw='Battery swap';
-SCN.lock={id:'lock',S:S3L,soc0:46,T_END:S3L.T_END,CH:CH3,CP:CP3,VIEWS:VIEWS3,apply:applyScenario2,end:{h:'Full packs, no time lost at the lock',p:'The swap happened during the wait for the lock, so it cost the barge nothing. It sails on to Genk with full packs while the tender takes the empties back to the hub to charge.'},swapT:26};
+SCN.lock={id:'lock',S:S3L,soc0:10,T_END:S3L.T_END,CH:CH3,CP:CP3,VIEWS:VIEWS3,apply:applyScenario2,end:{h:'Full packs, no time lost at the lock',p:'The swap happened during the wait for the lock, so it cost the barge nothing. It sails on to Genk with full packs while the tender takes the empties back to the hub to charge.'},swapT:26};
 function buildLabels3(){ addLabel({id:'b3',scn:'lock',n:'CMA CGM e-barge',s:'',col:'#fff',from:0,to:200,hide:['bridge'],when:t=>t<11||t>=74,at:()=>barge.localToWorld(new V3(0,14,-100)),
-    info:{e:'The vessel',h:'CMA CGM e-barge',p:'Heading upstream to Genk on two swappable ZESpacks of 2.9 MWh.',d:[['Packs','2 × 2.9 MWh'],['On arrival','46%'],['To Genk','36 km · 3 locks']]}});
+    info:{e:'The vessel',h:'CMA CGM e-barge',p:'Heading upstream to Genk on two swappable ZESpacks of 2.9 MWh.',d:[['Packs','2 × 2.9 MWh'],['On arrival','10%'],['To Genk','36 km · 3 locks']]}});
   addLabel({id:'lk3',scn:'lock',n:'Kwaadmechelen lock',s:'',from:0,to:96,at:()=>lock.localToWorld(new V3(0,32,-26))});
   addLabel({id:'wb3',scn:'lock',minor:true,n:'Waiting berth',s:'',from:0,to:74,when:(t,v)=>v==='over'||v==='follow',at:()=>barge.localToWorld(new V3(0,8,-30))}); }
 function setScenario(id){
@@ -2392,7 +2407,7 @@ function setScenario(id){
   ['h:Hub_Battery_1','h:Hub_Battery_2','h:Hub_Battery_3'].forEach(n=>{ if(nodes[n]) nodes[n].visible=!two; });
   for(const sh of RAG_SHELL) sh.visible=false;
   for(const f of FX){ f.shell.visible=!two; if(f.beam) f.beam.visible=false; if(f.ring) f.ring.visible=false; if(f.tag) f.tag.s.visible=false; }
-  resetTerminal();
+  resetUnloading(); for(const C of UNLOAD.cranes) for(const m of C.moves) if(m.start.parent===scene) m.piv.visible=(SC.id==='berth'); for(const E of EXTRA) E.o.visible=false;
   if(!two){ // restore the hub story parents and positions
     put(BA,base.BAparent,pA_barge,qA_barge); BA.visible=true; }
   document.querySelectorAll('#scnTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===id));
@@ -2407,9 +2422,9 @@ function hud2(t){
   const avg=(done*100+(NP-done)*SC.soc0)/NP;
   $('socV').textContent=Math.round(avg)+'%'; $('socT').textContent=done?done+' of '+NP+' packs swapped':NP+' packs on board'; const sb=$('socBar'); sb.style.width=avg+'%'; sb.style.background=pctCol(avg);
   $('st2k').textContent='Battery tender';
-  const charged=22-done, empties=[...Array(NP).keys()].filter(k=>t>=liftTimes(2*k).off&&t<hubTimes(k).off).length, racked=[...Array(NP).keys()].filter(k=>t>=hubTimes(k).off).length;
+  const charged=12-done, empties=[...Array(NP).keys()].filter(k=>t>=liftTimes(2*k).off&&t<hubTimes(k).off).length, racked=[...Array(NP).keys()].filter(k=>t>=hubTimes(k).off).length;
   $('st2v').textContent=racked?racked+' empty '+(racked>1?'packs':'pack')+' on charge at the hub':charged+' charged'+(empties?' · '+empties+' empty':'')+(onCrane?' · one on the crane':'');
-  $('st2d').style.background=racked?'var(--amber)':'var(--full)'; $('st2Bar').style.width=(racked?racked/NP*100:charged/24*100)+'%'; $('st2Bar').style.background=racked?'var(--amber)':'var(--full)';
+  $('st2d').style.background=racked?'var(--amber)':'var(--full)'; $('st2Bar').style.width=(racked?racked/NP*100:charged/12*100)+'%'; $('st2Bar').style.background=racked?'var(--amber)':'var(--full)';
   $('miniKm').textContent=SC.id==='berth'?(t<121?'BCTN Meerhout berth':'km '+kmOf(barge.position).toFixed(1)):(t<76?'Waiting at Kwaadmechelen lock':t<104?'In the lock chamber':'Upper reach, km 52.6');
 }
 function buildLabels2(){
@@ -2420,6 +2435,8 @@ function buildLabels2(){
     info:{e:'New concept',h:'Battery tender with its own crane',p:'A small electric barge that shuttles charged packs from the hub to vessels at the berth or in a lock queue, and brings the empty ones back to charge. A knuckle boom crane folds flat to pass under the 9.1 m bridges.',d:[['Length','56 m (the barge is 135 m)'],['Pack slots','24, two tiers'],['Crane','knuckle boom, about 20 m reach'],['Swap','about 15 min per pack']]}});
   L({id:'swpk',scn:['berth','lock'],max:1100,n:t=>{ const c=cranePhase(t).carry; if(!c) return ''; const k2=[...Array(2*NP).keys()].find(i=>liftPlan(i).pack===c.pack); return (k2%2===0?'Empty pack ':'Charged pack ')+((k2>>1)+1); },s:'',
     col:t=>{ const c=cranePhase(t).carry; return pctCol(c&&E_PACK.includes(c.pack)?SC.soc0:100); },pct:t=>{ const c=cranePhase(t).carry; return c&&E_PACK.includes(c.pack)?SC.soc0:100; },from:0,to:200,when:t=>!!cranePhase(t).carry,at:()=>TN.Crane_spreader.getWorldPosition(new V3()).add(new V3(0,1.2,0))});
+  L({id:'zsp',scn:['berth','lock'],max:600,n:'Spent packs',s:'',col:'#ff3b30',from:0,to:200,at:()=>SLOT['Slot_r0_c1'].getWorldPosition(new V3()).add(new V3(0,7,0))});
+  L({id:'zch',scn:['berth','lock'],max:600,n:'Charged packs',s:'',col:'#22f08f',from:0,to:200,at:()=>SLOT['Slot_r4_c1_u'].getWorldPosition(new V3()).add(new V3(0,5,0))});
   const bayPct=t=>{ const done=[...Array(NP).keys()].filter(k=>t>=liftTimes(2*k+1).off).length; return (done*100+(NP-done)*SC.soc0)/NP; };
   L({id:'bay2',scn:['berth','lock'],max:900,n:'Barge packs',s:'',pct:bayPct,col:t=>pctCol(bayPct(t)),from:0,to:200,when:t=>(t<S2.LIFT0-1||t>=S2.LIFT0+43)&&(SC.id==='berth'?t<121:t<78),at:()=>bargeSlotWorld(1).add(new V3(0,4.5,0)),
     info:{e:'Battery as a service',h:'The two packs on the barge',p:'Each 20 ft ZESpack holds 2.9 MWh, 2.6 MWh usable. The colour shows the charge: red at 20% or less, amber below 60%, green from 60%.',d:[['Packs','2 × 2.9 MWh'],['Power','up to 1 MW'],['Range','60 to 90 km per pack'],['After the swap','100%']]}});
@@ -2550,6 +2567,149 @@ function buildBannerV2(){
   ['h:Crane_sign_1','h:Crane_sign_-1'].forEach(n=>{ if(nodes[n]) nodes[n].visible=false; });
 }
 /* ============================================================
+   18. Version 2: the container terminal
+   Real ISO boxes in the BCTN yard (corrugated sides, door ends, roof ribs, carrier colours), boxes on chassis on the apron,
+   and the two gantry cranes unloading the e-barge box by box while it is alongside in scenario 2.
+   ============================================================ */
+const BOXTEX=(()=>{
+  const mk=(w,h,fn)=>{ const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d'); fn(x,w,h); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; return t; };
+  const ribs=(x,w,h,n,frame)=>{ x.fillStyle='#d6d6d6'; x.fillRect(0,0,w,h); const p=w/n;
+    for(let i=0;i<n;i++){ const g=x.createLinearGradient(i*p,0,(i+1)*p,0); g.addColorStop(0,'#9a9a9a'); g.addColorStop(0.18,'#f2f2f2'); g.addColorStop(0.5,'#dcdcdc'); g.addColorStop(0.72,'#bdbdbd'); g.addColorStop(1,'#8c8c8c'); x.fillStyle=g; x.fillRect(i*p,0,p,h); }
+    if(frame){ x.fillStyle='rgba(40,40,40,.55)'; x.fillRect(0,0,w,h*0.045); x.fillRect(0,h*0.955,w,h*0.045); x.fillRect(0,0,w*0.012,h); x.fillRect(w*0.988,0,w*0.012,h); }
+    // weathering: soft rust and dirt streaks
+    let s=17; const R=()=>{ s=(s*16807)%2147483647; return s/2147483647; };
+    for(let i=0;i<26;i++){ x.fillStyle=`rgba(${90+R()*40},${55+R()*20},${30+R()*15},${0.05+R()*0.08})`; const px=R()*w; x.fillRect(px,h*0.05,2+R()*5,h*(0.15+R()*0.6)); } };
+  const side=mk(1024,256,(x,w,h)=>ribs(x,w,h,44,true));
+  const roof=mk(512,256,(x,w,h)=>{ ribs(x,w,h,20,false); x.fillStyle='rgba(255,255,255,.18)'; x.fillRect(0,0,w,h); });
+  const door=mk(256,256,(x,w,h)=>{ x.fillStyle='#cfcfcf'; x.fillRect(0,0,w,h); for(let i=0;i<12;i++){ x.fillStyle=i%2?'#bbbbbb':'#e6e6e6'; x.fillRect(0,i*h/12,w,h/12); }
+    x.fillStyle='rgba(30,30,30,.7)'; x.fillRect(w/2-2,0,4,h); x.fillRect(0,0,w,10); x.fillRect(0,h-10,w,10); x.fillRect(0,0,8,h); x.fillRect(w-8,0,8,h);
+    x.fillStyle='rgba(60,60,60,.85)'; for(const fx of [0.18,0.34,0.66,0.82]) x.fillRect(w*fx-3,14,6,h-28);    // locking bars
+    x.fillStyle='rgba(20,20,20,.9)'; for(const fx of [0.18,0.34,0.66,0.82]) x.fillRect(w*fx-9,h*0.55,18,8); });
+  return {side,roof,door};
+})();
+function boxMaterials(){ const m=(map,r)=>new THREE.MeshStandardMaterial({map,roughness:r,metalness:0.25,color:'#ffffff'});
+  const s=m(BOXTEX.side,0.62), d=m(BOXTEX.door,0.6), r=m(BOXTEX.roof,0.7), b=new THREE.MeshStandardMaterial({color:'#2a2a2a',roughness:0.9});
+  return [d,d,r,b,s,s]; }   // BoxGeometry faces: +x,-x (ends), +y (roof), -y, +z,-z (long sides)
+/* carrier colours, weighted the way a European inland terminal looks: many blue boxes, then grey, red, green, white, orange */
+const BOXPAL=[['#1d4f91',14],['#22324e',6],['#7d1f26',6],['#a3261f',5],['#2e6b3f',6],['#1f6a6e',4],['#6e7377',7],['#b5b9bc',6],['#e2e2dc',6],['#c35a1b',4],['#c99a1b',2],['#6b3b22',4],['#3b4a5c',4]];
+const BOXPW=BOXPAL.reduce((a,c)=>a+c[1],0);
+function boxColour(r){ let u=r*BOXPW; for(const [c,w] of BOXPAL){ if(u<w) return c; u-=w; } return BOXPAL[0][0]; }
+function buildContainersV2(){
+  const C=D.objects.containers, list=C.list; let n=0; for(const c of list) n+=c[3];
+  const g=new THREE.BoxGeometry(6.06,2.59,2.44); g.translate(0,1.295,0);
+  const im=new THREE.InstancedMesh(g,boxMaterials(),n); const M=new THREE.Matrix4(), q=new THREE.Quaternion(), s=new V3(1,1,1), p=new V3(), col=new THREE.Color();
+  let k=0, rnd=3; const R=()=>{ rnd=(rnd*16807)%2147483647; return rnd/2147483647; };
+  for(const [x,z,g0,lev,hex] of list){
+    for(let l=0;l<lev;l++){ const flip=R()<0.5?Math.PI:0; q.setFromAxisAngle(new V3(0,1,0),-C.yaw+flip+(R()-0.5)*0.012); p.set(x+(R()-0.5)*0.08,g0+l*2.6,z+(R()-0.5)*0.08); M.compose(p,q,s); im.setMatrixAt(k,M);
+      col.set(boxColour(R())); col.offsetHSL(0,0,(R()-0.5)*0.05); im.setColorAt(k,col); k++; } }
+  im.count=k; im.castShadow=im.receiveShadow=true; im.name='yardBoxes'; scene.add(im);
+}
+/* the terminal apron: boxes found in the LiDAR survey become containers on chassis aligned with the quay; outside the terminal
+   the survey boxes stay as they were */
+function inTerminal(x,z){ const qz=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2]; return x>500&&x<905&&z>qz(x)-2&&z<qz(x)+200; }
+function buildApronV2(){
+  const TR=D.objects.trailers||[]; const keep=[], ch=[]; const qyaw=Math.atan2(F.quayDir[1],F.quayDir[0]);
+  for(const t of TR){ const [x,z,g0,yaw,L,W,h,hex]=t; if(!inTerminal(x,z)){ keep.push(t); continue; } if(L<5) continue;
+    let y=yaw; const d=((y-(-qyaw))%Math.PI+Math.PI)%Math.PI; const dq=Math.min(d,Math.PI-d); if(dq<0.35) y=-qyaw; else { const d2=Math.abs(dq-Math.PI/2); if(d2<0.35) y=-qyaw+Math.PI/2; }
+    ch.push([x,z,Math.min(g0,hAt(x,z)),y,L>8.5?12.19:6.06]); }
+  D.objects.trailers=keep;
+  if(!ch.length) return;
+  const box40=new THREE.BoxGeometry(12.19,2.59,2.44); box40.translate(0,1.295+1.25,0); const box20=new THREE.BoxGeometry(6.06,2.59,2.44); box20.translate(0,1.295+1.25,0);
+  const mats=boxMaterials(); const a40=ch.filter(c=>c[4]>10), a20=ch.filter(c=>c[4]<10);
+  const M=new THREE.Matrix4(), q=new THREE.Quaternion(), s=new V3(1,1,1), p=new V3(), col=new THREE.Color(); let rnd=41; const R=()=>{ rnd=(rnd*16807)%2147483647; return rnd/2147483647; };
+  for(const [arr,geo] of [[a40,box40],[a20,box20]]){ if(!arr.length) continue; const im=new THREE.InstancedMesh(geo,mats,arr.length);
+    arr.forEach(([x,z,y0,yaw],i)=>{ q.setFromAxisAngle(new V3(0,1,0),yaw); p.set(x,y0,z); M.compose(p,q,s); im.setMatrixAt(i,M); col.set(boxColour(R())); im.setColorAt(i,col); });
+    im.castShadow=im.receiveShadow=true; scene.add(im); }
+  // chassis: a dark frame on wheels under every box
+  const frame=new THREE.BoxGeometry(1,0.35,2.3); frame.translate(0,1.05,0); const wheel=new THREE.CylinderGeometry(0.5,0.5,2.5,14); wheel.rotateX(Math.PI/2); wheel.translate(0,0.5,0);
+  const fm=new THREE.InstancedMesh(frame,new THREE.MeshStandardMaterial({color:'#1b1d20',roughness:0.8,metalness:0.4}),ch.length), wm=new THREE.InstancedMesh(wheel,new THREE.MeshStandardMaterial({color:'#121212',roughness:0.95}),ch.length*2);
+  ch.forEach(([x,z,y0,yaw,L],i)=>{ q.setFromAxisAngle(new V3(0,1,0),yaw); s.set(L,1,1); p.set(x,y0,z); M.compose(p,q,s); fm.setMatrixAt(i,M); s.set(1,1,1);
+    for(let j=0;j<2;j++){ const off=new V3((j?-1:1)*L*0.36,0,0).applyQuaternion(q); p.set(x+off.x,y0,z+off.z); M.compose(p,q,s); wm.setMatrixAt(i*2+j,M); } });
+  fm.castShadow=wm.castShadow=true; scene.add(fm); scene.add(wm);
+}
+
+/* ---------- the gantry cranes unload the e-barge in scenario 2 ---------- */
+const UNLOAD={cranes:[],T:18, t0:1.0, ok:false};
+/* each crane works three slots on the top tier: it lifts the import box off the barge onto the apron, then picks up the export box
+   waiting under the crane and sets it into the same slot, the way the tender swaps the packs */
+function setupUnloading(berth){
+  barge.position.copy(berth.p); barge.rotation.set(0,berth.r,0); scene.updateMatrixWorld(true);
+  const root=bargeGLTF.scene, inv=new THREE.Matrix4().copy(barge.matrixWorld).invert(), boxes=[];
+  root.traverse(o=>{ if(!/^Box(20|40)/.test(o.name)||!o.visible) return; if(o.parent&&/^Box(20|40)/.test(o.parent.name)) return; boxes.push(o); });
+  const info=[]; for(const o of boxes){ const bb=new THREE.Box3().setFromObject(o); const lc=bb.getCenter(new V3()).applyMatrix4(inv); const top=new V3(lc.x,0,lc.z).applyMatrix4(barge.matrixWorld); top.y=bb.max.y; info.push({o,bb,top}); }
+  const maxY=Math.max(...info.map(i=>i.bb.max.y)); const topTier=info.filter(i=>i.bb.max.y>maxY-0.6);
+  realCranes.forEach((g,ci)=>{ g.updateMatrixWorld(true); const g0=g.position.clone(); const gInv=g.matrixWorld.clone().invert(); const gq=g.getWorldQuaternion(new THREE.Quaternion());
+    const spr=g.children.find(c=>/Crane_spreader/.test(c.name)), trol=g.children.find(c=>/Crane_trolley/.test(c.name)); if(!spr||!trol) return;
+    const mine=topTier.map(b=>({b,lx:b.top.clone().applyMatrix4(gInv).x})).sort((a,b)=>a.b.top.x-b.b.top.x).filter((e,i,arr)=>ci===0?i<3:i>=arr.length-3);
+    const sq=spr.getWorldQuaternion(new THREE.Quaternion()).invert();
+    const moves=[]; const apron=(x,z)=>{ const w=new V3(x,0,z).applyMatrix4(g.matrixWorld); w.y=F.hub.quayTop+2.59+0.02; return w; };
+    mine.forEach((e,k)=>{ const b=e.b, o=b.o;
+      const piv=new THREE.Group(); piv.name='BoxPivot'; o.parent.updateMatrixWorld(true); piv.position.copy(o.parent.worldToLocal(b.top.clone())); o.parent.add(piv); piv.updateMatrixWorld(true); piv.attach(o);
+      const rest={parent:piv.parent,pos:piv.position.clone(),quat:piv.quaternion.clone()};
+      const qRel=sq.clone().multiply(piv.getWorldQuaternion(new THREE.Quaternion())); const qW=gq.clone().multiply(qRel);
+      const L=b.top.clone().applyMatrix4(gInv);
+      const dropW=apron(L.x,-14.5), expW=apron(L.x,-21.0);
+      // the export box: a twin of the slot's box, waiting on the apron under the crane
+      const exp=new THREE.Group(); exp.name='BoxPivot'; const oc=o.clone(true); oc.position.copy(o.position); oc.quaternion.copy(o.quaternion); oc.scale.copy(o.scale); exp.add(oc); scene.add(exp);
+      const atW=(w)=>({parent:scene,pos:w.clone(),quat:qW.clone()});
+      moves.push({piv,qRel,from:L.clone(),to:g.worldToLocal(dropW.clone()),start:rest,end:atW(dropW)});
+      moves.push({piv:exp,qRel,from:g.worldToLocal(expW.clone()),to:L.clone(),start:atW(expW),end:rest});
+    });
+    UNLOAD.cranes.push({g,g0,spr,trol,s0:spr.position.clone(),t0:trol.position.clone(),moves,phase:ci*7}); });
+  barge.position.set(0,0,0); barge.rotation.set(0,0,0); UNLOAD.ok=true;
+}
+const placeAt=(o,st)=>{ if(o.parent!==st.parent) st.parent.add(o); o.position.copy(st.pos); o.quaternion.copy(st.quat); };
+function resetUnloading(){ for(const C of UNLOAD.cranes){ C.g.position.copy(C.g0); C.spr.position.copy(C.s0); C.trol.position.copy(C.t0);
+  for(const m of C.moves){ placeAt(m.piv,m.start); m.piv.visible=SC.id==='berth'||m.start.parent!==scene; } } }
+function updateUnloading(t){
+  if(!UNLOAD.ok) return; const T=UNLOAD.T;
+  for(const C of UNLOAD.cranes){ const n=C.moves.length; const tt=t-UNLOAD.t0-C.phase; const idx=Math.floor(tt/T), u=(tt-idx*T)/T; const yHi=C.s0.y+9.5;
+    C.moves.forEach((m,k)=>{ m.piv.visible=true; const on=UNLOAD.t0+C.phase+k*T+0.34*T, off=UNLOAD.t0+C.phase+k*T+0.80*T;
+      if(t<on) placeAt(m.piv,m.start); else if(t<off){ if(m.piv.parent!==C.spr) C.spr.add(m.piv); m.piv.position.set(0,0,0); m.piv.quaternion.copy(m.qRel); } else placeAt(m.piv,m.end); });
+    let gx=0, z=C.t0.z, y=C.s0.y;
+    if(tt>=0&&idx<n){ const m=C.moves[idx], prev=idx>0?C.moves[idx-1]:null; const A=m.from, B=m.to, P=prev?prev.to:new V3(A.x,yHi,C.t0.z);
+      if(u<0.12){ const k=smooth(u/0.12); gx=lerp(P.x,A.x,k); z=lerp(P.z,A.z,k); y=yHi; }
+      else if(u<0.30){ gx=A.x; z=A.z; y=lerp(yHi,A.y,smooth((u-0.12)/0.18)); }
+      else if(u<0.36){ gx=A.x; z=A.z; y=A.y; }
+      else if(u<0.52){ gx=A.x; z=A.z; y=lerp(A.y,yHi,smooth((u-0.36)/0.16)); }
+      else if(u<0.66){ const k=smooth((u-0.52)/0.14); gx=lerp(A.x,B.x,k); z=lerp(A.z,B.z,k); y=yHi; }
+      else if(u<0.78){ gx=B.x; z=B.z; y=lerp(yHi,B.y,smooth((u-0.66)/0.12)); }
+      else if(u<0.82){ gx=B.x; z=B.z; y=B.y; }
+      else { gx=B.x; z=B.z; y=lerp(B.y,yHi,smooth((u-0.82)/0.18)); } }
+    else if(idx>=n&&n){ const B=C.moves[n-1].to; gx=B.x; z=B.z; y=yHi; }
+    C.g.position.copy(C.g0).add(new V3(gx,0,0).applyQuaternion(C.g.quaternion));
+    C.trol.position.z=z; C.spr.position.set(C.s0.x,y,z); }
+}
+/* RAG colours on the packs themselves: the body and its stripe take the charge colour, so red, amber and green read from far away */
+const RAGB={low:new THREE.Color('#8f0606'),chg:new THREE.Color('#c25000'),full:new THREE.Color('#06701a')};   // deep body paint (linear) so the colour reads in sunlight
+function tintPack(pack,p){ const c=pctColor(p), cb=p<=20?RAGB.low:p<60?RAGB.chg:RAGB.full; pack.traverse(o=>{ if(!o.isMesh) return; const ms=Array.isArray(o.material)?o.material:[o.material]; let changed=false;
+    const out=ms.map(m=>{ if(!m||!/Batt_Body|Batt_Teal/.test(m.name)) return m; if(!m.userData.rag){ const k=m.clone(); k.userData.rag=true; k.metalness=0.05; k.roughness=0.5; k.envMapIntensity=0.12; k.userData.base=m.color.clone(); k.name=m.name; changed=true; return k; } return m; });
+    if(changed) o.material=Array.isArray(o.material)?out:out[0];
+    for(const m of (Array.isArray(o.material)?o.material:[o.material])){ if(!m||!m.userData||!m.userData.rag) continue; const teal=/Teal/.test(m.name);
+      m.color.copy(teal?c:cb); if(m.emissive){ m.emissive.copy(c); m.emissiveIntensity=teal?0.6:0.06; } } }); }
+
+
+/* busy waterway: other vessels at the hub, at the quay, waiting and in the lock queue, so it is clear why a tender is needed */
+const EXTRA=[];
+function setupExtras(){
+  if(!moored) return; const mk=()=>{ const o=moored.clone(true); o.visible=false; scene.add(o); return o; };
+  const qz=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2]; const ryE=Math.atan2(-QD.x,-QD.z);
+  const unwrap=a=>{ let prev=null; return a.map(([t,p,r])=>{ if(prev!==null){ while(r-prev>Math.PI) r-=2*Math.PI; while(r-prev<-Math.PI) r+=2*Math.PI; } prev=r; return {t,p,r}; }); };
+  const at=(x,off)=>{ const m=new V3(x,0,qz(x)-off); return m.addScaledVector(QD,-67.5).setY(KEEL); };
+  const dock=hubPose(DOCK_LOCAL.x,DOCK_LOCAL.z);
+  // scenario 2: a barge swapping at the hub (it leaves at 58 s), a barge at the west end of the quay, one waiting midstream for a berth
+  EXTRA.push({scn:'berth',o:mk(),label:'Barge at the hub',K:unwrap([[0,dock.p,dock.r],[58,dock.p,dock.r],[62,hubPose(-30,24).p,dock.r],[72,lockAt(-330).p,lockAt(-330).ry],[86,lockAt(-160).p,lockAt(-160).ry],[90,lockAt(-160).p,lockAt(-160).ry]]),hide:t=>t>=88});
+  EXTRA.push({scn:'berth',o:mk(),label:'Waiting for the cranes',K:unwrap([[0,at(560,7.4),ryE],[200,at(560,7.4),ryE]])});
+  const w=at(690,92); EXTRA.push({scn:'berth',o:mk(),label:'Waiting for a berth',K:unwrap([[0,w,ryE],[200,w,ryE]])});
+  // scenario 3: a barge ahead in the queue, and one coming down out of the lock
+  const ryL=lock.rotation.y-Math.PI/2, ryD=ryL+Math.PI;
+  EXTRA.push({scn:'lock',o:mk(),label:'Also waiting',K:unwrap([[0,lockAtZ(-700,-46),ryL],[200,lockAtZ(-700,-46),ryL]])});
+  EXTRA.push({scn:'lock',o:mk(),label:'Leaving the lock',K:unwrap([[0,lockAtZ(60,0),ryD],[10,lockAtZ(60,0),ryD],[30,lockAtZ(-400,24),ryD],[55,lockAtZ(-1150,30),ryD],[200,lockAtZ(-1150,30),ryD]]),hide:t=>t>=56});
+  for(const E of EXTRA){ const o=E.o; addLabel({id:'ex'+EXTRA.indexOf(E),scn:E.scn,minor:true,n:E.label,s:'',col:'#c5d3e4',from:0,to:200,when:t=>o.visible,at:()=>o.localToWorld(new V3(0,12,-60))}); }
+}
+function updateExtras(t){ for(const E of EXTRA){ const on=E.scn===SC.id&&!(E.hide&&E.hide(t)); E.o.visible=on; if(!on) continue;
+  E.o.position.set(hermite(E.K,t,k=>k.p.x),hermite(E.K,t,k=>k.p.y),hermite(E.K,t,k=>k.p.z)); E.o.rotation.set(0,hermite(E.K,t,k=>k.r),0); } }
+/* ============================================================
    15. Build and loop
    ============================================================ */
 function matSig(m){ const c=x=>x?x.getHexString():'-', t=x=>x?x.uuid:'-';
@@ -2574,7 +2734,7 @@ function build(){
   const T0=performance.now(), tm=n=>{ if(TEST) console.warn('BUILD '+n+' '+(performance.now()-T0).toFixed(0)+'ms'); };
   HF=decodeHF(D.height); if(D.height_core) HC=decodeHF(D.height_core);   // banks are shaped offline from the exact canal outline (scripts/data/banks.py)
   GF=decodeHF(D.ground); MB=D.route_base; tm('hf');
-  buildModels(); tm('models'); loadGroundMask(); buildTerrain(); tm('terrain'); buildWater(); buildTreesV2(); tm('trees'); buildBuildings(); buildLogos(); tm('buildings'); buildContainers(); buildDetails(); buildGroundCover(); buildRoads(); buildWake(); buildPeople(); buildQuayWall(); buildBankWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
+  buildModels(); tm('models'); loadGroundMask(); buildTerrain(); tm('terrain'); buildWater(); buildTreesV2(); tm('trees'); buildBuildings(); buildLogos(); tm('buildings'); buildContainersV2(); buildApronV2(); buildDetails(); buildGroundCover(); buildRoads(); buildWake(); buildPeople(); buildQuayWall(); buildBankWall(); buildBridges(); tm('bridges'); buildTurbines(); buildPower(); tm('power');
   // sky reflections only where they belong: water, glass and the painted barge
   WATER_MAT.envMap=ENV; WATER_MAT.envMapIntensity=0.16; WATER_MAT.needsUpdate=true;
   scene.traverse(o=>{ if(!o.isMesh) return; (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m&&m.isMeshStandardMaterial&&m.transparent){ m.envMap=ENV; m.envMapIntensity=1.0; m.needsUpdate=true; } }); });
@@ -2583,13 +2743,13 @@ function build(){
   for(const L of LABELS) if(/^(bctn|wind|sim|br)/.test(L.id)) L.scn='*';
   setupTender(); setupScenario2(); setupScenario3(); buildLabels2(); buildLabels3(); buildBannerV2(); tm('scenarios');
   // fewer draw calls for the headset: merge every part that never moves, per material
-  const DYN=/Crane_|Hub_Battery|Battery_|Gate_|Water_Chamber|_LED|HL/;
+  const DYN=/Crane_|Hub_Battery|Battery_|Gate_|Water_Chamber|_LED|HL|BoxPivot/;
   mergeStatic(lock,DYN); mergeStatic(hub,DYN); mergeStatic(barge,DYN); realCranes.forEach(g=>mergeStatic(g,/Crane_trolley|Crane_spreader|termbox/)); mergeStatic(tenderGLTF.scene,/Crane_|Pack|Slot_|_LED/); if(moored) mergeStatic(moored,/^$/); if(traffic) mergeStatic(traffic,/^$/);
   { const models=new Set([hub,lock,barge,moored,traffic,rig,sky,tender,...realCranes]); const rot=new Set(turbines);
-    mergeStatic(scene,/^merged$/,o=>models.has(o)||rot.has(o)||(o.material&&(o.material.isShaderMaterial||o.material.isSpriteMaterial||(o.material.map&&o.material.isMeshLambertMaterial)))); }
-  tm('merged');
+    mergeStatic(scene,/^merged$/,o=>models.has(o)||o.name==='BoxPivot'||rot.has(o)||(o.material&&(o.material.isShaderMaterial||o.material.isSpriteMaterial||(o.material.map&&o.material.isMeshLambertMaterial)))); }
+  tm('merged'); setupExtras();
   buildComposer(); resizeComposer(innerWidth,innerHeight);
-  if(TEST) window.__T={seek:t=>{ seek(t); setPaused(true); },view:i=>setView(i),scn:id=>setScenario(id),cam,get t(){ return tNow; }};
+  if(TEST) window.__T={seek:t=>{ seek(t); setPaused(true); },view:i=>setView(i),scn:id=>setScenario(id),cam,get t(){ return tNow; },unload:()=>UNLOAD.cranes.map(c=>({n:c.jobs.length,p:c.g.position.toArray().map(v=>+v.toFixed(1))})),pmat:()=>{ const p=T_PACK.get('Slot_r4_c1'); const out=[]; p.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>out.push([o.name,m.name,m.type,m.color&&m.color.getHexString(),m.emissive&&m.emissive.getHexString(),m.emissiveIntensity,m.vertexColors,!!m.map,m.opacity,m.transparent])); }); return out; },tmats:()=>{ const out={}; tender.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m.color) out[m.name]=m.color.getHexString(); }); }); return [out,UNLOAD.cranes.map(c=>c.moves.length)]; },mats:()=>{ const out=[]; BA.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>out.push([o.name,m.name,m.type,m.color&&m.color.getHexString(),!!m.map,m.userData&&m.userData.rag])); }); return out; },look:(x,y,z)=>{ VIEWS[cam.v].target=()=>new V3(x,y,z); VIEWS[cam.v].rel=false; }};
   setView(0); applyTime(0); if(params.get('s')&&SCN[params.get('s')]) setScenario(params.get('s')); else buildClock(); started=true; last=performance.now(); if(!TEST||params.has('live')) startLive();
   if(TEST){ seek(parseFloat(params.get('t'))); if(params.has('cp')){ const c=CP.find(c=>Math.abs(c.t-tNow)<0.05); if(c){ cpNext=CP.indexOf(c); arrive(c); } } else if(params.has('end')){ tNow=T_END; finish(); } setPaused(true); if(params.has('v')) setView(+params.get('v')); if(params.has('d')) cam.g.dist=+params.get('d'); if(params.has('az')) cam.g.az=+params.get('az'); if(params.has('el')) cam.g.el=+params.get('el'); if(params.has('hide')) setHidden(true); if(params.has('min')) $('storyFold').click(); if(params.has('map')) openMap(); }
 }
@@ -2624,7 +2784,7 @@ function frame(now){
     if(guided&&cpNext<CP.length&&nt>=CP[cpNext].t){ nt=CP[cpNext].t; arrive(CP[cpNext]); }
     if(nt>=T_END){ nt=T_END; finish(); }
     tNow=nt; }
-  SC.apply(tNow); if(SC.id==='hub') updateBatteryFX(tNow,dt); updateClock(tNow); updateWake(dt); updatePeople(dt); if(AIS.objs.size) updateAIS();
+  SC.apply(tNow); if(SC.id==='hub'){ updateBatteryFX(tNow,dt); tintPack(BA,packAPct(tNow)); tintPack(BH1,packCPct(tNow)); ['h:Hub_Battery_2','h:Hub_Battery_3'].forEach(n=>{ if(nodes[n]) tintPack(nodes[n],100); }); } updateClock(tNow); updateWake(dt); updatePeople(dt); if(AIS.objs.size) updateAIS();
   const xr=renderer.xr.isPresenting;
   // in the headset the shadows are refreshed every frame (a refresh every third frame gave a regular hitch); the map is smaller there to keep the cost even
   renderer.shadowMap.autoUpdate=true;
