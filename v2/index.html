@@ -2143,7 +2143,7 @@ function setupScenario2(){
   E_PACK.length=0; for(let k=0;k<NP;k++){ let p; if(k===1) p=BA; else { const fx=BA.children.filter(c=>c.renderOrder>=11); fx.forEach(c=>BA.remove(c)); p=BA.clone(true); fx.forEach(c=>BA.add(c)); p.traverse(o=>{ o.userData={}; }); base.BAparent.add(p); p.visible=false; } E_PACK.push(p); }
   // where the bay sits in the world when the vessel is at the berth
   barge.position.copy(berth.p); barge.rotation.set(0,berth.r,0); scene.updateMatrixWorld(true);
-  const bayW=bargeSlotWorld(1);
+  const bayW=base.BAparent.localToWorld(pA_barge.clone());
   const sep=11.45/2+8.6/2+2.4;
   const craneW=bayW.clone().addScaledVector(NN,sep); craneW.y=0;
   const along=new V3(); // tender midship is 9.5 m east of its crane when the tender lies bow west
@@ -2152,9 +2152,9 @@ function setupScenario2(){
   const hubDockW=hubL(3,5.6), out=alongside.clone().addScaledVector(NN,16);
   const rH=hub.rotation.y+Math.PI/2;   // bow east at the hub
   const unwrap=a=>{ let prev=null; return a.map(([t,p,r])=>{ if(prev!==null){ while(r-prev>Math.PI) r-=2*Math.PI; while(r-prev<-Math.PI) r+=2*Math.PI; } prev=r; return {t,p,r}; }); };
-  const tStart=hubL(3,18.2); TK2=unwrap([[0,tStart,rH+Math.PI],[12,tStart,rH+Math.PI],[15.5,hubL(22,24),rH+Math.PI],[22,hubL(95,30),ryW],[27,out,ryW],[30,alongside,ryW],[76,alongside,ryW],
+  const tStart=hubL(3,19.6); TK2=unwrap([[0,tStart,rH+Math.PI],[12,tStart,rH+Math.PI],[15.5,hubL(22,24),rH+Math.PI],[22,hubL(95,30),ryW],[27,out,ryW],[30,alongside,ryW],[76,alongside,ryW],
     [79.5,alongside.clone().addScaledVector(NN,22),ryW],[83,alongside.clone().addScaledVector(NN,48).addScaledVector(QD,6),ryW],[89,alongside.clone().addScaledVector(NN,52).addScaledVector(QD,14),ryE],
-    [93,hubL(70,30),rH],[96,hubDockW,rH],[S2.T_END,hubDockW,rH]]);
+    [93,hubL(62,36),rH],[96,hubDockW,rH],[S2.T_END,hubDockW,rH]]);
   const off=berth.p.clone().addScaledVector(NN,18).addScaledVector(QD,10);
   const toLockA=hubPose(-52,26), lk=lockAt(-300);
   BK2=unwrap([[0,berth.p,berth.r],[121,berth.p,berth.r],[125,off,berth.r],[131,toLockA.p,toLockA.ry],[138,lk.p,lk.ry],[S2.T_END,lk.p,lk.ry]]);
@@ -2236,7 +2236,7 @@ function applyScenario2(t){
   if(S2.lock){ const t1=t-S2.lockOff; setMitre('down',hermite(GD,t1,k=>k.v)/23); setMitre('up',hermite(GU,t1,k=>k.v)/17); const full=hermite(WC,t1,k=>k.v)>9.9; if(WATER_SILL) for(const m of WATER_SILL) m.visible=full; nodes['l:Water_Chamber_PushTow'].position.y=base.wc+hermite(WC,t1,k=>k.v);
     if(base.boll){ base.boll.position.y=base.bollY; } }
   else { setMitre('down',1); setMitre('up',0); nodes['l:Water_Chamber_PushTow'].position.y=base.wc; if(WATER_SILL) for(const m of WATER_SILL) m.visible=false; }
-  if(traffic){ const km=52.05-(t/S2.T_END)*3.3; const p=bargeAt(km,30); traffic.position.copy(p.p); traffic.rotation.y=p.ry+Math.PI; }
+  if(traffic){ traffic.visible=!S2.lock; const km=52.05-(t/S2.T_END)*3.3; const p=bargeAt(km,30); traffic.position.copy(p.p); traffic.rotation.y=p.ry+Math.PI; }
   if(SC.id==='berth') updateUnloading(t);
   updateExtras(t);
 }
@@ -2351,13 +2351,13 @@ function setupScenario3(){
   const wait=lockAtZ(XW,zW);
   BA.updateMatrixWorld(true);
   barge.position.copy(wait); barge.rotation.set(0,ryL,0); scene.updateMatrixWorld(true);
-  const bayW=bargeSlotWorld(1); const craneW=bayW.clone().addScaledVector(side,sd*sep); craneW.y=0;
+  const bayW=base.BAparent.localToWorld(pA_barge.clone()); const craneW=bayW.clone().addScaledVector(side,sd*sep); craneW.y=0;
   const alongside=craneW.clone().addScaledVector(fwd,IK.S.z);   // crane sits IK.S.z (negative = forward) from midship, tender bow upstream too
   const hubL=(x,z)=>new V3(x,0,z).applyMatrix4(hub.matrixWorld).setY(0), rH=hub.rotation.y+Math.PI/2;
   const hubDockW=hubL(3,5.6), out=alongside.clone().addScaledVector(side,sd*16);
   const unwrap=a=>{ let prev=null; return a.map(([t,p,r])=>{ if(prev!==null){ while(r-prev>Math.PI) r-=2*Math.PI; while(r-prev<-Math.PI) r+=2*Math.PI; } prev=r; return {t,p,r}; }); };
   const T=S3L.T_END;
-  S3L.TK=unwrap([[0,hubDockW,rH],[12,hubDockW,rH],[15,hubL(-24,24),rH],[22,out.clone().addScaledVector(fwd,-60),ryL],[27,out,ryL],[30,alongside,ryL],[72,alongside,ryL],
+  S3L.TK=unwrap([[0,hubDockW,rH],[12,hubDockW,rH],[15,hubL(-24,24),rH],[19,lockAtZ(-545,zW*0.2).setY(0),ryL],[23,lockAtZ(-530,zW+sd*sep*1.7).setY(0),ryL],[27,out,ryL],[30,alongside,ryL],[72,alongside,ryL],
     [75,alongside.clone().addScaledVector(side,sd*24),ryL],[81,alongside.clone().addScaledVector(side,sd*30).addScaledVector(fwd,-12),ryL+Math.PI],[90,hubL(70,28),rH+Math.PI],[95,hubDockW,rH+Math.PI],[T,hubDockW,rH+Math.PI]]);
   const inCh=lockAt(-85), up=lockAt(-85,KEEL+10), exit=lockAt(330,KEEL+10);
   S3L.BK=unwrap([[0,lockAtZ(-1000,zW*0.6),ryL],[8,lockAtZ(-470,zW),ryL],[11,wait,ryL],[74,wait,ryL],[80,lockAtZ(-330,zW*0.3),ryL],[90,inCh.p,inCh.ry],[95,inCh.p,inCh.ry],[115,up.p,up.ry],[119,up.p,up.ry],[T,exit.p,exit.ry]]);
@@ -2408,6 +2408,7 @@ function setScenario(id){
   for(const sh of RAG_SHELL) sh.visible=false;
   for(const f of FX){ f.shell.visible=!two; if(f.beam) f.beam.visible=false; if(f.ring) f.ring.visible=false; if(f.tag) f.tag.s.visible=false; }
   resetUnloading(); for(const C of UNLOAD.cranes) for(const m of C.moves) if(m.start.parent===scene) m.piv.visible=(SC.id==='berth'); for(const E of EXTRA) E.o.visible=false;
+  if(traffic) traffic.visible=true;
   if(!two){ // restore the hub story parents and positions
     put(BA,base.BAparent,pA_barge,qA_barge); BA.visible=true; }
   document.querySelectorAll('#scnTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===id));
@@ -2698,12 +2699,12 @@ function setupExtras(){
   const at=(x,off)=>{ const m=new V3(x,0,qz(x)-off); return m.addScaledVector(QD,-67.5).setY(KEEL); };
   const dock=hubPose(DOCK_LOCAL.x,DOCK_LOCAL.z);
   // scenario 2: a barge swapping at the hub (it leaves at 58 s), a barge at the west end of the quay, one waiting midstream for a berth
-  EXTRA.push({scn:'berth',o:mk(),label:'Barge at the hub',K:unwrap([[0,dock.p,dock.r],[58,dock.p,dock.r],[62,hubPose(-30,24).p,dock.r],[72,lockAt(-330).p,lockAt(-330).ry],[86,lockAt(-160).p,lockAt(-160).ry],[90,lockAt(-160).p,lockAt(-160).ry]]),hide:t=>t>=88});
+  EXTRA.push({scn:'berth',o:mk(),label:'Barge at the hub',K:unwrap([[0,dock.p,dock.ry],[58,dock.p,dock.ry],[62,hubPose(-30,24).p,dock.ry],[72,lockAt(-330).p,lockAt(-330).ry],[86,lockAt(-160).p,lockAt(-160).ry],[90,lockAt(-160).p,lockAt(-160).ry]]),hide:t=>t>=88});
   EXTRA.push({scn:'berth',o:mk(),label:'Waiting for the cranes',K:unwrap([[0,at(560,7.4),ryE],[200,at(560,7.4),ryE]])});
-  const w=at(690,92); EXTRA.push({scn:'berth',o:mk(),label:'Waiting for a berth',K:unwrap([[0,w,ryE],[200,w,ryE]])});
+  const w=at(600,150); EXTRA.push({scn:'berth',o:mk(),label:'Waiting for a berth',K:unwrap([[0,w,ryE],[200,w,ryE]])});
   // scenario 3: a barge ahead in the queue, and one coming down out of the lock
   const ryL=lock.rotation.y-Math.PI/2, ryD=ryL+Math.PI;
-  EXTRA.push({scn:'lock',o:mk(),label:'Also waiting',K:unwrap([[0,lockAtZ(-700,-46),ryL],[200,lockAtZ(-700,-46),ryL]])});
+  EXTRA.push({scn:'lock',o:mk(),label:'Also waiting',K:unwrap([[0,lockAtZ(-790,-46),ryL],[200,lockAtZ(-790,-46),ryL]])});
   EXTRA.push({scn:'lock',o:mk(),label:'Leaving the lock',K:unwrap([[0,lockAtZ(60,0),ryD],[10,lockAtZ(60,0),ryD],[30,lockAtZ(-400,24),ryD],[55,lockAtZ(-1150,30),ryD],[200,lockAtZ(-1150,30),ryD]]),hide:t=>t>=56});
   for(const E of EXTRA){ const o=E.o; addLabel({id:'ex'+EXTRA.indexOf(E),scn:E.scn,minor:true,n:E.label,s:'',col:'#c5d3e4',from:0,to:200,when:t=>o.visible,at:()=>o.localToWorld(new V3(0,12,-60))}); }
 }
@@ -2749,7 +2750,12 @@ function build(){
     mergeStatic(scene,/^merged$/,o=>models.has(o)||o.name==='BoxPivot'||rot.has(o)||(o.material&&(o.material.isShaderMaterial||o.material.isSpriteMaterial||(o.material.map&&o.material.isMeshLambertMaterial)))); }
   tm('merged'); setupExtras();
   buildComposer(); resizeComposer(innerWidth,innerHeight);
-  if(TEST) window.__T={seek:t=>{ seek(t); setPaused(true); },view:i=>setView(i),scn:id=>setScenario(id),cam,get t(){ return tNow; },unload:()=>UNLOAD.cranes.map(c=>({n:c.jobs.length,p:c.g.position.toArray().map(v=>+v.toFixed(1))})),pmat:()=>{ const p=T_PACK.get('Slot_r4_c1'); const out=[]; p.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>out.push([o.name,m.name,m.type,m.color&&m.color.getHexString(),m.emissive&&m.emissive.getHexString(),m.emissiveIntensity,m.vertexColors,!!m.map,m.opacity,m.transparent])); }); return out; },tmats:()=>{ const out={}; tender.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m.color) out[m.name]=m.color.getHexString(); }); }); return [out,UNLOAD.cranes.map(c=>c.moves.length)]; },mats:()=>{ const out=[]; BA.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>out.push([o.name,m.name,m.type,m.color&&m.color.getHexString(),!!m.map,m.userData&&m.userData.rag])); }); return out; },look:(x,y,z)=>{ VIEWS[cam.v].target=()=>new V3(x,y,z); VIEWS[cam.v].rel=false; }};
+  if(TEST) window.__T={seek:t=>{ seek(t); setPaused(true); },view:i=>setView(i),scn:id=>setScenario(id),cam,get t(){ return tNow; },unload:()=>UNLOAD.cranes.map(c=>({n:c.jobs.length,p:c.g.position.toArray().map(v=>+v.toFixed(1))})),collide:(margin=3)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); if(moored&&moored.visible) L.push(['moored',moored,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i+':'+E.label,E.o,5.73,-135,0]); }); return L; };
+  const corners=(o,hw,z0,z1)=>{ o.updateMatrixWorld(true); return [[-hw,z0],[hw,z0],[hw,z1],[-hw,z1]].map(([x,z])=>new V3(x,0,z).applyMatrix4(o.matrixWorld)); };
+  const sep=(A,B)=>{ for(const P of [A,B]) for(let i=0;i<4;i++){ const a=P[i],b=P[(i+1)%4]; const nx=-(b.z-a.z), nz=b.x-a.x; const l=Math.hypot(nx,nz); const pa=A.map(p=>(p.x*nx+p.z*nz)/l), pb=B.map(p=>(p.x*nx+p.z*nz)/l); if(Math.max(...pa)+margin<Math.min(...pb)||Math.max(...pb)+margin<Math.min(...pa)) return true; } return false; };
+  for(let t=0;t<T_END;t+=0.25){ SC.apply(t); scene.updateMatrixWorld(true); const L=ships(); const C=L.map(s=>corners(s[1],s[2],s[3],s[4]));
+    for(let i=0;i<L.length;i++) for(let j=i+1;j<L.length;j++){ if(!sep(C[i],C[j])){ const k=L[i][0]+' x '+L[j][0]; const last=out[out.length-1]; if(last&&last.k===k&&t-last.t1<=0.3) last.t1=t; else out.push({k,t0:t,t1:t}); } } }
+  SC.apply(tNow); return out; },pmat:()=>{ const p=T_PACK.get('Slot_r4_c1'); const out=[]; p.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>out.push([o.name,m.name,m.type,m.color&&m.color.getHexString(),m.emissive&&m.emissive.getHexString(),m.emissiveIntensity,m.vertexColors,!!m.map,m.opacity,m.transparent])); }); return out; },tmats:()=>{ const out={}; tender.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m.color) out[m.name]=m.color.getHexString(); }); }); return [out,UNLOAD.cranes.map(c=>c.moves.length)]; },mats:()=>{ const out=[]; BA.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>out.push([o.name,m.name,m.type,m.color&&m.color.getHexString(),!!m.map,m.userData&&m.userData.rag])); }); return out; },look:(x,y,z)=>{ VIEWS[cam.v].target=()=>new V3(x,y,z); VIEWS[cam.v].rel=false; }};
   setView(0); applyTime(0); if(params.get('s')&&SCN[params.get('s')]) setScenario(params.get('s')); else buildClock(); started=true; last=performance.now(); if(!TEST||params.has('live')) startLive();
   if(TEST){ seek(parseFloat(params.get('t'))); if(params.has('cp')){ const c=CP.find(c=>Math.abs(c.t-tNow)<0.05); if(c){ cpNext=CP.indexOf(c); arrive(c); } } else if(params.has('end')){ tNow=T_END; finish(); } setPaused(true); if(params.has('v')) setView(+params.get('v')); if(params.has('d')) cam.g.dist=+params.get('d'); if(params.has('az')) cam.g.az=+params.get('az'); if(params.has('el')) cam.g.el=+params.get('el'); if(params.has('hide')) setHidden(true); if(params.has('min')) $('storyFold').click(); if(params.has('map')) openMap(); }
 }
