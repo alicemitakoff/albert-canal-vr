@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><title>impostors</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const SP=window.SP; // species list set by the runner
+window.run=async(SP)=>{
+  THREE.ColorManagement.enabled=false;
+  const S=512, R=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true}); R.setSize(S,S); R.setClearColor(0x000000,0); R.outputColorSpace=THREE.SRGBColorSpace;
+  const tl=new THREE.TextureLoader(), gl=new GLTFLoader(); const T='../../assets/trees/';
+  const tex=(f,srgb)=>new Promise(r=>tl.load(T+f,t=>{ if(srgb) t.colorSpace=THREE.SRGBColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping; r(t); }));
+  const atlas=document.createElement('canvas'); atlas.width=S*4; atlas.height=S*2; const ax=atlas.getContext('2d');
+  for(let i=0;i<SP.length;i++){ const sp=SP[i];
+    const g=await gl.loadAsync('out/'+sp.id+'_0.glb'); const sc=new THREE.Scene();
+    const bc=await tex('bark_'+sp.bark+'_color.jpg',true), bn=await tex('bark_'+sp.bark+'_normal.jpg',false), lf=await tex('leaf_'+sp.leaf+'.png',true);
+    bc.repeat.set(sp.tx,1/sp.ty); bn.repeat.copy(bc.repeat);
+    g.scene.traverse(o=>{ if(!o.isMesh) return; if(/bark/.test(o.name)) o.material=new THREE.MeshStandardMaterial({map:bc,normalMap:bn,color:sp.barkTint,roughness:0.9}); else o.material=new THREE.MeshStandardMaterial({map:lf,color:sp.leafTint,alphaTest:sp.alpha,side:THREE.DoubleSide,roughness:0.8}); });
+    sc.add(g.scene); sc.add(new THREE.HemisphereLight(0xdde8f0,0x4a5a30,1.6*Math.PI/2)); const dl=new THREE.DirectionalLight(0xfff3df,2.2*Math.PI/2); dl.position.set(-0.5,0.8,0.7); sc.add(dl);
+    const half=Math.max(0.5,sp.w*0.55+0.03); const cam=new THREE.OrthographicCamera(-0.5,0.5,1.0,0,-10,10); cam.position.set(0,0,3); cam.lookAt(0,0,0);
+    cam.left=-0.5; cam.right=0.5; cam.top=1.0; cam.bottom=0.0; cam.updateProjectionMatrix();
+    // square tile spans width 1 x height 1 of the normalised tree (height 1); wide trees are squeezed into the tile by the page's billboard width
+    const wf=Math.max(1,sp.w*1.05); cam.left=-wf/2; cam.right=wf/2; cam.updateProjectionMatrix(); sp.tileW=wf;
+    R.render(sc,cam); ax.drawImage(R.domElement,(i%4)*S,Math.floor(i/4)*S);
+  }
+  return {png:atlas.toDataURL('image/png'),tileW:SP.map(s=>s.tileW)};
+};
+window.ready=true;
+</script>
