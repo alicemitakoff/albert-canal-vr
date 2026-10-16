@@ -306,7 +306,7 @@ body.hidden-ui .restore{display:flex}
 
 <div class="chrome">
   <header class="brand panel">
-    <div class="eyebrow">CMA CGM × NatPower Marine</div>
+    <div class="eyebrow">NatPower Digital × CMA CGM</div>
     <h1>Albert Canal Battery Swap</h1>
     <p>Kwaadmechelen · BCTN Meerhout quay · 52 km from Antwerp</p>
     <div class="pwr">Digital twin powered by <img src="assets/brand/natpower-digital-inverted.svg" alt="NatPower Digital"></div>
@@ -414,7 +414,7 @@ body.hidden-ui .restore{display:flex}
 <div class="mapview" id="mapview" role="dialog" aria-label="Route map Antwerp to Genk">
   <div class="mapstage">
     <canvas id="mapCv"></canvas>
-    <div class="ctrl"><div class="pill panel" role="group" aria-label="Map style"><button id="stNight" aria-pressed="true">Night</button><button id="stSat" aria-pressed="false">Satellite</button></div><button class="btn" id="mapFit">Whole route</button></div>
+    <div class="ctrl"><div class="pill panel" role="group" aria-label="Map style"><button id="stNight" aria-pressed="true">Map</button><button id="stSat" aria-pressed="false">Satellite</button></div><button class="btn" id="mapFit">Whole route</button></div>
     <div class="scale" id="mapScale"></div>
     <button class="mapx" id="mapX" aria-label="Close the map" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg><span>Close</span></button>
     <div class="credit">Imagery © Digitaal Vlaanderen (Orthofoto 2024, open data), PDOK (CC BY 4.0) · Canal and ports © OpenStreetMap contributors · Levels from DHM Vlaanderen II</div>
@@ -423,7 +423,7 @@ body.hidden-ui .restore{display:flex}
     <div class="panel">
       <div class="eyebrow">Pilot corridor</div>
       <h2>Antwerp to Genk</h2>
-      <p>One battery pack per barge, swapped once at the Kwaadmechelen hub on the BCTN Meerhout quay. The canal climbs 55 m through six locks on the way to Genk.</p>
+      <p>Two swappable ZESpacks per barge, swapped at the hub on the BCTN Meerhout quay, by a battery tender at the berth or while waiting for Kwaadmechelen lock. The canal climbs 55 m through six locks on the way to Genk.</p>
       <div class="facts">
         <div><b>88 km</b><span>Albert Canal</span></div>
         <div><b>14 km</b><span>Port leg</span></div>
@@ -438,7 +438,7 @@ body.hidden-ui .restore{display:flex}
 </div>
 
 <div class="credits">Orthofoto 2024 and DHM Vlaanderen II © Digitaal Vlaanderen · © OpenStreetMap contributors · Concept visualisation by AImovation</div>
-<div id="load"><div class="c"><div class="eyebrow">AImovation for CMA CGM and NatPower Marine</div><h1>Albert Canal Battery Swap</h1><p>Loading terrain, imagery and models</p><div id="bar"><i></i></div><div id="loadTxt">0%</div></div></div>
+<div id="load"><div class="c"><div class="eyebrow">NatPower Digital × CMA CGM</div><h1>Albert Canal Battery Swap</h1><p>Loading terrain, imagery and models</p><div id="bar"><i></i></div><div id="loadTxt">0%</div></div></div>
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/","@dgreenheck/ez-tree":"https://cdn.jsdelivr.net/npm/@dgreenheck/ez-tree@1.1.0/build/ez-tree.es.js"}}</script>
 <div id="diag" style="position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:50;display:none;padding:18px 20px;border-radius:14px;background:#5a0f12;color:#fff;font:400 18px/1.45 Arial,sans-serif;box-shadow:0 10px 40px rgba(0,0,0,.5)"></div>
@@ -2012,7 +2012,10 @@ function openMap(){ $('mapview').classList.add('open'); big.open=true; sizeBig()
 function closeMap(){ $('mapview').classList.remove('open'); big.open=false; }
 $('miniOpen').onclick=openMap; mini.cv.onclick=openMap; $('mapClose').onclick=closeMap; $('mapX').onclick=closeMap;
 function sizeBig(){ const r=big.cv.getBoundingClientRect(), d=Math.min(2,devicePixelRatio||1); big.cv.width=Math.max(10,r.width*d); big.cv.height=Math.max(10,r.height*d); big.dpr=d; }
-function fitWhole(){ const [x0,y0]=mapXY(4.22,51.33),[x1,y1]=mapXY(5.54,50.91); const s=Math.min(big.cv.width/(x1-x0),big.cv.height/(y1-y0))*0.95; big.view={cx:(x0+x1)/2,cy:(y0+y1)/2,s}; big.goal=null; }
+function fitWhole(){ const [x0,y0]=mapXY(4.22,51.33),[x1,y1]=mapXY(5.54,50.91); const s=Math.min(big.cv.width/(x1-x0),big.cv.height/(y1-y0))*0.95; big.view=clampView({cx:(x0+x1)/2,cy:(y0+y1)/2,s}); big.goal=null; }
+/* the map image always fills the panel: no dark bands past its edges */
+function clampView(v){ const W=big.cv.width, H=big.cv.height; const smin=Math.max(W/MB.w,H/MB.h); v.s=Math.max(v.s,smin);
+  const hw=W/2/v.s, hh=H/2/v.s; v.cx=clamp(v.cx,hw,MB.w-hw); v.cy=clamp(v.cy,hh,MB.h-hh); return v; }
 function flyTo(lon,lat,s){ const [x,y]=mapXY(lon,lat); big.goal={cx:x,cy:y,s}; }
 $('mapFit').onclick=()=>{ const v=big.view; fitWhole(); const g=big.view; big.view=v; big.goal=g; big.sel=null; };
 ['stNight','stSat'].forEach(id=>$(id).onclick=()=>{ mapStyle=id==='stNight'?'night':'sat'; $('stNight').setAttribute('aria-pressed',mapStyle==='night'); $('stSat').setAttribute('aria-pressed',mapStyle==='sat'); });
@@ -2056,7 +2059,7 @@ function drawMaps(km){
       const v=mini.view, bc=mini.base.getContext('2d'); bc.imageSmoothingQuality='high'; bc.drawImage(mapImg.night,(0-v.cx)*v.s+bc.canvas.width/2,(0-v.cy)*v.s+bc.canvas.height/2,MB.w*v.s,MB.h*v.s); }
     drawRoute(mini.cv.getContext('2d'),mini.view,{km,style:'night',dpr:2,base:mini.base}); }
   if(big.open){ if(big.goal){ const v=big.view,g=big.goal; v.cx=lerp(v.cx,g.cx,0.12); v.cy=lerp(v.cy,g.cy,0.12); v.s=lerp(v.s,g.s,0.12); if(Math.abs(v.s-g.s)<0.002) big.goal=null; }
-    drawRoute(big.cv.getContext('2d'),big.view,{km,style:mapStyle,dpr:big.dpr,full:true,sel:big.sel});
+    clampView(big.view); drawRoute(big.cv.getContext('2d'),big.view,{km,style:mapStyle,dpr:big.dpr,full:true,sel:big.sel});
     const kmPer=(MB.lonE-MB.lonW)*MLON/1000/MB.w; const pxPerKm=big.view.s/kmPer/big.dpr; const nice=[1,2,5,10,20]; const k=nice.find(n=>n*pxPerKm>70)||20; $('mapScale').innerHTML=`<span style="display:inline-block;width:${(k*pxPerKm).toFixed(0)}px;height:3px;background:#ffffff;vertical-align:middle;margin-right:6px"></span>${k} km`;
     const pb=document.getElementById('profB'); if(pb){ const svg=$('profile'); const lv=D.route.levels.filter(l=>l[0]<=km).pop()[1]; pb.setAttribute('cx',svg._px(km)); pb.setAttribute('cy',svg._py(lv)); } }
 }
@@ -2393,7 +2396,7 @@ function setupScenario2(){
   S2B.TK=TK2; S2B.BK=BK2; S2B.HK=HK2;
   base.packQ_hub=hr.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(tender.getWorldQuaternion(new THREE.Quaternion()));
   // the terminal cranes load boxes onto the vessel's top tier while it is alongside
-  setupUnloading(berth);
+  setupUnloading(berth); buildBoxFrames();
   for(let k=0;k<NP;k++){ E_PACK[k].userData.rag=ragShell(E_PACK[k]); const c=T_PACK.get('Slot_r3_c'+k+'_u'); c.userData.rag=ragShell(c); }
   barge.position.set(0,0,0);
 }
@@ -2991,9 +2994,26 @@ function groupBargeBays(){
       const out=ms.map(m=>{ if(!m||!/Box_CMA_Blue|Box_Reefer_White|Box_Text_White/.test(m.name)) return m; if(!B.cache.has(m)){ const k=m.clone(); k.name=m.name; B.cache.set(m,k); B.paint.push({m:k,text:/Text/.test(m.name),orig:m.color.clone()}); } return B.cache.get(m); });
       o.material=Array.isArray(o.material)?out:out[0]; }); }
 }
-function paintBay(B,white){ if(B.white===white) return; B.white=white; for(const P of B.paint) P.m.color.copy(white?BOX_WHITE:(P.text?P.orig:(/Reefer/.test(P.m.name)?BOX_BLUE:P.orig))); }
+function paintBay(B,white){ if(B.frame) B.frame.visible=white; if(B.white===white) return; B.white=white; for(const P of B.paint) P.m.color.copy(white?BOX_WHITE:(P.text?P.orig:(/Reefer/.test(P.m.name)?BOX_BLUE:P.orig))); }
 // a box (with its own materials) painted for good: white import box or blue CMA CGM export box
 function paintBox(o,white){ o.traverse(m=>{ if(!m.isMesh) return; const ms=(Array.isArray(m.material)?m.material:[m.material]).map(x=>{ if(!x||!/Box_CMA_Blue|Box_Reefer_White|Box_Text_White/.test(x.name)) return x; const k=x.clone(); k.name=x.name; if(white) k.color.copy(BOX_WHITE); else if(!/Text/.test(x.name)) k.color.copy(BOX_BLUE); return k; }); m.material=Array.isArray(m.material)?ms:ms[0]; }); }
+/* white boxes get a thin blue frame along their edges, so each box reads on the white barge and against the sky */
+const FRAME_MAT=new THREE.MeshBasicMaterial({color:'#1a4fd0'});
+function boxFrameGeos(o,toSpace){ o.updateMatrixWorld(true); const inv=o.matrixWorld.clone().invert(); const bb=new THREE.Box3();
+  o.traverse(m=>{ if(!m.isMesh) return; m.geometry.computeBoundingBox(); bb.union(m.geometry.boundingBox.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv,m.matrixWorld))); });
+  if(bb.isEmpty()) return []; const a=bb.min, b=bb.max, t=0.09, sx=b.x-a.x, sy=b.y-a.y, sz=b.z-a.z, cx=(a.x+b.x)/2, cy=(a.y+b.y)/2, cz=(a.z+b.z)/2; const out=[];
+  const bar=(w,h,d,x,y,z)=>{ const g=new THREE.BoxGeometry(w,h,d); g.translate(x,y,z); if(toSpace) g.applyMatrix4(toSpace); out.push(g); };
+  for(const y of [a.y,b.y]) for(const z of [a.z,b.z]) bar(sx+t,t,t,cx,y,z);
+  for(const y of [a.y,b.y]) for(const x of [a.x,b.x]) bar(t,t,sz+t,x,y,cz);
+  for(const x of [a.x,b.x]) for(const z of [a.z,b.z]) bar(t,sy+t,t,x,cy,z);
+  return out; }
+function buildBoxFrames(){
+  const merge=a=>THREE.BufferGeometryUtils.mergeBufferGeometries(a.map(g=>g.index?g.toNonIndexed():g),false);
+  for(const B of BAYS){ B.g.updateMatrixWorld(true); const inv=B.g.matrixWorld.clone().invert(); const list=[];
+    B.g.traverse(o=>{ if(!/^Box(20|40)/.test(o.name)||(o.parent&&/^Box(20|40)/.test(o.parent.name))||!o.visible) return; let hid=false; o.traverse(m=>{ if(m.isMesh&&!m.visible) hid=true; }); if(hid) return;
+      if(o.parent&&o.parent.name==='BoxPivot'){ const g=merge(boxFrameGeos(o,null)); if(g){ const f=new THREE.Mesh(g,FRAME_MAT); f.name='BoxFrame'; o.add(f); } return; }   // a box the cranes lift keeps its own frame
+      list.push(...boxFrameGeos(o,new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld))); });
+    if(list.length){ const f=new THREE.Mesh(merge(list),FRAME_MAT); f.name='BoxFrame'; B.g.add(f); B.frame=f; f.visible=!!B.white; } } }
 /* ---------- the gantry cranes unload the e-barge in scenario 2 ---------- */
 const UNLOAD={cranes:[],T:13, t0:3.0, t1:114, ok:false, flips:[]};
 /* each crane works three slots on the top tier: it lifts the import box off the barge onto the apron, then picks up the export box
