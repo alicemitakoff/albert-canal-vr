@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trip report · Albert Canal battery swap</title>
+<style>
+:root{--ink:#0b1f3a;--ink2:#41526b;--mute:#6b7a90;--line:#dfe4ea;--paper:#ffffff;--soft:#f3f6f9;--navy:#0b1f3a;
+  --ebarge:#0e8f62;--diesel:#b8662a;--full:#0e8f62;--amber:#d08a12;--red:#cc2f2f;--accent:#1a4fd0;--brass:#f0a43a}
+*{box-sizing:border-box}
+html,body{margin:0;background:#e9edf2;color:var(--ink);font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
+.bar{position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--navy);color:#fff}
+.bar .t{font:700 15px Arial}
+.bar .acts{display:flex;gap:8px;flex-wrap:wrap}
+.bar a,.bar button{font:700 14px Arial;color:#0b1f3a;background:var(--brass);border:0;border-radius:8px;padding:8px 12px;text-decoration:none;cursor:pointer}
+.bar .ghost{background:rgba(255,255,255,.12);color:#fff}
+.sel{display:flex;gap:6px;flex-wrap:wrap}
+.sel button{background:rgba(255,255,255,.1);color:#fff;font:700 13px Arial;border:0;border-radius:8px;padding:7px 10px;cursor:pointer}
+.sel button[aria-pressed="true"]{background:#fff;color:var(--navy)}
+.page{width:min(860px,calc(100vw - 32px));margin:18px auto;background:var(--paper);border-radius:14px;box-shadow:0 10px 30px rgba(11,31,58,.08);padding:34px 40px 30px;position:relative}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:2px solid var(--navy);padding-bottom:14px;margin-bottom:22px}
+.eyebrow{font:700 12px Arial;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+h1{margin:6px 0 4px;font:700 30px/1.15 Arial;color:var(--navy)}
+.sub{font:400 15px/1.4 Arial;color:var(--ink2)}
+.logos{display:flex;gap:14px;align-items:center}
+.logos img{height:28px} .logos img+img{height:40px}
+h2{font:700 19px/1.25 Arial;margin:0 0 4px;color:var(--navy)}
+.lede{font:400 14px/1.5 Arial;color:var(--ink2);margin:0 0 14px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:26px}
+.tile{background:var(--soft);border-radius:12px;padding:14px 14px 12px}
+.tile .v{font:700 30px/1 Arial;color:var(--navy);font-variant-numeric:tabular-nums}
+.tile .u{font:700 15px Arial;color:var(--ink2);margin-left:3px}
+.tile .k{margin-top:7px;font:400 13px/1.35 Arial;color:var(--ink2)}
+.tile.good .v{color:var(--ebarge)}
+section{margin-bottom:28px;break-inside:avoid}
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.tick{font:400 11px Arial;fill:var(--mute)}
+.axl{font:700 11px Arial;fill:var(--ink2)}
+.dlab{font:700 12px Arial;fill:var(--ink)}
+.dlab2{font:400 12px Arial;fill:var(--ink2)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font:400 12px Arial;color:var(--ink2)}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.legend i.sq{height:10px;width:10px}
+.legend i.dash{background:repeating-linear-gradient(90deg,var(--ink2) 0 4px,transparent 4px 7px)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+table{width:100%;border-collapse:collapse;font:400 13px/1.4 Arial}
+th,td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:700 12px Arial;color:var(--ink2)}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.cur td{background:#eef7f2}
+tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--ebarge)}
+.note{font:400 11.5px/1.5 Arial;color:var(--mute)}
+.slots{display:flex;gap:6px;align-items:flex-end;margin:8px 0 6px}
+.slot{width:34px;height:26px;border-radius:5px;border:1.5px solid var(--line);display:grid;place-items:center;font:700 10px Arial;color:#fff}
+.slot.pack{background:var(--ebarge);border-color:var(--ebarge)}
+.slot.free{background:#e8eefc;border-color:var(--accent);color:var(--accent)}
+.slot.box{background:#fff;color:var(--mute)}
+.cmp{font:700 13px Arial;color:var(--ink2);margin:10px 0 2px}
+.tip{position:absolute;pointer-events:none;background:var(--navy);color:#fff;font:400 12px/1.35 Arial;padding:7px 9px;border-radius:7px;white-space:nowrap;transform:translate(-50%,-110%);opacity:0;transition:opacity .12s;z-index:3}
+.tip b{font-weight:700}
+.foot{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding-top:10px;margin-top:6px;font:400 11px Arial;color:var(--mute)}
+/* motion: once, then still */
+.grow{transform-origin:left center;transform:scaleX(0);transition:transform 1.1s cubic-bezier(.2,.7,.2,1)}
+.go .grow{transform:scaleX(1)}
+.draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);transition:stroke-dashoffset 2.2s ease-in-out}
+.go .draw{stroke-dashoffset:0}
+.fade{opacity:0;transition:opacity .6s ease .9s}
+.go .fade{opacity:1}
+@media (prefers-reduced-motion:reduce){ .grow,.draw,.fade{transition:none!important} }
+body.still .grow,body.still .draw,body.still .fade{transition:none!important}
+@media (max-width:700px){ .tiles{grid-template-columns:1fr 1fr} .two{grid-template-columns:1fr} .page{padding:22px 18px} h1{font-size:24px} }
+@media print{
+  @page{size:A4;margin:12mm}
+  html,body{background:#fff}
+  .bar{display:none}
+  .page{width:auto;margin:0;box-shadow:none;border-radius:0;padding:0}
+  .page+.page{break-before:page}
+  .grow{transform:none!important;transition:none!important} .draw{stroke-dashoffset:0!important;transition:none!important} .fade{opacity:1!important;transition:none!important}
+  .tip{display:none}
+  section{margin-bottom:16px} .lede{font-size:12.5px;margin-bottom:8px} h2{font-size:17px} .tiles{margin-bottom:16px}
+}
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="t">Trip report</span>
+  <span class="sel" id="selS" role="group" aria-label="Scenario">
+    <button data-s="hub">1 · Hub</button><button data-s="berth">2 · Berth</button><button data-s="lock">3 · Lock</button>
+  </span>
+  <span class="sel" id="selSe" role="group" aria-label="Season">
+    <button data-se="normal">Normal flow</button><button data-se="dry">Dry summer</button>
+  </span>
+  <span class="acts"><a id="pdf" href="#" download>Download PDF</a><button class="ghost" id="replay" type="button">Play again</button></span>
+</div>
+
+<div class="page" id="p1">
+  <div class="head">
+    <div><div class="eyebrow">NatPower Digital × CMA CGM · Albert Canal</div><h1 id="title">Trip report</h1><div class="sub" id="subtitle"></div></div>
+    <div class="logos"><img src="../assets/brand/natpower-digital-full-color.svg" alt="NatPower Digital"><img src="../assets/brand/cma-cgm.svg" alt="CMA CGM"></div>
+  </div>
+  <div class="tiles" id="tiles"></div>
+
+  <section>
+    <h2>Battery charge along the route</h2>
+    <p class="lede" id="routeLede"></p>
+    <div class="chart" id="routeChart"></div>
+    <div class="legend"><span><i style="background:var(--ebarge)"></i>Both packs, with the swap</span><span><i class="dash"></i>Same packs, no swap</span><span><i style="background:var(--red);height:2px"></i>20% safe reserve</span></div>
+  </section>
+
+  <section>
+    <h2>The day on one line</h2>
+    <p class="lede" id="dayLede"></p>
+    <div class="chart" id="dayChart"></div>
+    <div class="legend" id="dayLegend"></div>
+  </section>
+  <div class="foot"><span>Indicative simulation for discussion, not an engineering result</span><span>Page 1 of 2</span></div>
+</div>
+
+<div class="page" id="p2">
+  <section>
+    <h2>Time and cargo space</h2>
+    <p class="lede">What the swap costs in time, compared with charging the same two packs on board at a quay, and the cargo slots it gives back.</p>
+    <div class="two">
+      <div><div class="chart" id="timeChart"></div></div>
+      <div>
+        <div class="cmp">With swaps on the route: 2 packs on board</div><div class="slots" id="slotsA"></div>
+        <div class="cmp">Round trip with no swaps: 5 packs on board</div><div class="slots" id="slotsB"></div>
+        <p class="note">Each 20 ft ZESpack takes one TEU slot. Five packs cover 176 km loaded with a 20% reserve, so carrying two gives three slots back to cargo.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Emissions on this trip</h2>
+    <p class="lede" id="esgLede"></p>
+    <div class="chart" id="esgChart"></div>
+    <div class="legend"><span><i class="sq" style="background:var(--diesel)"></i>Diesel barge</span><span><i class="sq" style="background:var(--ebarge)"></i>E-barge on swapped packs</span></div>
+  </section>
+
+  <section>
+    <h2>Three ways to swap</h2>
+    <table id="opt"></table>
+  </section>
+
+  <section>
+    <h2>Assumptions and sources</h2>
+    <p class="note" id="assume"></p>
+  </section>
+  <div class="foot"><span>NatPower Digital · digital twin of the Albert Canal battery swap</span><span>Page 2 of 2</span></div>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+const Q=new URLSearchParams(location.search);
+let S=Q.get('s')||'hub', SE=Q.get('season')||'normal';
+const PRINT=Q.has('print'); if(PRINT) document.body.classList.add('still');
+// ---------- model (same figures as the 3D scenes) ----------
+const K={kwhKm:60, usable:2.6, packs:2, reserve:20, sfc:0.22, co2f:3.17, grid:0.182, eff:0.88, noxFleet:8.1, noxV:0.6, pm:0.21, sox:0.0034};
+const SC={
+  hub:{name:'Scenario 1 · Swap at the hub',route:'Antwerp to Genk',km:88,swapKm:52,swapAt:'the charging hub on the BCTN Meerhout quay',locksKm:[9.7,33.8,52.4,79.5,83.9,88.1],
+    segs:[['sail',65],['lock',30],['sail',160],['lock',30],['sail',143],['swap',30],['sail',15],['lock',30],['sail',100],['lock',30],['sail',70],['lock',30],['sail',70],['lock',30]],
+    added:30, alt:180, how:'The barge calls at the hub, the gantry crane swaps both packs in about 30 minutes.'},
+  berth:{name:'Scenario 2 · Tender at the berth',route:'Antwerp to Meerhout and back',km:138,swapKm:69,swapAt:'the BCTN Meerhout berth, during cargo work',locksKm:[9.7,33.8,104.2,128.3],
+    segs:[['sail',65],['lock',30],['sail',230],['lock',30],['sail',165],['moor',15],['cargo',15],['swap',30],['cargo',15],['moor',15],['sail',165],['lock',30],['sail',230],['lock',30],['sail',65]],
+    added:0, alt:180, how:'The battery tender comes alongside while the cranes work the boxes; the 30 minute swap fits inside the call.'},
+  lock:{name:'Scenario 3 · Tender at the lock',route:'Antwerp to Genk',km:88,swapKm:52,swapAt:'the waiting berth below Kwaadmechelen lock',locksKm:[9.7,33.8,52.4,79.5,83.9,88.1],
+    segs:[['sail',65],['lock',30],['sail',160],['lock',30],['sail',143],['wait',7],['swap',30],['wait',8],['lock',30],['sail',100],['lock',30],['sail',70],['lock',30],['sail',70],['lock',30]],
+    added:0, alt:180, how:'The tender meets the barge while it waits for the lock; the swap costs no time at all.'}};
+const SEG={sail:['Sailing','#4f7fbf'],lock:['Locks','#8a6fd1'],moor:['Mooring','#9aa8b8'],cargo:['Cargo work','#c98a1e'],wait:['Waiting for the lock','#9aa8b8'],swap:['Battery swap','#0e8f62']};
+const fmtH=m=>{ m=Math.round(m); const h=Math.floor(m/60), r=m%60; return h?h+' h '+String(r).padStart(2,'0'):r+' min'; };
+const nf=(v,d=0)=>v.toLocaleString('en-GB',{minimumFractionDigits:d,maximumFractionDigits:d});
+function model(){ const sc=SC[S]; const segs=sc.segs.map(([k,m])=>[k,k==='lock'&&SE==='dry'?m+90:m]);
+  const tot=segs.reduce((a,s)=>a+s[1],0); const kwh=sc.km*K.kwhKm; const fuel=kwh*K.sfc; const co2d=fuel*K.co2f/1000; const gridKwh=kwh/K.eff; const co2e=gridKwh*K.grid/1000;
+  return {sc,segs,tot,kwh,fuel,co2d,co2e,gridKwh,noxF:kwh*K.noxFleet/1000,noxV:kwh*K.noxV/1000,pm:kwh*K.pm/1000,sox:kwh*K.sox}; }
+const NS='http://www.w3.org/2000/svg';
+const el=(n,a={},p)=>{ const e=document.createElementNS(NS,n); for(const k in a) e.setAttribute(k,a[k]); if(p) p.appendChild(e); return e; };
+const tip=document.getElementById('tip');
+function hover(target,html,host){ target.addEventListener('pointermove',ev=>{ const r=host.getBoundingClientRect(); tip.innerHTML=html; tip.style.left=(ev.clientX)+'px'; tip.style.top=(ev.clientY+window.scrollY)+'px'; tip.style.opacity=1; tip.style.position='absolute'; });
+  target.addEventListener('pointerleave',()=>tip.style.opacity=0); }
+
+function render(){ const M=model(), sc=M.sc;
+  document.querySelectorAll('#selS button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===S));
+  document.querySelectorAll('#selSe button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.se===SE));
+  document.getElementById('pdf').href='pdf/trip-report-'+S+'-'+SE+'.pdf';
+  document.getElementById('title').textContent='Trip report · '+sc.route;
+  document.getElementById('subtitle').textContent=sc.name+' · '+(SE==='dry'?'Dry summer':'Normal flow')+' · CMA CGM e-barge, 135 m, two 2.9 MWh ZESpacks';
+  // tiles
+  const saved=M.co2d-M.co2e;
+  const T=[[nf(sc.km),'km','route length, '+sc.locksKm.length+' locks'],[fmtH(M.tot),'','total time on the water'+(SE==='dry'?', with group lockage':'')],[nf(M.kwh/1000,1),'MWh','energy at the propeller'],[nf(saved,1),'t','CO2 saved against a diesel barge',1]];
+  const tl=document.getElementById('tiles'); tl.innerHTML='';
+  T.forEach(([v,u,k,g])=>{ const d=document.createElement('div'); d.className='tile'+(g?' good':''); d.innerHTML='<div><span class="v" data-to="'+v+'">'+v+'</span><span class="u">'+u+'</span></div><div class="k"></div>'; d.querySelector('.k').textContent=k; tl.appendChild(d); });
+  routeChart(M); dayChart(M); timeChart(M); slots(); esgChart(M); optTable(); assume();
+  document.getElementById('routeLede').textContent='Shown as the share of usable energy in the two packs. Without a swap the packs reach the 20% reserve at km '+Math.round((100-K.reserve)/100*K.packs*K.usable*1000/K.kwhKm)+(sc.km>Math.round(K.packs*K.usable*1000/K.kwhKm)?' and run flat before the end of the trip.':'.')+' The swap at '+sc.swapAt+' puts them back to 100%.';
+  document.getElementById('dayLede').textContent=sc.how+(SE==='dry'?' In a dry summer the Meuse runs low and ships are locked through in groups, so each lock can take two to four hours.':'');
+  document.getElementById('esgLede').textContent='The same trip by a diesel barge and by the e-barge charged from today\'s Belgian grid. On renewable supply the e-barge CO2 falls close to zero, and it emits no NOx, particles or SOx at the quay or on the canal.';
+  play(); }
+
+function routeChart(M){ const sc=M.sc, host=document.getElementById('routeChart'); host.innerHTML=''; const W=780,H=220,L=40,R=16,T=12,B=34;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Battery charge along the route'},host);
+  const x=k=>L+(W-L-R)*k/sc.km, y=p=>T+(H-T-B)*(1-p/100);
+  for(const p of [0,20,40,60,80,100]){ el('line',{x1:L,x2:W-R,y1:y(p),y2:y(p),stroke:'#eef1f4'},svg); el('text',{x:L-6,y:y(p)+4,'text-anchor':'end',class:'tick'},svg).textContent=p+'%'; }
+  for(let k=0;k<=sc.km;k+=sc.km>100?20:10){ el('text',{x:x(k),y:H-B+16,'text-anchor':'middle',class:'tick'},svg).textContent=k; }
+  el('text',{x:W-R,y:H-4,'text-anchor':'end',class:'axl'},svg).textContent='km along the route';
+  for(const k of sc.locksKm){ el('line',{x1:x(k),x2:x(k),y1:T,y2:H-B,stroke:'#cfd6df','stroke-dasharray':'2 3'},svg); }
+  el('text',{x:x(sc.locksKm[0])+3,y:T+10,class:'tick'},svg).textContent='locks';
+  el('line',{x1:L,x2:W-R,y1:y(K.reserve),y2:y(K.reserve),stroke:'var(--red)','stroke-width':1.5},svg);
+  const rate=K.kwhKm/(K.packs*K.usable*1000)*100;   // % of usable per km
+  // no swap
+  const kEmpty=Math.min(sc.km,100/rate); el('path',{d:`M${x(0)},${y(100)} L${x(kEmpty)},${y(Math.max(0,100-rate*kEmpty))}`,fill:'none',stroke:'var(--ink2)','stroke-width':2,'stroke-dasharray':'5 4',class:'fade'},svg);
+  // with swap
+  const pSwap=100-rate*sc.swapKm, pEnd=100-rate*(sc.km-sc.swapKm);
+  const d=`M${x(0)},${y(100)} L${x(sc.swapKm)},${y(pSwap)} L${x(sc.swapKm)},${y(100)} L${x(sc.km)},${y(pEnd)}`;
+  const path=el('path',{d,fill:'none',stroke:'var(--ebarge)','stroke-width':2.5,'stroke-linejoin':'round',class:'draw'},svg); const len=path.getTotalLength?path.getTotalLength():1500; path.style.setProperty('--len',len);
+  const sw=el('g',{class:'fade'},svg); el('circle',{cx:x(sc.swapKm),cy:y(100),r:5,fill:'var(--ebarge)',stroke:'#fff','stroke-width':2},sw);
+  el('text',{x:x(sc.swapKm)+8,y:y(100)+4,class:'dlab'},sw).textContent='Swap · '+Math.round(pSwap)+'% to 100%';
+  el('text',{x:x(sc.km)-4,y:y(pEnd)-8,'text-anchor':'end',class:'dlab2'},sw).textContent='arrives with '+Math.round(pEnd)+'%';
+  // crosshair hover
+  const hl=el('line',{y1:T,y2:H-B,stroke:'var(--ink)','stroke-width':1,opacity:0},svg); const hit=el('rect',{x:L,y:T,width:W-L-R,height:H-T-B,fill:'transparent'},svg);
+  hit.addEventListener('pointermove',ev=>{ const r=svg.getBoundingClientRect(); const sx=(ev.clientX-r.left)*W/r.width; const k=Math.max(0,Math.min(sc.km,(sx-L)/(W-L-R)*sc.km)); hl.setAttribute('x1',x(k)); hl.setAttribute('x2',x(k)); hl.setAttribute('opacity',.35);
+    const w=k<sc.swapKm?100-rate*k:100-rate*(k-sc.swapKm), n=Math.max(0,100-rate*k); tip.innerHTML='<b>km '+Math.round(k)+'</b><br>With the swap: '+Math.round(w)+'%<br>No swap: '+Math.round(n)+'%'; tip.style.position='absolute'; tip.style.left=ev.clientX+'px'; tip.style.top=(ev.clientY+window.scrollY)+'px'; tip.style.opacity=1; });
+  hit.addEventListener('pointerleave',()=>{ hl.setAttribute('opacity',0); tip.style.opacity=0; }); }
+
+function dayChart(M){ const host=document.getElementById('dayChart'); host.innerHTML=''; const W=780,H=86,L=0,R=0; const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Time spent on each part of the trip'},host);
+  let acc=0; const g=el('g',{class:'grow'},svg); g.style.transformBox='fill-box';
+  for(const [k,m] of M.segs){ const x0=W*acc/M.tot, w=Math.max(1,W*m/M.tot-2); const r=el('rect',{x:x0,y:18,width:w,height:28,rx:4,fill:SEG[k][1]},g); hover(r,'<b>'+SEG[k][0]+'</b><br>'+fmtH(m),host); acc+=m; }
+  // direct label on the swap
+  acc=0; for(const [k,m] of M.segs){ if(k==='swap'){ const cx=W*(acc+m/2)/M.tot; el('line',{x1:cx,x2:cx,y1:48,y2:60,stroke:'var(--ebarge)','stroke-width':2,class:'fade'},svg); el('text',{x:cx,y:74,'text-anchor':'middle',class:'dlab fade'},svg).textContent='Battery swap · '+fmtH(m)+(M.sc.added===0?' · no time added':''); } acc+=m; }
+  el('text',{x:0,y:12,class:'tick'},svg).textContent='Departure'; el('text',{x:W,y:12,'text-anchor':'end',class:'tick'},svg).textContent='Arrival · '+fmtH(M.tot);
+  const sums={}; for(const [k,m] of M.segs) sums[k]=(sums[k]||0)+m;
+  document.getElementById('dayLegend').innerHTML=Object.entries(sums).map(([k,m])=>'<span><i class="sq" style="background:'+SEG[k][1]+'"></i>'+SEG[k][0]+' '+fmtH(m)+'</span>').join(''); }
+
+function timeChart(M){ const sc=M.sc, host=document.getElementById('timeChart'); host.innerHTML=''; const W=380,H=150; const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Time added by the swap against charging at a quay'},host);
+  const rows=[['Battery swap',sc.added,'var(--ebarge)'],['Charging at a quay',sc.alt,'var(--diesel)']]; const max=sc.alt, X=130, BW=W-X-60;
+  rows.forEach(([n,m,c],i)=>{ const y=20+i*56; el('text',{x:0,y:y+17,class:'dlab'},svg).textContent=n; const w=Math.max(4,BW*m/max); const r=el('rect',{x:X,y:y,width:w,height:24,rx:4,fill:c,class:'grow'},svg); r.style.transformBox='fill-box'; hover(r,'<b>'+n+'</b><br>'+(m?fmtH(m)+' added':'no time added'),host);
+    el('text',{x:X+w+6,y:y+17,class:'dlab'},svg).textContent=m?fmtH(m):'0 min'; });
+  el('text',{x:0,y:H-6,class:'tick'},svg).textContent='Time the stop adds to the trip'; }
+
+function slots(){ const mk=(id,packs,free)=>{ const h=document.getElementById(id); h.innerHTML=''; for(let i=0;i<5;i++){ const d=document.createElement('div'); d.className='slot '+(i<packs?'pack':free?'free':'box'); d.textContent=i<packs?'pack':free?'TEU':''; h.appendChild(d); } };
+  mk('slotsA',2,true); mk('slotsB',5,false); }
+
+function esgChart(M){ const host=document.getElementById('esgChart'); host.innerHTML=''; const W=780; const rows=[['CO2',M.co2d,M.co2e,'t',1],['NOx, average engine',M.noxF,0,'kg',1],['NOx, newest Stage V engine',M.noxV,0,'kg',1],['Particles',M.pm,0,'kg',2],['SOx',M.sox,0,'g',0]];
+  const H=rows.length*48+10; const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Emissions, diesel barge against e-barge'},host); const X=210, BW=W-X-90;
+  rows.forEach(([n,d,e,u,dp],i)=>{ const y=8+i*48; el('text',{x:0,y:y+16,class:'dlab'},svg).textContent=n; const mx=Math.max(d,e)||1;
+    [[d,'var(--diesel)','Diesel'],[e,'var(--ebarge)','E-barge']].forEach(([v,c,lab],j)=>{ const yy=y+j*22; const w=Math.max(v>0?4:2,BW*v/mx); const r=el('rect',{x:X,y:yy,width:w,height:18,rx:4,fill:c,class:'grow'},svg); r.style.transformBox='fill-box'; hover(r,'<b>'+lab+' · '+n+'</b><br>'+nf(v,dp)+' '+u,host);
+      el('text',{x:X+w+6,y:yy+13,class:j?'dlab':'dlab2'},svg).textContent=(v===0&&j?'none at the vessel':nf(v,dp)+' '+u); }); });
+  host.insertAdjacentHTML('beforeend','<p class="note">CO2 for the e-barge counts the electricity at the plug, including charging and drive losses. NOx, particles and SOx for the e-barge are zero at the vessel.</p>'); }
+
+function optTable(){ const rows=[
+  ['hub','Swap at the hub','30 min stop','Gantry crane and docking station','When the hub is on the route and has a free slot'],
+  ['berth','Tender at the berth','None, inside the cargo call','Battery tender with its crane','When the barge already stops for cargo'],
+  ['lock','Tender at the lock','None, inside the lock wait','Battery tender with its crane','When locks are busy; even more in dry summers']];
+  const t=document.getElementById('opt'); t.innerHTML='<tr><th>Option</th><th>Time added</th><th>Equipment</th><th>Best when</th></tr>'+rows.map(r=>'<tr class="'+(r[0]===S?'cur':'')+'"><td><b>'+r[1]+'</b>'+(r[0]===S?'<br><span class="note">this report</span>':'')+'</td><td class="num">'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td></tr>').join(''); }
+
+function assume(){ document.getElementById('assume').textContent='Loaded e-barge about 60 kWh per km; each 2.9 MWh ZESpack has 2.6 MWh usable; 20% reserve; charging and drive losses 12%. Diesel: 0.22 kg fuel per kWh and 3.17 kg CO2 per kg; NOx 8.1 g per kWh for the average engine and 0.6 g for a Stage V engine (real world measurements on the Rhine, ACP 2023); particles 0.21 g and SOx 0.37 kg per TJ (German national inventory, inland navigation). Belgian grid 182 g CO2 per kWh in 2025 (Electricity Maps). Charging two packs at a quay takes about 3 hours from a 2 MVA connection. Dry summer: group lockage when the Meuse runs low, waits of 2 to 4 hours (Wijnegem and Olen, August 2022). Real figures will replace these once the operator, terminal and grid data are in.'; }
+
+// count up numbers and start the motion once
+function play(){ const pages=document.querySelectorAll('.page'); pages.forEach(p=>p.classList.remove('go'));
+  if(PRINT||matchMedia('(prefers-reduced-motion: reduce)').matches){ pages.forEach(p=>p.classList.add('go')); return; }
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('go'); io.unobserve(e.target); } }),{threshold:.15}); pages.forEach(p=>io.observe(p)); }));
+  document.querySelectorAll('.tile .v').forEach(v=>{ const to=v.dataset.to; const m=to.match(/^([\d.,]+)/); if(!m) return; const n=parseFloat(m[1].replace(/,/g,'')); const dp=(m[1].split('.')[1]||'').length; const rest=to.slice(m[1].length); const t0=performance.now();
+    const step=now=>{ const k=Math.min(1,(now-t0)/1200), e=1-Math.pow(1-k,3); v.textContent=nf(n*e,dp)+rest; if(k<1) requestAnimationFrame(step); else v.textContent=to; }; requestAnimationFrame(step); }); }
+
+document.querySelectorAll('#selS button').forEach(b=>b.onclick=()=>{ S=b.dataset.s; sync(); render(); });
+document.querySelectorAll('#selSe button').forEach(b=>b.onclick=()=>{ SE=b.dataset.se; sync(); render(); });
+document.getElementById('replay').onclick=()=>render();
+function sync(){ const q=new URLSearchParams(location.search); q.set('s',S); q.set('season',SE); history.replaceState(null,'','?'+q.toString()); }
+render();
+</script>
+</body>
+</html>

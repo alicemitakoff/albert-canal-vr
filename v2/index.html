@@ -323,6 +323,7 @@ body.hidden-ui .restore{display:flex}
       <button class="ib" id="tMap" aria-pressed="true" aria-label="Route map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Zm0 0v14m6-12v14"/></svg><span class="tip">Route map (M)</span></button>
       <button class="ib" id="tLabels" aria-pressed="true" aria-label="Labels"><svg viewBox="0 0 24 24"><path d="M4 6h10l4 4-4 4H4z"/><path d="M8 18v2"/></svg><span class="tip">Labels (L)</span></button>
       <button class="ib" id="tHide" aria-pressed="false" aria-label="Hide interface"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.6"/><path d="M4 4l16 16"/></svg><span class="tip">Hide interface (H)</span></button>
+      <button class="ib" id="tReport" aria-label="Trip report"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 17v-3M12 17v-6M15 17v-4"/></svg><span class="tip">Trip report (R)</span></button>
       <button class="ib" id="tFull" aria-pressed="false" aria-label="Full screen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="tip">Full screen (F)</span></button>
       <button class="vrbtn" id="vrBtn" disabled>Checking VR</button>
     </div>
@@ -410,7 +411,7 @@ body.hidden-ui .restore{display:flex}
   <h2>On to Genk with two full packs</h2>
   <p>One stop of about 30 minutes at BCTN Meerhout swapped both packs instead of hours on a charger. Packs A and B stay ashore to charge for the next barge, and the e-barge carries on with 36 km and four more locks to go.</p>
   <div class="why" id="why"></div>
-  <div class="row"><button class="actbtn" id="replay">Replay from the start</button><button class="btn" id="replaySwap">Watch the swap again</button><button class="btn" id="endMap">Route map</button></div>
+  <div class="row"><button class="actbtn" id="replay">Replay from the start</button><button class="btn" id="replaySwap">Watch the swap again</button><button class="btn" id="endMap">Route map</button><button class="btn" id="endReport">Trip report</button></div>
 </section>
 <button class="restore panel" id="restore" aria-label="Show interface"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.6"/></svg><span>Show interface</span></button>
 
@@ -2215,7 +2216,7 @@ $('tFull').onclick=async()=>{ try{ if(!document.fullscreenElement) await documen
 document.addEventListener('fullscreenchange',()=>$('tFull').setAttribute('aria-pressed',!!document.fullscreenElement));
 addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT') return; const k=e.key.toLowerCase();
   if(k===' '||(k==='enter'&&(waiting||ended)&&e.target===document.body)){ primary(); e.preventDefault(); } else if(k==='h') setHidden(!document.body.classList.contains('hidden-ui'));
-  else if(k==='l') $('tLabels').click(); else if(k==='m') (big.open?closeMap():openMap()); else if(k==='f') $('tFull').click();
+  else if(k==='l') $('tLabels').click(); else if(k==='m') (big.open?closeMap():openMap()); else if(k==='f') $('tFull').click(); else if(k==='r') openReport();
   else if(k==='escape'){ if(big.open) closeMap(); else hideInfo(); }
   else if(k==='+'||k==='=') zoom(0.8); else if(k==='-') zoom(1.25);
   else if(k==='arrowright') seek(CH[Math.min(CH.length-1,chapIdx(tNow)+1)].t+0.01); else if(k==='arrowleft') seek(CH[Math.max(0,chapIdx(tNow)-(tNow-CH[chapIdx(tNow)].t<1.5?1:0))].t+0.01);
@@ -2757,6 +2758,9 @@ function updateRack(t){ const el=$('rkSlots'); if(!el) return; const R=rackState
 function fillWhy(id){ const el=$('why'); if(!el) return; el.innerHTML=''; const W=(WHY[id]||[]).map(x=>x.slice()); if(SEASON==='dry'&&W[0]) W[0][1]=id==='hub'?'alongside for two packs, while the lock queue runs to 2 to 4 h in a dry summer':'added: the swap fits inside a 2 to 4 h wait for group lockage'; for(const [a,b] of W){ const d=document.createElement('div'); const x=document.createElement('b'); x.textContent=a; const y=document.createElement('span'); y.textContent=b; d.append(x,y); el.append(d); }
   const n=document.createElement('div'); n.className='note'; n.textContent='Indicative: 60 kWh per km loaded, 2.6 MWh usable per pack, 20% reserve, 182 g CO2 per kWh on the 2025 Belgian grid. Real figures come with the operator and terminal data.'; el.append(n); }
 if(LAPTOP){ $('ssn').hidden=false; document.querySelectorAll('#ssn button').forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); setSeason(b.dataset.season); }); }
+/* the trip report opens in a new tab for the scenario and season on screen (motion page, with a PDF to download) */
+function openReport(){ window.open('report/?s='+SC.id+'&season='+SEASON,'_blank','noopener'); }
+$('tReport').onclick=openReport; $('endReport').onclick=openReport;
 document.querySelectorAll('#scnTabs button[data-s]').forEach(b=>b.onclick=()=>{ if(SC.id!==b.dataset.s) setScenario(b.dataset.s); });
 function hud2(t){
   const done=[...Array(NP).keys()].filter(k=>t>=liftTimes(2*k+1).off).length; const onCrane=cranePhase(t).carry;
