@@ -1300,6 +1300,49 @@ let realCranes=[], traffic=null, moored=null;
 const HUB_EXTRA=[];
 /* the stair tower on the gantry crane leg: the model only had floating landing plates. They are cut out and replaced by a real
    switchback stair: two lanes of flights with side stringers, closed treads, landings at both ends and yellow handrails. */
+/* the docking stations, drawn out: a plinth under every slot, two loading arms with their charging cables, a charger cabinet with
+   its status light, a cable tray, a fence with a gate, warning signs and a fire point. Open from above so the crane can set packs in. */
+function buildDockingDetail(xoff){
+  const root=nodes['h:Docking_station']&&nodes['h:Docking_station'].parent; const bp=nodes['h:Hub_Battery_1']; if(!root||!bp) return;
+  root.updateMatrixWorld(true); const inv=root.matrixWorld.clone().invert(); const bb=new THREE.Box3().setFromObject(bp); const a=bb.min.clone().applyMatrix4(inv), b=bb.max.clone().applyMatrix4(inv);
+  const sx=Math.abs(b.x-a.x), sz=Math.abs(b.z-a.z), y0=Math.min(a.y,b.y), top=Math.max(a.y,b.y);
+  const G={conc:[],yel:[],steel:[],grey:[],orange:[],dark:[],green:[],red:[],fence:[]};
+  const box=(k,w,h,d,x,y,z,ry=0)=>{ const g=new THREE.BoxGeometry(w,h,d); if(ry) g.rotateY(ry); g.translate(x,y,z); G[k].push(g); };
+  const cyl=(k,r,h,x,y,z,rx=0,rz=0)=>{ const g=new THREE.CylinderGeometry(r,r,h,8); if(rx) g.rotateX(rx); if(rz) g.rotateZ(rz); g.translate(x,y,z); G[k].push(g); };
+  const longX=sx>sz, L=Math.max(sx,sz), W=Math.min(sx,sz);
+  for(const x0 of [-13.5,-6.5,6.5,13.5]){ const x=x0+xoff, z=-24;
+    // plinth with yellow nosing
+    if(longX) box('conc',L+0.6,0.3,W+0.6,x,y0-0.12,z); else box('conc',W+0.6,0.3,L+0.6,x,y0-0.12,z);
+    for(const sgn of [-1,1]) longX? box('yel',L+0.6,0.06,0.12,x,y0+0.05,z+sgn*(W/2+0.3)) : box('yel',0.12,0.06,L+0.6,x+sgn*(W/2+0.3),y0+0.05,z);
+    // two loading arms at the far end of the slot, reaching over the pack's connector ends
+    const back=longX? new V3(0,0,-(W/2+1.0)) : new V3(-(W/2+1.0),0,0);
+    for(const e of [-1,1]){ const along=longX? new V3(e*L*0.32,0,0) : new V3(0,0,e*L*0.32); const px=x+back.x+along.x, pz=z+back.z+along.z;
+      box('steel',0.28,top-y0+1.6,0.28,px,(top+y0+1.6)/2,pz);                               // post
+      const reach=longX? (W/2+1.0)*0.8 : (W/2+1.0)*0.8;
+      if(longX) box('steel',0.18,0.18,reach,px,top+1.4,pz+reach/2); else box('steel',reach,0.18,0.18,px+reach/2,top+1.4,pz);   // arm
+      const hx=longX?px:px+reach, hz=longX?pz+reach:pz;
+      box('dark',0.36,0.5,0.36,hx,top+1.05,hz);                                                   // connector head
+      cyl('orange',0.06,1.0,hx,top+0.45,hz);                                                     // cable down to the pack socket
+      box('yel',0.3,0.3,0.3,px,top+1.6+0.15,pz); }
+    // charger cabinet with a green status light
+    const cx=x+back.x*1.9, cz=z+back.z*1.9; box('grey',longX?1.6:0.8,2.2,longX?0.8:1.6,cx,y0+1.1,cz); box('green',0.25,0.08,0.05,cx+(longX?0:0.42),y0+1.95,cz+(longX?0.42:0));
+  }
+  // cable tray along the back of the station
+  box('dark',42,0.12,0.6,xoff,y0+0.06,-27.6); box('orange',41.5,0.05,0.4,xoff,y0+0.14,-27.6);
+  // fence round the three sides away from the crane path, with posts every 2.5 m and a gate gap
+  for(let x=-21.5;x<=21.5;x+=2.5){ box('fence',0.06,2.0,0.06,x+xoff,y0+1.0,-29.9); }
+  box('fence',43,0.05,0.05,xoff,y0+1.95,-29.9); box('fence',43,0.05,0.05,xoff,y0+1.0,-29.9); box('fence',43,0.03,0.03,xoff,y0+0.15,-29.9);
+  for(const sx2 of [-21.5,21.5]){ for(let z=-29.9;z<=-18.5;z+=2.5) box('fence',0.06,2.0,0.06,sx2+xoff,y0+1.0,z); box('fence',0.05,0.05,11.4,sx2+xoff,y0+1.95,-24.2); box('fence',0.05,0.05,11.4,sx2+xoff,y0+1.0,-24.2); }
+  // warning signs on the fence and a red fire point
+  for(const x of [-15,0,15]) box('yel',0.7,0.7,0.04,x+xoff,y0+1.5,-29.85,0);
+  box('red',0.7,1.2,0.4,21.0+xoff,y0+0.6,-19.5);
+  const M={conc:triplanar(new THREE.MeshStandardMaterial({color:'#a39f96',roughness:0.9}),TEX.concrete,0.25,0.8),yel:new THREE.MeshStandardMaterial({color:'#e8b400',roughness:0.5}),steel:new THREE.MeshStandardMaterial({color:'#9aa1a8',roughness:0.45,metalness:0.6}),
+    grey:new THREE.MeshStandardMaterial({color:'#5b6168',roughness:0.6,metalness:0.3}),orange:new THREE.MeshStandardMaterial({color:'#e86a10',roughness:0.6}),dark:new THREE.MeshStandardMaterial({color:'#1f2226',roughness:0.6,metalness:0.4}),
+    green:new THREE.MeshStandardMaterial({color:'#22f08f',emissive:'#22f08f',emissiveIntensity:1.5}),red:new THREE.MeshStandardMaterial({color:'#c4161c',roughness:0.5}),fence:new THREE.MeshStandardMaterial({color:'#7d868f',roughness:0.5,metalness:0.6})};
+  const grp=new THREE.Group(); grp.name='Docking_detail';
+  for(const k in G){ if(!G[k].length) continue; const g=THREE.BufferGeometryUtils.mergeBufferGeometries(G[k].map(x=>x.index?x.toNonIndexed():x),false); const m=new THREE.Mesh(g,M[k]); m.castShadow=true; m.receiveShadow=true; grp.add(m); }
+  root.add(grp);
+}
 function rebuildCraneStair(root){
   if(!root) return; const X0=10.45, Z0=-42.0, Z1=-38.0;
   root.traverse(o=>{ if(!o.isMesh) return; const nm=(o.material&&o.material.name)||''; if(!/Hub_Steel|Hub_Safety_Yellow|Hub_Black/.test(nm)) return;
@@ -1417,7 +1460,7 @@ function buildModels(){
   scene.updateMatrixWorld(true);
   lockBox=new THREE.Box3(); const inv=toLock;
   lock.traverse(o=>{ if(o.isMesh&&!/Water_Approach/.test(o.name)){ o.geometry.computeBoundingBox(); lockBox.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld).applyMatrix4(inv)); } });
-  rebuildCraneStair(nodes['h:Crane_structure']);
+  rebuildCraneStair(nodes['h:Crane_structure']); buildDockingDetail(0); buildDockingDetail(62);
   // a second double docking station east of the first, on the same crane rails, with three packs on charge
   { const ds=nodes['h:Docking_station']; if(ds){ const c=ds.clone(); c.name='Docking_station_2'; c.position.x+=62; ds.parent.add(c);
       HUB_EXTRA.length=0; [['h:Hub_Battery_1',100],['h:Hub_Battery_2',82],['h:Hub_Battery_3',46]].forEach(([n,p])=>{ const b=nodes[n]; if(!b) return; const k=b.clone(true); k.name='Hub_Battery_x'+n.slice(-1); k.position.x+=62; b.parent.add(k); HUB_EXTRA.push([k,p]); }); } }
