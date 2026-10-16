@@ -2079,9 +2079,9 @@ const VR_SPOTS={
   hub:()=>({p:hub.localToWorld(new V3(19,1.8,-11)), look:hub.localToWorld(new V3(21,1.8,8))}),
   lock:()=>({p:lock.localToWorld(new V3(10,12.05,-16)), look:lock.localToWorld(new V3(10,12.05,8))}),
   bridge:()=>({parent:barge, p:new V3(3.6,4.5,-15.4), look:new V3(0,4.5,-40)}),   // on deck right behind the battery bay
-  crane:()=>{ tender.updateMatrixWorld(true); const sl=SLOT['Slot_r1_c1']||SLOT['Slot_r0_c1']; const w=sl.getWorldPosition(new V3()); const L=tender.worldToLocal(w);
-    const bl=tender.worldToLocal(barge.localToWorld(new V3(0,4.5,-22))); const sd=bl.x>0?-1:1;
-    return {parent:tender, p:new V3(sd*3.7,L.y,L.z+3.5), look:new V3(-sd*6,L.y,L.z-2)}; }
+  crane:()=>{ tender.updateMatrixWorld(true); const sl=SLOT['Slot_r2_c1']||SLOT['Slot_r1_c1']; const w=sl.getWorldPosition(new V3()); const L=tender.worldToLocal(w);
+    const bl=tender.worldToLocal(barge.localToWorld(new V3(0,4.5,-22))); const sd=bl.x>0?-1:1;   // on the free middle row of the tender deck, on the far side from the barge, facing the crane and the battery bay
+    return {parent:tender, p:new V3(sd*3.4,L.y,L.z), look:new V3(-sd*12,L.y,L.z)}; }
 };
 const VR_PLACES_BY={hub:['quay','bridge','lock','follow','over'],berth:['crane','bridge','quay','follow','over'],lock:['crane','bridge','lock','follow','over']};
 const vrPlaces=()=>VR_PLACES_BY[SC.id]||['follow','over'];
