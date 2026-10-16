@@ -830,8 +830,8 @@ function buildPlacards(){
 }
 function buildPeople2(){
   const V=new V3(); tender.updateMatrixWorld(true);
-  for(const [slot,side,ry,o] of [['Slot_r2_c0',-1,Math.PI/2,{vest:'#ff7a00',helmet:'#ffffff',radio:true}],['Slot_r2_c2',1,-Math.PI/2,{vest:'#e8e80c',helmet:'#2b6cd6',tablet:true,height:0.97}]]){
-    const sl=SLOT[slot]; if(!sl) continue; sl.getWorldPosition(V); const L=tender.worldToLocal(V.clone()); const pr=makePerson(o); pr.position.set(side*3.75,L.y,L.z); pr.rotation.y=ry; tender.add(pr); }
+  for(const [slot,side,ry,o] of [['Slot_r1_c0',-1,Math.PI/2,{vest:'#ff7a00',helmet:'#ffffff',radio:true}],['Slot_r1_c2',1,-Math.PI/2,{vest:'#e8e80c',helmet:'#2b6cd6',tablet:true,height:0.97}]]){
+    const sl=SLOT[slot]; if(!sl) continue; sl.getWorldPosition(V); const L=tender.worldToLocal(V.clone()); const pr=makePerson(o); pr.position.set(side*3.75,L.y,L.z+3.6); pr.rotation.y=ry; tender.add(pr); }
   const root=bargeGLTF.scene; const deck=root.getObjectByName('Deck_plating'); if(deck){ root.updateMatrixWorld(true); const inv=root.matrixWorld.clone().invert(); const bb=new THREE.Box3().setFromObject(deck); const mn=bb.min.clone().applyMatrix4(inv), mx=bb.max.clone().applyMatrix4(inv);
     const pr=makePerson({vest:'#ff7a00',helmet:'#ffffff',height:1.01}); pr.position.set(Math.max(mn.x,mx.x)-0.55,Math.max(mn.y,mx.y),-58); pr.rotation.y=-Math.PI/2; root.add(pr); }
   realCranes.forEach((g,ci)=>{ g.updateMatrixWorld(true); for(const [lx,lz,ry,o] of [[ci?-9:9,-8,0.6,{vest:'#ff7a00',helmet:'#ffffff',radio:true}],[ci?-12:12,-25,2.4,{vest:'#e8e80c',helmet:'#ffffff'}]]){
@@ -2009,8 +2009,8 @@ function drawVRPanel(t){
   c.fillStyle='#ffffff'; c.font='700 62px Arial,sans-serif'; c.fillText(ch.h,52,170);
   c.font='400 35px Arial,sans-serif'; c.fillStyle='#ffffff'; wrapText(c,ch.b,W-112).slice(0,4).forEach((l,k)=>c.fillText(l,56,230+k*48));
   if(waiting){ vrPrompt(c,W,'Pull the trigger: '+waiting.btn); vrTex.needsUpdate=true; return; }
-  const soc=SC.id==='hub'?Math.min(t<HS.C.off?socPre(t):socPost(t),t<HS.D.off?socPre(t):socPost(t)):100; c.fillStyle='rgba(255,255,255,.14)'; c.fillRect(56,478,520,12); c.fillStyle=pctCol(soc); c.fillRect(56,478,520*soc/100,12);
-  c.fillStyle='#c5d3e4'; c.font='700 26px Arial,sans-serif'; c.fillText('Packs on board: '+(t<HS.C.off?'A':'C')+' and '+(t<HS.D.off?'B':'D'),56,462); c.fillStyle='#ffffff'; c.font='700 34px Arial,sans-serif'; c.fillText(Math.round(soc)+'%',600,492);
+  const pk2=SC.id==='hub'?null:[...Array(NP).keys()].map(k=>t>=liftTimes(2*k+1).off?100:SC.soc0); const soc=SC.id==='hub'?Math.min(t<HS.C.off?socPre(t):socPost(t),t<HS.D.off?socPre(t):socPost(t)):Math.min(...pk2); c.fillStyle='rgba(255,255,255,.14)'; c.fillRect(56,478,520,12); c.fillStyle=pctCol(soc); c.fillRect(56,478,520*soc/100,12);
+  c.fillStyle='#c5d3e4'; c.font='700 26px Arial,sans-serif'; c.fillText(SC.id==='hub'?'Packs on board: '+(t<HS.C.off?'A':'C')+' and '+(t<HS.D.off?'B':'D'):'Packs on board: '+pk2.map(v=>v+'%').join(' and '),56,462); c.fillStyle='#ffffff'; c.font='700 34px Arial,sans-serif'; c.fillText(Math.round(soc)+'%',600,492);
   c.fillStyle='#c5d3e4'; c.font='400 25px Arial,sans-serif'; c.fillText('You are at: '+VIEWS[cam.v].vr+'   ·   Left stick: walk (left grip: fast)   ·   Right stick: turn, up, down   ·   B or Y: place   ·   A or X: map   ·   Right grip: pause',56,560);
   vrTex.needsUpdate=true;
 }
@@ -2018,16 +2018,33 @@ function vrPrompt(c,W,txt){ c.font='700 40px Arial,sans-serif'; const w=c.measur
   const a=0.88+0.12*Math.sin(performance.now()/260); c.fillStyle='rgba(255,255,255,'+a+')'; rr(c,x,y,w,96,48); c.fill();
   c.fillStyle='#061a33'; c.textAlign='center'; c.fillText(txt,W/2,y+62); c.textAlign='left'; }
 /* where you stand in the headset: real eye height on the barge, the quay and the lock wall */
+/* Places in the headset. Most stand at true eye height on a real floor (the quay, the barge deck by the battery bay, the tender deck,
+   the lock wall), so people, packs and vessels read at their real size; the drone and the overview stay as the last two. */
 const VR_SPOTS={
   quay:()=>({p:hub.localToWorld(new V3(19,1.8,-11)), look:hub.localToWorld(new V3(21,1.8,8))}),
-  lock:()=>({p:lock.localToWorld(new V3(10,12.05,-16)), look:lock.localToWorld(new V3(10,12.05,8))})
+  hub:()=>({p:hub.localToWorld(new V3(19,1.8,-11)), look:hub.localToWorld(new V3(21,1.8,8))}),
+  lock:()=>({p:lock.localToWorld(new V3(10,12.05,-16)), look:lock.localToWorld(new V3(10,12.05,8))}),
+  bridge:()=>({parent:barge, p:new V3(3.6,4.5,-15.4), look:new V3(0,4.5,-40)}),   // on deck right behind the battery bay
+  crane:()=>{ tender.updateMatrixWorld(true); const sl=SLOT['Slot_r1_c1']||SLOT['Slot_r0_c1']; const w=sl.getWorldPosition(new V3()); const L=tender.worldToLocal(w);
+    const bl=tender.worldToLocal(barge.localToWorld(new V3(0,4.5,-22))); const sd=bl.x>0?-1:1;
+    return {parent:tender, p:new V3(sd*3.7,L.y,L.z+3.5), look:new V3(-sd*6,L.y,L.z-2)}; }
 };
-const VR_PLACES=['follow','over'];
-function vrNextPlace(){ const cur=VIEWS[cam.v].id; const i=VR_PLACES.indexOf(cur); const nid=VR_PLACES[(i+1)%VR_PLACES.length]; setView(VIEWS.findIndex(v=>v.id===nid)); hudDirty=true; }
+const VR_PLACES_BY={hub:['quay','bridge','lock','follow','over'],berth:['crane','bridge','quay','follow','over'],lock:['crane','bridge','lock','follow','over']};
+const vrPlaces=()=>VR_PLACES_BY[SC.id]||['follow','over'];
+/* the guided tour in the headset: at the key steps the viewer is taken to the best place, with a short fade so nobody feels moved */
+const VR_TOUR={hub:[[0,'bridge'],[13.5,'quay'],[46,'bridge'],[66,'lock']],berth:[[0,'quay'],[12,'crane'],[96,'quay'],[116,'bridge']],lock:[[0,'bridge'],[12,'crane'],[73,'bridge'],[95,'lock']]};
+let vrTour=true, vrTourLast=null, vrFadeT=-1, vrFadeTo=null, vrFade=null;
+function vrTourStop(t){ const L=VR_TOUR[SC.id]||[]; let id=null; for(const [tt,v] of L) if(t>=tt) id=v; return id; }
+function vrGo(id){ if(!renderer.xr.isPresenting||VIEWS[cam.v].id===id) return; vrFadeTo=id; vrFadeT=0; }
+function updateVrFade(dt){ if(!vrFade){ vrFade=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.MeshBasicMaterial({color:'#000',transparent:true,opacity:0,depthTest:false,depthWrite:false,fog:false})); vrFade.renderOrder=999; vrFade.position.z=-0.2; camera.add(vrFade); }
+  if(vrFadeT<0){ vrFade.visible=false; return; } vrFadeT+=dt; vrFade.visible=true;
+  if(vrFadeT<0.35) vrFade.material.opacity=vrFadeT/0.35; else if(vrFadeTo){ const i=VIEWS.findIndex(v=>v.id===vrFadeTo); vrFadeTo=null; if(i>=0) setView(i); vrFade.material.opacity=1; }
+  else if(vrFadeT<0.9) vrFade.material.opacity=1-(vrFadeT-0.35)/0.55; else { vrFadeT=-1; vrFade.visible=false; } }
+function vrNextPlace(){ vrTour=false; const L=vrPlaces(); const cur=VIEWS[cam.v].id; const i=L.indexOf(cur); const nid=L[(i+1)%L.length]; setView(VIEWS.findIndex(v=>v.id===nid)); hudDirty=true; }
 function placeVR(){
-  if(!VR_PLACES.includes(VIEWS[cam.v].id)){ cam.v=VIEWS.findIndex(x=>x.id==='follow'); document.querySelectorAll('#viewSeg button').forEach((b,j)=>b.setAttribute('aria-pressed',j===cam.v)); }
+  if(!vrPlaces().includes(VIEWS[cam.v].id)){ cam.v=Math.max(0,VIEWS.findIndex(x=>x.id===vrPlaces()[0])); document.querySelectorAll('#viewSeg button').forEach((b,j)=>b.setAttribute('aria-pressed',j===cam.v)); }
   const v=VIEWS[cam.v]; vrDolly=0; vrOff.set(0,0,0); panelSnap=true;
-  if(VR_SPOTS[v.id]){ const s=VR_SPOTS[v.id](); scene.add(rig); rig.position.copy(s.p); rig.rotation.set(0,Math.atan2(s.p.x-s.look.x,s.p.z-s.look.z),0); return; }
+  if(VR_SPOTS[v.id]){ const s=VR_SPOTS[v.id](); (s.parent||scene).add(rig); rig.position.copy(s.p); rig.rotation.set(0,Math.atan2(s.p.x-s.look.x,s.p.z-s.look.z),0); return; }
   if(v.type==='fps'){ barge.add(rig); rig.position.set(0,12.25,-17.3); rig.rotation.set(0,0,0); }   // on the wheelhouse roof, facing the battery bay and the containers
   else { scene.add(rig); const tg=v.target(); const az=v.az+(v.rel?bargeHeading():0); const d=Math.min(v.dist,v.id==='over'?700:v.id==='follow'?70:160);
     rig.position.set(tg.x+Math.sin(az)*d, Math.max(surfaceH(tg.x+Math.sin(az)*d,tg.z+Math.cos(az)*d)+2,v.id==='follow'?tg.y+14:tg.y+Math.sin(v.el)*d*0.6), tg.z+Math.cos(az)*d);
@@ -2090,7 +2107,7 @@ function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
     try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(params.has('soft')?1:params.has('max')?0:0.35); }catch(e){}
     sun.shadow.mapSize.set(1024,1024); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
     try{ await renderer.xr.setSession(s); }catch(e){ window.__diag('Starting VR failed: '+e.name+' '+e.message); try{ s.end(); }catch(_){} return; }
-    vrBtn.textContent='Exit VR'; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; setView(1); panelSnap=true; hudDirty=true; $('vrBig').hidden=true;
+    vrBtn.textContent='Exit VR'; vrTour=true; vrTourLast=null; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; setView(1); panelSnap=true; hudDirty=true; $('vrBig').hidden=true;
     s.addEventListener('end',()=>{ vrBtn.textContent='Enter VR'; if(IS_QUEST&&!FLAT) $('vrBig').hidden=false; vrPanel.visible=false; vrMap.visible=false; scene.add(rig); rig.position.set(0,0,0); rig.rotation.set(0,0,0); camera.position.set(0,0,0); setView(cam.v,true); }); };
 })();
 
@@ -2586,7 +2603,7 @@ function setScenario(id){
     put(BA,base.BAparent,pA_barge,qA_barge); BA.visible=true; }
   document.querySelectorAll('#scnTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===id));
   document.querySelector('#endc h2').textContent=SC.end.h; document.querySelector('#endc p').textContent=SC.end.p;
-  lastStep=-1; setView(0); seek(0); cam.snap=true; hudDirty=true;
+  lastStep=-1; vrTour=true; vrTourLast=null; setView(0); seek(0); cam.snap=true; hudDirty=true;
   if(guided){ cpNext=0; }
   try{ const q=new URLSearchParams(location.search); if(id==='hub') q.delete('s'); else q.set('s',id); const qs=q.toString(); history.replaceState(null,'',location.pathname+(qs?'?'+qs:'')+(location.hash||'')); }catch(e){}
 }
@@ -2982,7 +2999,7 @@ function build(){
     mergeStatic(scene,/^merged$/,o=>models.has(o)||o.name==='BoxPivot'||rot.has(o)||(o.material&&(o.material.isShaderMaterial||o.material.isSpriteMaterial||(o.material.map&&o.material.isMeshLambertMaterial)))); }
   tm('merged'); setupExtras(); resetUnloading(); for(const [k,p] of HUB_EXTRA){ tintPack(k,p); setLED(k,pctColor(p)); }
   buildComposer(); resizeComposer(innerWidth,innerHeight);
-  if(TEST) window.__T={get scene(){ return scene; },V3,dolph:()=>{ if(!LOCKWAIT) return 'none'; const hits=[]; const ships=[['barge',barge,5.73,-135,0],['tender',tender,4.3,-28,28],...EXTRA.map((E,i)=>['extra'+i,E.o,5.73,-135,0])];
+  if(TEST) window.__T={get scene(){ return scene; },V3,xr:()=>{ const xc=renderer.xr.getCamera(camera); const h=new V3().setFromMatrixPosition(xc.matrixWorld); return {presenting:renderer.xr.isPresenting,view:VIEWS[cam.v].id,eye:h.toArray().map(x=>+x.toFixed(2)),ground:+surfaceH(h.x,h.z).toFixed(2),rigParent:rig.parent&&(rig.parent===scene?'scene':rig.parent===barge?'barge':rig.parent===tender?'tender':rig.parent.name)}; },dolph:()=>{ if(!LOCKWAIT) return 'none'; const hits=[]; const ships=[['barge',barge,5.73,-135,0],['tender',tender,4.3,-28,28],...EXTRA.map((E,i)=>['extra'+i,E.o,5.73,-135,0])];
     for(let t=0;t<T_END;t+=0.5){ SC.apply(t); scene.updateMatrixWorld(true); for(const [n,o,hw,z0,z1] of ships){ if(!o.visible) continue; const inv=o.matrixWorld.clone().invert(); for(const d of LOCKWAIT.tops){ const l=d.clone().applyMatrix4(inv); if(Math.abs(l.x)<hw+2.5&&l.z>z0-2.5&&l.z<z1+2.5) hits.push(n+'@'+t); } } } SC.apply(tNow); return hits.slice(0,20); },seek:t=>{ seek(t); setPaused(true); },view:i=>setView(i),scn:id=>setScenario(id),cam,get t(){ return tNow; },unload:()=>UNLOAD.cranes.map(c=>({n:c.jobs.length,p:c.g.position.toArray().map(v=>+v.toFixed(1))})),collide:(margin=3)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); if(moored&&moored.visible) L.push(['moored',moored,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i+':'+E.label,E.o,5.73,-135,0]); }); return L; };
   const corners=(o,hw,z0,z1)=>{ o.updateMatrixWorld(true); return [[-hw,z0],[hw,z0],[hw,z1],[-hw,z1]].map(([x,z])=>new V3(x,0,z).applyMatrix4(o.matrixWorld)); };
   const sep=(A,B)=>{ for(const P of [A,B]) for(let i=0;i<4;i++){ const a=P[i],b=P[(i+1)%4]; const nx=-(b.z-a.z), nz=b.x-a.x; const l=Math.hypot(nx,nz); const pa=A.map(p=>(p.x*nx+p.z*nz)/l), pb=B.map(p=>(p.x*nx+p.z*nz)/l); if(Math.max(...pa)+margin<Math.min(...pb)||Math.max(...pb)+margin<Math.min(...pa)) return true; } return false; };
@@ -3027,7 +3044,7 @@ function frame(now){
   const xr=renderer.xr.isPresenting;
   // in the headset the shadows are refreshed every frame (a refresh every third frame gave a regular hitch); the map is smaller there to keep the cost even
   renderer.shadowMap.autoUpdate=true;
-  if(xr){ pollXR(dt); vrFollow(dt); placePanels(dt); vrPanel.visible=vrCaptions||!!waiting||ended; if((waiting||ended)&&Math.floor(now/120)!==Math.floor((now-dt*1000)/120)) hudDirty=true; if(Math.floor(now/1000)!==Math.floor((now-dt*1000)/1000)||hudDirty){ if(vrPanel.visible) drawVRPanel(tNow); if(vrMapOn&&MB){ drawRoute(vrMapC.getContext('2d'),(()=>{ const [x0,y0]=mapXY(4.25,51.31),[x1,y1]=mapXY(5.53,50.92); return {cx:(x0+x1)/2,cy:(y0+y1)/2,s:Math.min(1200/(x1-x0),680/(y1-y0))*0.95}; })(),{km:kmOf(barge.position),style:'night',dpr:2,full:true}); vrMapTex.needsUpdate=true; } hudDirty=false; } }
+  if(xr){ pollXR(dt); if(vrTour){ const id=vrTourStop(tNow); if(id&&id!==vrTourLast){ vrTourLast=id; vrGo(id); } } updateVrFade(dt); vrFollow(dt); placePanels(dt); vrPanel.visible=vrCaptions||!!waiting||ended; if((waiting||ended)&&Math.floor(now/120)!==Math.floor((now-dt*1000)/120)) hudDirty=true; if(Math.floor(now/1000)!==Math.floor((now-dt*1000)/1000)||hudDirty){ if(vrPanel.visible) drawVRPanel(tNow); if(vrMapOn&&MB){ drawRoute(vrMapC.getContext('2d'),(()=>{ const [x0,y0]=mapXY(4.25,51.31),[x1,y1]=mapXY(5.53,50.92); return {cx:(x0+x1)/2,cy:(y0+y1)/2,s:Math.min(1200/(x1-x0),680/(y1-y0))*0.95}; })(),{km:kmOf(barge.position),style:'night',dpr:2,full:true}); vrMapTex.needsUpdate=true; } hudDirty=false; } }
   else updateCamera(dt);
   for(const r of turbines) r.rotation.z+=dt*r.userData.speed;
   WATER_MAT.normalMap.offset.x+=dt*0.006; WATER_MAT.normalMap.offset.y+=dt*0.0035;
