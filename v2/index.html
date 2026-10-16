@@ -554,7 +554,7 @@ const D={}; const nodes={};
 const want=['scene/chunks','scene/height','scene/height_core','scene/ground','scene/water','scene/objects','scene/groundmask','map/route','map/route_base'];
 want.forEach(k=>jsonL.load('assets/'+k+'.json',d=>{ D[k.split('/')[1]]=d; if(k==='scene/chunks') loadChunkTextures(d); }));
 const chunkTex={};
-function loadChunkTextures(d){ d.chunks.forEach(c=>{ const t=texL.load('assets/scene/'+(IS_QUEST?'chunks_q/':'chunks/')+c.f); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; chunkTex[c.f]=t; }); }
+function loadChunkTextures(d){ d.chunks.forEach(c=>{ const t=texL.load('assets/scene/'+(params.get('ground')==='photo'?(IS_QUEST?'chunks_q/':'chunks/'):(IS_QUEST?'chunks_gq/':'chunks_g/'))+c.f);   /* Google colour coded ground with the photo drawn through it; ?ground=photo for the plain photo */ t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; chunkTex[c.f]=t; }); }
 const mapImg={night:new Image(),sat:new Image()};
 ['night','sat'].forEach(k=>{ const url='assets/map/'+(k==='night'?'route_base.jpg':'route_sat.jpg'); manager.itemStart(url); mapImg[k].onload=()=>manager.itemEnd(url); mapImg[k].onerror=()=>manager.itemError(url); mapImg[k].src=url; });
 const hub=new THREE.Group(), lock=new THREE.Group(), barge=new THREE.Group();
@@ -635,7 +635,8 @@ const GRASS=(()=>{ const N=512, c=document.createElement('canvas'); c.width=c.he
     for(const ox of [-N,0,N]) for(const oy of [-N,0,N]){ const X=px+ox, Y=py+oy; if(X<-10||X>N+10||Y<-10||Y>N+10) continue; x.beginPath(); x.moveTo(X,Y); x.lineTo(X+Math.cos(a)*L,Y+Math.sin(a)*L); x.stroke(); } }
   const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); return t; })();
 const MACRO=(()=>{ const t=new THREE.CanvasTexture(noiseCanvas(256,(i,j)=>128+(nz2(i,j)-0.5)*150)); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t; })();
-const GROUND_U={tGrass:{value:GRASS},tMacro:{value:MACRO},tMask:{value:null},maskO:{value:new THREE.Vector2(0,0)},maskS:{value:new THREE.Vector2(1,1)}};
+const GMAP=params.get('ground')!=='photo';   // Google colour coded ground (default) or the plain photo
+const GROUND_U={uG:{value:GMAP?1:0},tGrass:{value:GRASS},tMacro:{value:MACRO},tMask:{value:null},maskO:{value:new THREE.Vector2(0,0)},maskS:{value:new THREE.Vector2(1,1)}};
 /* ground colour coding: assets/scene/groundmask.png (scripts/data/groundmask.py) marks grass (R), the paved apron (G)
    and roads (B) read from the 2024 photo and the LiDAR surface; the shader repaints those classes in solid, drawn colours */
 function loadGroundMask(){ if(!D.groundmask) return; const t=new THREE.TextureLoader().load('assets/scene/groundmask.png',tx=>{ try{ buildExtraCover(tx.image); }catch(e){ console.warn(e); } }); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; t.minFilter=THREE.LinearFilter;
@@ -652,11 +653,11 @@ function buildExtraCover(img){ const M=D.groundmask; const c=document.createElem
   for(const [X,Z,hh,h2] of list){ const y=hAt(X,Z)-0.05; const bush=h2>0.96; pos[k*3]=X; pos[k*3+1]=y; pos[k*3+2]=Z;
     size[k*2]=bush?2.2+hh*1.4:1.5+hh*1.1; size[k*2+1]=bush?1.4+h2*0.8:0.45+h2*0.5; vari[k*2]=bush?0:(hh>0.8?3:2); vari[k*2+1]=0.72+hh*0.3; k++; }
   geo.setAttribute('aPos',new THREE.InstancedBufferAttribute(pos,3)); geo.setAttribute('aSize',new THREE.InstancedBufferAttribute(size,2)); geo.setAttribute('aVar',new THREE.InstancedBufferAttribute(vari,2));
-  geo.instanceCount=k; const m=new THREE.Mesh(geo,billboardMat(coverAtlas())); m.frustumCulled=false; scene.add(m); if(TEST) console.warn('extra cover '+k); }
+  geo.instanceCount=k; const m=new THREE.Mesh(geo,billboardMat(coverAtlas(),GMAP?170:1e6)); m.frustumCulled=false; scene.add(m); if(TEST) console.warn('extra cover '+k); }
 function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
   m.onBeforeCompile=sh=>{ Object.assign(sh.uniforms,GROUND_U);
     sh.vertexShader='varying vec3 vGP; varying vec3 vGN;\n'+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\n vGP=(modelMatrix*vec4(transformed,1.0)).xyz; vGN=normalize(mat3(modelMatrix)*objectNormal);');
-    sh.fragmentShader='uniform sampler2D tGrass; uniform sampler2D tMacro; uniform sampler2D tMask; uniform vec2 maskO; uniform vec2 maskS; varying vec3 vGP; varying vec3 vGN;\n'+sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+    sh.fragmentShader='uniform float uG; uniform sampler2D tGrass; uniform sampler2D tMacro; uniform sampler2D tMask; uniform vec2 maskO; uniform vec2 maskS; varying vec3 vGP; varying vec3 vGN;\n'+sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
  {
   vec3 gN=normalize(vGN); float slope=1.0-clamp(gN.y,0.0,1.0);
   float dist=length(vGP-cameraPosition); float near=1.0-smoothstep(160.0,900.0,dist);
@@ -672,14 +673,14 @@ function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
   float det=1.0+((g1*0.55+g2*0.45)*2.0-1.0)*1.7;
   float mac=texture2D(tMacro,vGP.xz*0.009).r*2.0;
   vec2 mu=(vGP.xz-maskO)/maskS; float inM=step(0.0,mu.x)*step(mu.x,1.0)*step(0.0,mu.y)*step(mu.y,1.0)*(1.0-steep);
-  vec3 mk=texture2D(tMask,vec2(mu.x,1.0-mu.y)).rgb*inM;
+  vec3 mk=texture2D(tMask,vec2(mu.x,1.0-mu.y)).rgb*inM*(1.0-uG);   /* on the map coloured ground the classes are already drawn */
   // drawn land cover: grass with patchy light and dark areas, the apron in light concrete, roads in dark asphalt
   float pat=texture2D(tMacro,vGP.xz*0.004+0.37).r;
   vec3 grassCol=mix(vec3(0.085,0.19,0.035),vec3(0.17,0.27,0.06),pat)*(0.82+0.36*g2);
   vec3 pavedCol=vec3(0.36,0.36,0.34); vec3 roadCol=vec3(0.075,0.078,0.08)*(0.85+0.3*g1);
   col=mix(col,grassCol,mk.r*0.94); col=mix(col,pavedCol*(0.9+0.2*mac),mk.g*0.8); col=mix(col,roadCol,mk.b*0.9);
   float amt=max(max(green,steep*0.9),mk.r);
-  col*=mix(1.0,det,(0.75*amt+0.22)*near);
+  col*=mix(1.0,det,((0.75*amt+0.22)*near)*(1.0-0.6*uG));
   col*=mix(1.0,mac,0.22+0.18*amt);
   col=mix(col,col*vec3(1.12,1.06,0.74),amt*near*smoothstep(0.5,0.7,g2)*0.7);
   col=mix(col,col*vec3(0.78,0.92,0.8),amt*near*smoothstep(0.45,0.3,g1)*0.6);
@@ -1145,12 +1146,13 @@ function treeAtlas(){
   for(let k=0;k<9;k++){ const y=S+22+k*21, w=14+k*11; for(let j=0;j<60;j++){ const t=R(); const px=S+128+(R()-0.5)*2*w*t, py=y-18+t*40; x.fillStyle=greens[Math.floor(clamp(0.25+(px-S-128)/(4*w)+R()*0.25,0,0.999)*5)]; x.beginPath(); x.arc(px,py,3+R()*4,0,7); x.fill(); } }
   const t=new THREE.CanvasTexture(c); t.anisotropy=4; return t;
 }
-function billboardMat(tex){
-  return new THREE.ShaderMaterial({ fog:true, uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{tMap:{value:tex},uLight:{value:new THREE.Color('#f4f6ea')}}]),
-    vertexShader:`attribute vec3 aPos; attribute vec2 aSize; attribute vec2 aVar; varying vec2 vUv; varying float vTint;
+function billboardMat(tex,far=1e6){
+  return new THREE.ShaderMaterial({ fog:true, uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{tMap:{value:tex},uLight:{value:new THREE.Color('#f4f6ea')},uFar:{value:far}}]),
+    vertexShader:`uniform float uFar; attribute vec3 aPos; attribute vec2 aSize; attribute vec2 aVar; varying vec2 vUv; varying float vTint;
       #include <fog_pars_vertex>
       void main(){ vec3 toC=cameraPosition-aPos; toC.y=0.0; vec3 right=normalize(vec3(toC.z,0.0,-toC.x)+1e-5);
-        vec3 p=aPos+right*(position.x*aSize.x)+vec3(0.0,position.y*aSize.y,0.0);
+        float fd=1.0-smoothstep(uFar,uFar+220.0,length(cameraPosition-aPos));   /* far ground tufts fade out instead of reading as dark speckle */
+        vec3 p=aPos+right*(position.x*aSize.x*fd)+vec3(0.0,position.y*aSize.y*fd,0.0);
         float v=aVar.x; vec2 cell=vec2(mod(v,2.0),1.0-floor(v/2.0)); vUv=(uv+cell)*0.5; vTint=aVar.y;
         vec4 mvPosition=modelViewMatrix*vec4(p,1.0); gl_Position=projectionMatrix*mvPosition;
         #include <fog_vertex>
@@ -1211,12 +1213,13 @@ function buildGroundCover(){
   geo.setAttribute('aPos',new THREE.InstancedBufferAttribute(pos.subarray(0,k*3),3));
   geo.setAttribute('aSize',new THREE.InstancedBufferAttribute(size.subarray(0,k*2),2));
   geo.setAttribute('aVar',new THREE.InstancedBufferAttribute(vari.subarray(0,k*2),2));
-  geo.instanceCount=k; const m=new THREE.Mesh(geo,billboardMat(coverAtlas())); m.frustumCulled=false; scene.add(m);
+  geo.instanceCount=k; const m=new THREE.Mesh(geo,billboardMat(coverAtlas(),260)); m.frustumCulled=false; scene.add(m);
 }
 function buildRoads(){
   const RD=D.objects.roads||[]; if(!RD.length) return;
-  const asphalt=new THREE.MeshStandardMaterial({color:'#4b4d4f',roughness:0.95,metalness:0}), light=new THREE.MeshStandardMaterial({color:'#8d8a84',roughness:0.95,metalness:0}), line=new THREE.MeshStandardMaterial({color:'#e6e6e0',roughness:0.8,metalness:0});
-  const groups={a:[],l:[],e:[]};
+  // Google Maps road colours: streets near white with a grey edge, motorways yellow, tracks and paths sand
+  const asphalt=new THREE.MeshStandardMaterial({color:'#cfd1d4',roughness:0.9,metalness:0}), light=new THREE.MeshStandardMaterial({color:'#d8d0bd',roughness:0.95,metalness:0}), line=new THREE.MeshStandardMaterial({color:'#9aa0a6',roughness:0.8,metalness:0}), motor=new THREE.MeshStandardMaterial({color:'#f2cf6b',roughness:0.85,metalness:0});
+  const groups={a:[],l:[],e:[],m:[]};
   // every street is resampled every 6 m and laid 0.3 m over the terrain, so it follows the ground instead of cutting through it
   const ribbon=(P,half,off,arr)=>{ const L=[],Rr=[];
     for(let i=0;i<P.length;i++){ const a=P[Math.max(0,i-1)], b=P[Math.min(P.length-1,i+1)]; let dx=b[0]-a[0], dz=b[1]-a[1]; const l=Math.hypot(dx,dz)||1; dx/=l; dz/=l;
@@ -1227,9 +1230,9 @@ function buildRoads(){
     const soft=/track|path|footway|cycleway/.test(r.t);
     // roads that cross the lock or the water (over the gates, on bridges) are cut there: the bridges are built separately
     const runs=[]; let run=[]; for(const q of P){ const over=inLock(q[0],q[1],-30)||hAt(q[0],q[1])<-0.5; if(over){ if(run.length>1) runs.push(run); run=[]; } else run.push(q); } if(run.length>1) runs.push(run);
-    for(const Q of runs){ ribbon(Q,half,0,soft?groups.l:groups.a);
+    for(const Q of runs){ ribbon(Q,half,0,soft?groups.l:/motorway|trunk/.test(r.t)?groups.m:groups.a);
       if(!soft&&r.w>=5){ ribbon(Q,0.08,half-0.25,groups.e); ribbon(Q,0.08,-(half-0.25),groups.e); } } }   // white edge lines on real streets
-  for(const [key,mat,ro] of [['a',asphalt,1],['l',light,1],['e',line,2]]){ if(!groups[key].length) continue; const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(groups[key],3)); g.computeVertexNormals();
+  for(const [key,mat,ro] of [['a',asphalt,1],['l',light,1],['e',line,2],['m',motor,1]]){ if(!groups[key].length) continue; const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(groups[key],3)); g.computeVertexNormals();
     const m=new THREE.Mesh(g,mat); m.receiveShadow=true; m.renderOrder=ro; if(key==='e') m.position.y=0.02; scene.add(m); }
 }
 const turbines=[];
