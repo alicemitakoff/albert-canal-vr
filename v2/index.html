@@ -499,7 +499,7 @@ sun.shadow.mapSize.set(IS_QUEST?(params.has('max')?2048:1024):4096,IS_QUEST?(par
 sun.shadow.bias=-0.00035; sun.shadow.normalBias=0.6;
 scene.add(sun); scene.add(sun.target);
 function placeSun(focus){ // snap to shadow texels to avoid shimmering
-  const step=520/sun.shadow.mapSize.x; const f=focus.clone(); f.x=Math.round(f.x/step)*step; f.z=Math.round(f.z/step)*step; f.y=0;
+  const sc=sun.shadow.camera, step=(sc.right-sc.left)/sun.shadow.mapSize.x; const f=focus.clone(); f.x=Math.round(f.x/step)*step; f.z=Math.round(f.z/step)*step; f.y=0;
   sun.target.position.copy(f); sun.position.copy(f).addScaledVector(SUN_DIR,1200); sun.target.updateMatrixWorld(); }
 
 /* ============================================================
@@ -600,6 +600,9 @@ function hfAt(H,x,z){ const fx=clamp((x-H.x0)/H.dx,0,H.nx-1.001), fz=clamp((z-H.
 let HF,GF,F,lockBox,toLock=new THREE.Matrix4(),toHub=new THREE.Matrix4();
 const lockLocal=(x,z)=>new V3(x,0,z).applyMatrix4(toLock), hubLocal=(x,z)=>new V3(x,0,z).applyMatrix4(toHub);
 function inHub(x,z){ const p=hubLocal(x,z); return p.x>-88&&p.x<88&&p.z>-64&&p.z<1.6; }
+/* the guide walls in the lock approaches, in lock coordinates [x0,z0,x1,z1]: vessels must line up before reaching them */
+const GUIDE=[[-180,15.3,-114,20.7],[-262.1,19.3,-179.9,28.7],[-245,-27.7,-114,-23.3],[-180,-79.7,-132.9,-73.3],[113.4,-33.7,190.1,-26.3],[189.9,-40.7,270.1,-32.3],[113.4,15.3,190.1,24.7],[189.9,23.3,262.1,30.7],[47.9,-79.7,94,-73.3],[48,-108.7,140,-102.3]];
+function inGuide(x,z,m=0){ const p=lockLocal(x,z); for(const g of GUIDE) if(p.x>g[0]-m&&p.x<g[2]+m&&p.z>g[1]-m&&p.z<g[3]+m) return true; return false; }
 function inLock(x,z,m=0){ const p=lockLocal(x,z); return p.x>-114+m&&p.x<113.5-m&&p.z>-111+m&&p.z<20-m; }
 const qzF=X=>F.quayZ0[1]+(X-F.quayZ0[0])*F.quayZ0[2];
 let SMALLW=null, WATER_SILL=null;   // small mapped water bodies on the banks (hydro station intake and outflow)
@@ -1552,6 +1555,7 @@ function applyTime(t){
   if(H2){ if(t<HS.D.on){ put(H2,base.hubRoot,base.h2p,qH2);} else if(t<HS.D.off){ put(H2,spr,onS,qH2);} else { put(H2,base.BAparent,s2,base.qH2_barge);} setLED(H2,LED.full); }
   // passing traffic on the north side of the canal, heading west
   if(traffic){ const km=52.05-(t/T_END)*3.3; const p=bargeAt(km,30); traffic.position.copy(p.p); traffic.rotation.y=p.ry+Math.PI; }
+  if(EXTRA.length) updateExtras(t);
 }
 
 /* ============================================================
@@ -1781,7 +1785,7 @@ function updateLabels(t){
   vis.sort((a,b)=>((!!b.batt)-(!!a.batt))||((!!a.minor)-(!!b.minor))||(a._d-b._d)); const placed=[];
   const ui=uiRects();
   // the batteries themselves are obstacles: no label box may sit on top of them
-  for(const n of [BA,BH1]){ const r=battRect(n,W,H); if(r) placed.push({x0:r.x0-6,x1:r.x1+6,y0:r.y0-6,y1:r.y1+6}); }
+  for(const n of (SC.id==='hub'?[BA,BH1,PB,H2]:[])){ const r=battRect(n,W,H); if(r) placed.push({x0:r.x0-6,x1:r.x1+6,y0:r.y0-6,y1:r.y1+6}); }
   for(const L of vis){ const card=L.el.firstChild; if(!L._w){ L._w=card.offsetWidth; L._h=card.offsetHeight; }
     let lift=0;
     const st0=L.batt?44:L.minor?24:32; let dx=0, ok=false;
@@ -1793,9 +1797,12 @@ function updateLabels(t){
       for(const ddx of (tries<3?[0,-L._w*0.42,L._w*0.42]:[0])){ const {r,hit}=fits(ddx,lift); if(!hit){ placed.push(r); L._r=r; dx=ddx; ok=true; break; } }
       if(!ok){ const {r,hit}=fits(0,lift); if(hit.ui||hit.edge) break; lift+=r.y1-hit.y0+2; } }
     if(!ok&&!L.batt){ L.el.style.display='none'; L._r=null; continue; }
-    if(L._dx!==dx){ L._dx=dx; card.style.transform=dx?`translateX(${dx.toFixed(0)}px)`:''; }
+    // ease the sideways shift and the lift so labels glide into place instead of jumping between frames
+    L._sdx=L._sdx==null?dx:L._sdx+(dx-L._sdx)*0.22; L._sl=L._sl==null?lift:L._sl+(lift-L._sl)*0.22;
+    const sdx=Math.round(L._sdx), sl=Math.round(L._sl);
+    if(L._dx!==sdx){ L._dx=sdx; card.style.transform=sdx?`translateX(${sdx}px)`:''; }
     if(!ok) L._r=null;
-    L.el.querySelector('.stem').style.height=((L.batt?36:L.minor?16:24)+lift)+'px';
+    if(L._slp!==sl){ L._slp=sl; L.el.querySelector('.stem').style.height=((L.batt?36:L.minor?16:24)+sl)+'px'; }
     L.el.style.transform=`translate(${L._x.toFixed(1)}px,${L._y.toFixed(1)}px) translate(-50%,-100%)`; }
   // never let a label sit under the action prompt
   const ab=$('act'); if(!ab.hidden){ const a=ab.getBoundingClientRect(); for(const L of vis){ const r=L._r; if(r&&r.x0<a.right&&r.x1>a.left&&r.y0<a.bottom&&r.y1>a.top) L.el.style.display='none'; } }
@@ -2107,9 +2114,10 @@ function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
     try{ renderer.xr.setFramebufferScaleFactor&&renderer.xr.setFramebufferScaleFactor(params.has('soft')?1.0:params.has('max')?2.0:1.5); }catch(e){}
     try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(params.has('soft')?1:params.has('max')?0:0.35); }catch(e){}
     sun.shadow.mapSize.set(1024,1024); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
+    { const c=sun.shadow.camera; c.left=-120; c.right=120; c.top=120; c.bottom=-120; c.updateProjectionMatrix(); }   // a tighter shadow box round the viewer keeps shadows crisp at 1024 px
     try{ await renderer.xr.setSession(s); }catch(e){ window.__diag('Starting VR failed: '+e.name+' '+e.message); try{ s.end(); }catch(_){} return; }
     vrBtn.textContent='Exit VR'; vrTour=true; vrTourLast=null; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; setView(1); panelSnap=true; hudDirty=true; $('vrBig').hidden=true;
-    s.addEventListener('end',()=>{ vrBtn.textContent='Enter VR'; if(IS_QUEST&&!FLAT) $('vrBig').hidden=false; vrPanel.visible=false; vrMap.visible=false; scene.add(rig); rig.position.set(0,0,0); rig.rotation.set(0,0,0); camera.position.set(0,0,0); setView(cam.v,true); }); };
+    s.addEventListener('end',()=>{ { const c=sun.shadow.camera; c.left=-260; c.right=260; c.top=260; c.bottom=-260; c.updateProjectionMatrix(); } vrBtn.textContent='Enter VR'; if(IS_QUEST&&!FLAT) $('vrBig').hidden=false; vrPanel.visible=false; vrMap.visible=false; scene.add(rig); rig.position.set(0,0,0); rig.rotation.set(0,0,0); camera.position.set(0,0,0); setView(cam.v,true); }); };
 })();
 
 /* ============================================================
@@ -2302,7 +2310,7 @@ function setupScenario2(){
     [93,hubL(62,36),rH],[96,hubDockW,rH],[S2.T_END,hubDockW,rH]]);
   const off=berth.p.clone().addScaledVector(NN,18).addScaledVector(QD,10);
   const toLockA=hubPose(-52,26), lk=lockAt(-300);
-  BK2=unwrap([[0,berth.p,berth.r],[121,berth.p,berth.r],[125,off,berth.r],[131,toLockA.p,toLockA.ry],[138,lk.p,lk.ry],[S2.T_END,lk.p,lk.ry]]);
+  BK2=unwrap([[0,berth.p,berth.r],[121,berth.p,berth.r],[125,off,berth.r],[131,lockAtZ(-430,22),lk.ry],[135,lockAtZ(-405,6),lk.ry],[S2.T_END,lockAtZ(-325,0),lk.ry]]);
   // hub crane: the three empty packs from the tender (moored bow east) to the charging racks
   tenderPose(hubDockW.x,hubDockW.z,rH); tender.updateMatrixWorld(true);
   const hr=base.hubRoot; hr.updateMatrixWorld(true); HK2=[]; const push=(t,p,y)=>HK2.push({t,x:p.x,z:p.z,y});
@@ -2378,7 +2386,7 @@ function applyScenario2(t){
   nodes['h:Crane_structure'].position.x=base.gant.x+sx; ['h:Crane_sign_1','h:Crane_sign_-1'].forEach(n=>{ if(nodes[n]) nodes[n].position.x=base[n].x+sx; });
   nodes['h:Crane_trolley'].position.set(sx,base.trol.y,sz); nodes['h:Crane_spreader'].position.set(sx,sy,sz);
   // the lock stays as the viewer last saw it: lower gate open, chamber low
-  if(LOCKWAIT){ LOCKWAIT.g.visible=!!S2.lock; LOCKWAIT.lines.visible=t>=11&&t<74.5; }
+  if(LOCKWAIT){ LOCKWAIT.g.visible=!!S2.lock; LOCKWAIT.lines.visible=t>=11&&t<74.2; }
   if(S2.lock){ const t1=t-S2.lockOff; setMitre('down',hermite(GD,t1,k=>k.v)/23); setMitre('up',hermite(GU,t1,k=>k.v)/17); const full=hermite(WC,t1,k=>k.v)>9.9; if(WATER_SILL) for(const m of WATER_SILL) m.visible=full; nodes['l:Water_Chamber_PushTow'].position.y=base.wc+hermite(WC,t1,k=>k.v);
     if(base.boll){ base.boll.position.y=base.bollY; } }
   else { setMitre('down',1); setMitre('up',0); nodes['l:Water_Chamber_PushTow'].position.y=base.wc; if(WATER_SILL) for(const m of WATER_SILL) m.visible=false; }
@@ -2511,7 +2519,7 @@ function setupScenario3(){
   // pick the side of the lower approach with open water for both hulls
   const wet=(p,len,half)=>{ let bad=0; for(let a=0;a<=1;a+=0.1) for(const s of [-half,0,half]){ const q=p.clone().addScaledVector(fwd,a*len).addScaledVector(side,s); if(surfaceH(q.x,q.z)>-0.5) bad++; } return bad; };
   let best=null;
-  const XW=-430; for(const zW of [-44,-36,-28,-20]) for(const sd of [-1]){ const st=lockAtZ(XW,zW); const tz=zW+sd*sep; const tSt=lockAtZ(XW+31-28,tz);
+  const XW=-430; for(const zW of [-22,-20]) for(const sd of [1]){ /* tender on the lane side, the waiting berth (dolphins) on the bank side */ const st=lockAtZ(XW,zW); const tz=zW+sd*sep; const tSt=lockAtZ(XW+31-28,tz);
     const score=wet(st,135,5.7)+wet(tSt,56,4.3)*2+Math.abs(zW)*0.01; if(!best||score<best.score) best={score,zW,sd}; }
   if(TEST) window.__lockSide=best;
   const zW=best.zW, sd=best.sd;
@@ -2524,10 +2532,12 @@ function setupScenario3(){
   const hubDockW=hubL(3,5.6), out=alongside.clone().addScaledVector(side,sd*16);
   const unwrap=a=>{ let prev=null; return a.map(([t,p,r])=>{ if(prev!==null){ while(r-prev>Math.PI) r-=2*Math.PI; while(r-prev<-Math.PI) r+=2*Math.PI; } prev=r; return {t,p,r}; }); };
   const T=S3L.T_END;
-  S3L.TK=unwrap([[0,hubDockW,rH],[12,hubDockW,rH],[15,hubL(-24,24),rH],[19,lockAtZ(-545,zW*0.2).setY(0),ryL],[23,lockAtZ(-530,zW+sd*sep*1.7).setY(0),ryL],[27,out,ryL],[30,alongside,ryL],[72,alongside,ryL],
-    [75,alongside.clone().addScaledVector(side,sd*24),ryL],[81,alongside.clone().addScaledVector(side,sd*30).addScaledVector(fwd,-12),ryL+Math.PI],[90,hubL(70,28),rH+Math.PI],[95,hubDockW,rH+Math.PI],[T,hubDockW,rH+Math.PI]]);
+  S3L.TK=unwrap([[0,hubDockW,rH],[12,hubDockW,rH],[15,hubL(-24,24),rH],[19,lockAtZ(-560,zW*0.2).setY(0),ryL],[25,alongside.clone().addScaledVector(fwd,-55),ryL],[30,alongside,ryL],[72,alongside,ryL],
+    [76,alongside.clone().addScaledVector(fwd,-45).addScaledVector(side,sd*1.5),ryL],[81,alongside.clone().addScaledVector(fwd,-80).addScaledVector(side,sd*10),ryL+Math.PI],[90,hubL(70,28),rH+Math.PI],[95,hubDockW,rH+Math.PI],[T,hubDockW,rH+Math.PI]]);
   const inCh=lockAt(-85), up=lockAt(-85,KEEL+10), exit=lockAt(330,KEEL+10);
-  S3L.BK=unwrap([[0,lockAtZ(-1000,zW*0.6),ryL],[6,lockAtZ(-560,zW),ryL],[11,wait,ryL],[74,wait,ryL],[79,lockAtZ(-305,zW),ryL],[90,inCh.p,inCh.ry],[95,inCh.p,inCh.ry],[115,up.p,up.ry],[119,up.p,up.ry],[T,exit.p,exit.ry]]);
+  const hd=(a,b)=>{ const A=lockLocal(a.x,a.z), B=lockLocal(b.x,b.z); return ryL-Math.atan2(B.z-A.z,B.x-A.x); };   // heading along the path, so the hull turns instead of sliding sideways
+  const k1=lockAtZ(-398,zW), k2=lockAtZ(-345,zW*0.5), k3=lockAtZ(-262,-1.5);
+  S3L.BK=unwrap([[0,lockAtZ(-1000,zW*0.6),ryL],[6,lockAtZ(-560,zW),ryL],[11,wait,ryL],[74,wait,ryL],[77,k1,ryL],[81,k2,hd(k1,k3)],[85,k3,hd(k2,inCh.p)*0.5+ryL*0.5],[90,inCh.p,inCh.ry],[95,inCh.p,inCh.ry],[115,up.p,up.ry],[119,up.p,up.ry],[T,exit.p,exit.ry]]);
   S3L.HK=[{t:0,x:0,z:6.4,y:6.8},{t:T,x:0,z:6.4,y:6.8}];
   buildWaitingBerth(wait,ryL,fwd,side.clone().multiplyScalar(-sd));
   barge.position.set(0,0,0); barge.rotation.set(0,0,0);
@@ -2822,7 +2832,7 @@ function buildTerminalPavement(){
   x0=Math.max(500,x0-18); x1=Math.min(905,x1+18); dM=Math.min(200,dM+14); PAVE={x0,x1,dM,qz};
   const nx=Math.ceil((x1-x0)/4), nd=Math.ceil(dM/4); const pos=[], uv=[], idx=[];
   for(let j=0;j<=nd;j++) for(let i=0;i<=nx;i++){ const x=x0+(x1-x0)*i/nx, d=0.5+(dM-0.5)*j/nd, z=qz(x)+d; pos.push(x,hAt(x,z)+0.07,z); uv.push(i/nx,j/nd); }
-  for(let j=0;j<nd;j++) for(let i=0;i<nx;i++){ const a=j*(nx+1)+i, b=a+1, c=a+nx+1, e=c+1; idx.push(a,c,b,b,c,e); }
+  for(let j=0;j<nd;j++) for(let i=0;i<nx;i++){ const a=j*(nx+1)+i, b=a+1, c=a+nx+1, e=c+1; const cx=(pos[a*3]+pos[e*3])/2, cz=(pos[a*3+2]+pos[e*3+2])/2; if(inHub(cx,cz)) continue; idx.push(a,c,b,b,c,e); }   // the hub has its own paved quay: no second surface there to flicker
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.setIndex(idx); g.computeVertexNormals();
   const m=triplanar(new THREE.MeshStandardMaterial({color:'#5f625f',roughness:0.93,metalness:0,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),TEX.concrete,0.07,0.7);
   const mesh=new THREE.Mesh(g,m); mesh.receiveShadow=true; mesh.name='terminalPavement'; scene.add(mesh);
@@ -2949,16 +2959,24 @@ function setupExtras(){
   const at=(x,off)=>{ const m=new V3(x,0,qz(x)-off); return m.addScaledVector(QD,-67.5).setY(KEEL); };
   const dock=hubPose(DOCK_LOCAL.x,DOCK_LOCAL.z);
   // scenario 2: a barge swapping at the hub (it leaves at 58 s), a barge at the west end of the quay, one waiting midstream for a berth
-  EXTRA.push({scn:'berth',o:mk(),label:'Barge at the hub',K:unwrap([[0,dock.p,dock.ry],[58,dock.p,dock.ry],[62,hubPose(-30,24).p,dock.ry],[72,lockAt(-330).p,lockAt(-330).ry],[86,lockAt(-160).p,lockAt(-160).ry],[90,lockAt(-160).p,lockAt(-160).ry]]),hide:t=>t>=88});
-  EXTRA.push({scn:'berth',o:mk(),label:'Waiting for the cranes',K:unwrap([[0,at(560,7.4),ryE],[200,at(560,7.4),ryE]])});
+  EXTRA.push({scn:'berth',o:mk(),label:'Barge at the hub',K:unwrap([[0,dock.p,dock.ry],[58,dock.p,dock.ry],[62,hubPose(-30,24).p,dock.ry],[67,lockAtZ(-425,8),lockAt(0).ry],[73,lockAt(-330).p,lockAt(-330).ry],[86,lockAt(-160).p,lockAt(-160).ry],[90,lockAt(-160).p,lockAt(-160).ry]]),hide:t=>t>=88});
+  EXTRA.push({scn:'berth',o:mk(),label:'Waiting for the cranes',K:unwrap([[0,at(585,15),ryE],[200,at(585,15),ryE]])});
   const w=at(600,150); EXTRA.push({scn:'berth',o:mk(),label:'Waiting for a berth',K:unwrap([[0,w,ryE],[200,w,ryE]])});
   // scenario 3: a barge ahead in the queue, and one coming down out of the lock
   const ryL=lock.rotation.y-Math.PI/2, ryD=ryL+Math.PI;
   EXTRA.push({scn:'lock',o:mk(),label:'Also waiting',K:unwrap([[0,lockAtZ(-790,-46),ryL],[200,lockAtZ(-790,-46),ryL]])});
-  EXTRA.push({scn:'lock',o:mk(),label:'Leaving the lock',K:unwrap([[0,lockAtZ(60,0),ryD],[10,lockAtZ(60,0),ryD],[30,lockAtZ(-400,24),ryD],[55,lockAtZ(-1150,30),ryD],[200,lockAtZ(-1150,30),ryD]]),hide:t=>t>=56});
+  EXTRA.push({scn:'lock',o:mk(),label:'Leaving the lock',K:unwrap([[0,lockAtZ(60,0),ryD],[20,lockAtZ(60,0),ryD],[28,lockAtZ(-120,0),ryD],[33,lockAtZ(-240,6),ryD],[38,lockAtZ(-360,7),ryD],[46,lockAtZ(-560,26),ryD],[62,lockAtZ(-1150,30),ryD],[200,lockAtZ(-1150,30),ryD]]),hide:t=>t>=53});
+  // barges coming the other way, down to Antwerp on the far side of the canal, keeping to their own side
+  const down=(km0,lat,span)=>t=>{ const p=bargeAt(km0-(t/T_END)*span,lat); return {p:p.p,ry:p.ry+Math.PI}; };
+  const gone=(km0,span)=>t=>km0-(t/T_END)*span<48.75;   // out of the surveyed reach: hide rather than run aground at the edge
+  EXTRA.push({scn:['hub','berth'],o:mk(),label:'Coming down',f:down(51.45,30,3.3),hide:gone(51.45,3.3)});
+  EXTRA.push({scn:['hub','berth'],o:mk(),label:'Coming down',f:down(50.8,31,3.3),hide:gone(50.8,3.3)});
+  EXTRA.push({scn:'lock',o:mk(),label:'Coming down',f:down(51.75,-30,1.8),hide:gone(51.75,1.8)});
+  EXTRA.push({scn:'lock',o:mk(),label:'Coming down',f:down(51.2,-31,1.8),hide:gone(51.2,1.8)});
   for(const E of EXTRA){ const o=E.o; addLabel({id:'ex'+EXTRA.indexOf(E),scn:E.scn,minor:true,n:E.label,s:'',col:'#c5d3e4',from:0,to:200,when:t=>o.visible,at:()=>o.localToWorld(new V3(0,12,-60))}); }
 }
-function updateExtras(t){ for(const E of EXTRA){ const on=E.scn===SC.id&&!(E.hide&&E.hide(t)); E.o.visible=on; if(!on) continue;
+function updateExtras(t){ for(const E of EXTRA){ const on=(Array.isArray(E.scn)?E.scn.includes(SC.id):E.scn===SC.id)&&!(E.hide&&E.hide(t)); E.o.visible=on; if(!on) continue;
+  if(E.f){ const p=E.f(t); E.o.position.copy(p.p); E.o.rotation.set(0,p.ry,0); continue; }
   E.o.position.set(hermite(E.K,t,k=>k.p.x),hermite(E.K,t,k=>k.p.y),hermite(E.K,t,k=>k.p.z)); E.o.rotation.set(0,hermite(E.K,t,k=>k.r),0); } }
 /* ============================================================
    15. Build and loop
@@ -3001,7 +3019,9 @@ function build(){
     mergeStatic(scene,/^merged$/,o=>models.has(o)||o.name==='BoxPivot'||rot.has(o)||(o.material&&(o.material.isShaderMaterial||o.material.isSpriteMaterial||(o.material.map&&o.material.isMeshLambertMaterial)))); }
   tm('merged'); setupExtras(); resetUnloading(); for(const [k,p] of HUB_EXTRA){ mergeStatic(k,/LED/); tintPack(k,p); setLED(k,pctColor(p)); }
   buildComposer(); resizeComposer(innerWidth,innerHeight);
-  if(TEST) window.__T={get scene(){ return scene; },V3,stats:()=>{ renderer.info.autoReset=false; renderer.info.reset(); renderer.render(scene,camera); const r=renderer.info.render, m=renderer.info.memory; renderer.info.autoReset=true; return {calls:r.calls,tris:r.triangles,geo:m.geometries,tex:m.textures}; },xr:()=>{ const xc=renderer.xr.getCamera(camera); const h=new V3().setFromMatrixPosition(xc.matrixWorld); return {presenting:renderer.xr.isPresenting,view:VIEWS[cam.v].id,eye:h.toArray().map(x=>+x.toFixed(2)),ground:+surfaceH(h.x,h.z).toFixed(2),rigParent:rig.parent&&(rig.parent===scene?'scene':rig.parent===barge?'barge':rig.parent===tender?'tender':rig.parent.name)}; },dolph:()=>{ if(!LOCKWAIT) return 'none'; const hits=[]; const ships=[['barge',barge,5.73,-135,0],['tender',tender,4.3,-28,28],...EXTRA.map((E,i)=>['extra'+i,E.o,5.73,-135,0])];
+  if(TEST) window.__T={get scene(){ return scene; },V3,pose:t=>{ SC.apply(t); scene.updateMatrixWorld(true); const f=o=>{ const p=lockLocal(o.position.x,o.position.z); return [+p.x.toFixed(1),+p.z.toFixed(1),+(o.rotation.y).toFixed(3)]; }; return {barge:f(barge),tender:f(tender),ex:EXTRA.filter(E=>E.o.visible).map(E=>[E.label,f(E.o)])}; },ll:(x,z)=>{ const p=lockLocal(x,z); return [+p.x.toFixed(1),+p.z.toFixed(1)]; },hp:(x,z)=>hubPose(x,z).p.toArray().map(v=>+v.toFixed(1)),lockSide:()=>window.__lockSide,bank:(step=0.5)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i,E.o,5.73,-135,0]); }); return L; };
+    for(let t=0;t<T_END;t+=step){ SC.apply(t); scene.updateMatrixWorld(true); for(const [n,o,hw,z0,z1] of ships()){ let worst=null; const wl=o.position.y+(o===tender?2.0:-KEEL); for(let z=z0+1;z<=z1-1;z+=3) for(const x of [-hw-1,hw+1]){ const w=new V3(x,0,z).applyMatrix4(o.matrixWorld); const h=inGuide(w.x,w.z)?99:surfaceH(w.x,w.z)-wl; if(h>-0.6&&(!worst||h>worst.h)) worst={h:+h.toFixed(1),x:+w.x.toFixed(0),z:+w.z.toFixed(0),lz:z,lx:x}; } if(worst){ const last=out[out.length-1]; if(last&&last.n===n&&t-last.t1<=step+0.01) last.t1=t; else out.push({n,t0:t,t1:t,w:worst}); } } }
+    SC.apply(tNow); return out; },stats:()=>{ renderer.info.autoReset=false; renderer.info.reset(); renderer.render(scene,camera); const r=renderer.info.render, m=renderer.info.memory; renderer.info.autoReset=true; return {calls:r.calls,tris:r.triangles,geo:m.geometries,tex:m.textures}; },xr:()=>{ const xc=renderer.xr.getCamera(camera); const h=new V3().setFromMatrixPosition(xc.matrixWorld); return {presenting:renderer.xr.isPresenting,view:VIEWS[cam.v].id,eye:h.toArray().map(x=>+x.toFixed(2)),ground:+surfaceH(h.x,h.z).toFixed(2),rigParent:rig.parent&&(rig.parent===scene?'scene':rig.parent===barge?'barge':rig.parent===tender?'tender':rig.parent.name)}; },dolph:()=>{ if(!LOCKWAIT) return 'none'; const hits=[]; const ships=[['barge',barge,5.73,-135,0],['tender',tender,4.3,-28,28],...EXTRA.map((E,i)=>['extra'+i,E.o,5.73,-135,0])];
     for(let t=0;t<T_END;t+=0.5){ SC.apply(t); scene.updateMatrixWorld(true); for(const [n,o,hw,z0,z1] of ships){ if(!o.visible) continue; const inv=o.matrixWorld.clone().invert(); for(const d of LOCKWAIT.tops){ const l=d.clone().applyMatrix4(inv); if(Math.abs(l.x)<hw+2.5&&l.z>z0-2.5&&l.z<z1+2.5) hits.push(n+'@'+t); } } } SC.apply(tNow); return hits.slice(0,20); },seek:t=>{ seek(t); setPaused(true); },view:i=>setView(i),scn:id=>setScenario(id),cam,get t(){ return tNow; },unload:()=>UNLOAD.cranes.map(c=>({n:c.jobs.length,p:c.g.position.toArray().map(v=>+v.toFixed(1))})),collide:(margin=3)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); if(moored&&moored.visible) L.push(['moored',moored,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i+':'+E.label,E.o,5.73,-135,0]); }); return L; };
   const corners=(o,hw,z0,z1)=>{ o.updateMatrixWorld(true); return [[-hw,z0],[hw,z0],[hw,z1],[-hw,z1]].map(([x,z])=>new V3(x,0,z).applyMatrix4(o.matrixWorld)); };
   const sep=(A,B)=>{ for(const P of [A,B]) for(let i=0;i<4;i++){ const a=P[i],b=P[(i+1)%4]; const nx=-(b.z-a.z), nz=b.x-a.x; const l=Math.hypot(nx,nz); const pa=A.map(p=>(p.x*nx+p.z*nz)/l), pb=B.map(p=>(p.x*nx+p.z*nz)/l); if(Math.max(...pa)+margin<Math.min(...pb)||Math.max(...pb)+margin<Math.min(...pa)) return true; } return false; };
@@ -3051,7 +3071,8 @@ function frame(now){
   else updateCamera(dt);
   for(const r of turbines) r.rotation.z+=dt*r.userData.speed;
   WATER_MAT.normalMap.offset.x+=dt*0.006; WATER_MAT.normalMap.offset.y+=dt*0.0035;
-  placeSun(VIEWS[cam.v].type==='orbit'?cam.tgt:barge.position);
+  if(xr){ if(!IS_QUEST||renderer.shadowMap.needsUpdate){ const xc=renderer.xr.getCamera(camera); const h=new V3().setFromMatrixPosition(xc.matrixWorld); const f=new V3(0,0,-1).applyQuaternion(xc.getWorldQuaternion(new THREE.Quaternion())); f.y=0; if(f.lengthSq()>1e-4) f.normalize(); placeSun(h.addScaledVector(f,90)); } }   // shadows where the viewer looks; on the Quest the light only moves with the shadow map so nothing jumps
+  else placeSun(VIEWS[cam.v].type==='orbit'?cam.tgt:barge.position);
   updateTreesV2(now);
   if(!xr){ updateLabels(tNow); updateHUD(tNow); }
   if(Math.floor(now/100)!==Math.floor((now-dt*1000)/100)) drawMaps(kmOf(barge.position));
