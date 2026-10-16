@@ -194,6 +194,12 @@ body.quest #act{display:none}
 .scn b{display:block;font:700 15px/1.2 var(--sans)}
 .scn .sub{display:block;font:400 13px/1.3 var(--sans);color:var(--mist)}
 .scn button[aria-pressed="true"]{background:var(--brass-soft);box-shadow:inset 0 0 0 1px var(--hair)}
+.ssn{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 10px;padding:8px 8px 4px;border-top:1px solid var(--hair-cool);margin-top:4px}.ssn[hidden]{display:none}
+.ssn .sh2{font:700 13px var(--sans);color:var(--mist)} .ssn .seg2{display:flex;gap:4px;justify-self:end}
+.scn .ssn button{display:inline-block;padding:5px 10px;border-radius:8px;font:700 13px var(--sans);color:var(--ivory);background:rgba(255,255,255,.05)}
+.scn .ssn button[aria-pressed="true"]{background:#f0a43a;color:#1b1206;box-shadow:none}
+@media (max-height:760px){ .ssn .snote{display:none} }
+.ssn .snote{grid-column:1/-1;font:400 12px/1.35 var(--sans);color:var(--mist)} .ssn .snote:empty{display:none}
 .scn button[aria-pressed="true"] .no{background:var(--brass);color:var(--navy);border-color:var(--brass)}
 .scn button:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
 @media (max-height:860px){ .scn .sub{display:none} .scn button{padding:6px 10px} }
@@ -325,6 +331,8 @@ body.hidden-ui .restore{display:flex}
       <button data-s="hub" aria-pressed="true"><span class="no">1</span><span><b>Swap at the hub</b><span class="sub">The barge calls at the charging station</span></span></button>
       <button data-s="berth" aria-pressed="false"><span class="no">2</span><span><b>Tender at the berth</b><span class="sub">Swap during cargo handling</span></span></button>
       <button data-s="lock" aria-pressed="false"><span class="no">3</span><span><b>Tender at the lock</b><span class="sub">Swap while waiting for the lock</span></span></button>
+      <div class="ssn" id="ssn" hidden><span class="sh2">Season</span><span class="seg2"><button data-season="normal" aria-pressed="true">Normal flow</button><button data-season="dry" aria-pressed="false">Dry summer</button></span>
+        <span class="snote" id="snote"></span></div>
     </nav>
     <section class="minimap panel" id="mini" aria-label="Route map">
       <div class="hd"><span class="t" id="miniHd">Antwerp to Genk</span><span><button class="linkbtn" id="miniOpen">Open map</button><button class="linkbtn" id="miniFold" aria-label="Fold map">Fold</button></span></div>
@@ -662,7 +670,7 @@ const GRASS=(()=>{ const N=512, c=document.createElement('canvas'); c.width=c.he
   const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); return t; })();
 const MACRO=(()=>{ const t=new THREE.CanvasTexture(noiseCanvas(256,(i,j)=>128+(nz2(i,j)-0.5)*150)); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t; })();
 const GMAP=params.get('ground')!=='photo';   // Google colour coded ground (default) or the plain photo
-const GROUND_U={uG:{value:GMAP?1:0},tGrass:{value:GRASS},tMacro:{value:MACRO},tMask:{value:null},maskO:{value:new THREE.Vector2(0,0)},maskS:{value:new THREE.Vector2(1,1)}};
+const GROUND_U={uDry:{value:0},uG:{value:GMAP?1:0},tGrass:{value:GRASS},tMacro:{value:MACRO},tMask:{value:null},maskO:{value:new THREE.Vector2(0,0)},maskS:{value:new THREE.Vector2(1,1)}};
 /* ground colour coding: assets/scene/groundmask.png (scripts/data/groundmask.py) marks grass (R), the paved apron (G)
    and roads (B) read from the 2024 photo and the LiDAR surface; the shader repaints those classes in solid, drawn colours */
 function loadGroundMask(){ if(!D.groundmask) return; const t=new THREE.TextureLoader().load('assets/scene/groundmask.png',tx=>{ try{ buildExtraCover(tx.image); }catch(e){ console.warn(e); } }); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; t.minFilter=THREE.LinearFilter;
@@ -679,11 +687,11 @@ function buildExtraCover(img){ const M=D.groundmask; const c=document.createElem
   for(const [X,Z,hh,h2] of list){ const y=hAt(X,Z)-0.05; const bush=h2>0.96; pos[k*3]=X; pos[k*3+1]=y; pos[k*3+2]=Z;
     size[k*2]=bush?2.2+hh*1.4:1.5+hh*1.1; size[k*2+1]=bush?1.4+h2*0.8:0.45+h2*0.5; vari[k*2]=bush?0:(hh>0.8?3:2); vari[k*2+1]=0.72+hh*0.3; k++; }
   geo.setAttribute('aPos',new THREE.InstancedBufferAttribute(pos,3)); geo.setAttribute('aSize',new THREE.InstancedBufferAttribute(size,2)); geo.setAttribute('aVar',new THREE.InstancedBufferAttribute(vari,2));
-  geo.instanceCount=k; const m=new THREE.Mesh(geo,billboardMat(coverAtlas(),GMAP?170:1e6)); m.frustumCulled=false; scene.add(m); if(TEST) console.warn('extra cover '+k); }
+  geo.instanceCount=k; const m=new THREE.Mesh(geo,billboardMat(coverAtlas(),GMAP?170:1e6)); COVER_MATS.push(m.material); m.frustumCulled=false; scene.add(m); if(TEST) console.warn('extra cover '+k); }
 function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
   m.onBeforeCompile=sh=>{ Object.assign(sh.uniforms,GROUND_U);
     sh.vertexShader='varying vec3 vGP; varying vec3 vGN;\n'+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\n vGP=(modelMatrix*vec4(transformed,1.0)).xyz; vGN=normalize(mat3(modelMatrix)*objectNormal);');
-    sh.fragmentShader='uniform float uG; uniform sampler2D tGrass; uniform sampler2D tMacro; uniform sampler2D tMask; uniform vec2 maskO; uniform vec2 maskS; varying vec3 vGP; varying vec3 vGN;\n'+sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+    sh.fragmentShader='uniform float uDry; uniform float uG; uniform sampler2D tGrass; uniform sampler2D tMacro; uniform sampler2D tMask; uniform vec2 maskO; uniform vec2 maskS; varying vec3 vGP; varying vec3 vGN;\n'+sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
  {
   vec3 gN=normalize(vGN); float slope=1.0-clamp(gN.y,0.0,1.0);
   float dist=length(vGP-cameraPosition); float near=1.0-smoothstep(160.0,900.0,dist);
@@ -710,6 +718,7 @@ function groundMaterial(map){ const m=new THREE.MeshLambertMaterial({map});
   col*=mix(1.0,mac,0.22+0.18*amt);
   col=mix(col,col*vec3(1.12,1.06,0.74),amt*near*smoothstep(0.5,0.7,g2)*0.7);
   col=mix(col,col*vec3(0.78,0.92,0.8),amt*near*smoothstep(0.45,0.3,g1)*0.6);
+  { float gs=col.g/(col.r+col.g+col.b+1e-4); float gw=smoothstep(0.34,0.40,gs)*(1.0-steep*0.5); float lu=dot(col,vec3(0.3,0.59,0.11)); col=mix(col,vec3(lu)*vec3(1.22,1.05,0.62),uDry*0.62*gw); }   /* dry summer: grass and fields turn straw */
   diffuseColor.rgb=col;
  }`);
   };
@@ -1172,6 +1181,7 @@ function treeAtlas(){
   for(let k=0;k<9;k++){ const y=S+22+k*21, w=14+k*11; for(let j=0;j<60;j++){ const t=R(); const px=S+128+(R()-0.5)*2*w*t, py=y-18+t*40; x.fillStyle=greens[Math.floor(clamp(0.25+(px-S-128)/(4*w)+R()*0.25,0,0.999)*5)]; x.beginPath(); x.arc(px,py,3+R()*4,0,7); x.fill(); } }
   const t=new THREE.CanvasTexture(c); t.anisotropy=4; return t;
 }
+const COVER_MATS=[];
 function billboardMat(tex,far=1e6){
   return new THREE.ShaderMaterial({ fog:true, uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{tMap:{value:tex},uLight:{value:new THREE.Color('#f4f6ea')},uFar:{value:far}}]),
     vertexShader:`uniform float uFar; attribute vec3 aPos; attribute vec2 aSize; attribute vec2 aVar; varying vec2 vUv; varying float vTint;
@@ -1239,7 +1249,7 @@ function buildGroundCover(){
   geo.setAttribute('aPos',new THREE.InstancedBufferAttribute(pos.subarray(0,k*3),3));
   geo.setAttribute('aSize',new THREE.InstancedBufferAttribute(size.subarray(0,k*2),2));
   geo.setAttribute('aVar',new THREE.InstancedBufferAttribute(vari.subarray(0,k*2),2));
-  geo.instanceCount=k; const m=new THREE.Mesh(geo,billboardMat(coverAtlas(),260)); m.frustumCulled=false; scene.add(m);
+  geo.instanceCount=k; const m=new THREE.Mesh(geo,billboardMat(coverAtlas(),260)); COVER_MATS.push(m.material); m.frustumCulled=false; scene.add(m);
 }
 function buildRoads(){
   const RD=D.objects.roads||[]; if(!RD.length) return;
@@ -2547,6 +2557,19 @@ const JOURNEY={
 };
 const SEGC={sail:'#4f8fd1',lock:'#a98bff',moor:'#9fb0c4',cargo:'#e8a33d',swap:'#22f08f',swapc:'#22f08f'};
 const SEGN={sail:'Sailing',lock:'Locks',moor:'Mooring',cargo:'Cargo handling',swap:'Battery swap',swapc:'Battery swap'};
+/* seasons (laptop link): normal flow or a dry summer. In dry summers the Meuse runs low (about 35 to 40 m3/s), Flanders saves canal water,
+   ships are locked through in groups and waits grow to 2 to 4 hours (Wijnegem and Olen, August 2022; code orange again in July 2026).
+   The pumps at the locks push water back up. Here a dry summer adds 90 min to every lock passed outside the shown section,
+   dries the grass and adds barges queuing for the group lockage. */
+let SEASON='normal'; const LAPTOP=!IS_QUEST&&!FLAT;
+const JBASE={}; function seasonJourney(){ for(const id in JOURNEY){ if(!JBASE[id]) JBASE[id]=JSON.parse(JSON.stringify({segs:JOURNEY[id].segs,map:JOURNEY[id].map}));
+    const B=JBASE[id], s0=B.map[0][1], s1=B.map[B.map.length-1][1]; let acc=0, pre=0; const segs=B.segs.map(([k,m])=>{ const a=acc; acc+=m; if(SEASON==='dry'&&k==='lock'&&(a+m<=s0||a>=s1)){ if(a+m<=s0) pre+=90; return [k,m+90]; } return [k,m]; });
+    JOURNEY[id].segs=segs; JOURNEY[id].map=B.map.map(([t,v])=>[t,v+pre]); JOURNEY[id].tot=0; } }
+function setSeason(se){ SEASON=se; seasonJourney(); _clkK=''; buildClock();
+  GROUND_U.uDry.value=se==='dry'?1:0; for(const m of COVER_MATS) if(m.uniforms&&m.uniforms.uLight) m.uniforms.uLight.value.set(se==='dry'?'#f6e3a8':'#f4f6ea');
+  document.querySelectorAll('#ssn button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.season===se));
+  $('snote').textContent=se==='dry'?'Low Meuse: group lockage, waits of 2 to 4 h':'';
+  for(const E of EXTRA) if(E.dry) E.season=se==='dry'; fillWhy(SC.id); hudDirty=true; }
 function journeyMin(t){ const m=JOURNEY[SC.id].map; if(t<=m[0][0]) return m[0][1]; for(let i=1;i<m.length;i++) if(t<=m[i][0]){ const a=m[i-1],b=m[i]; return a[1]+(b[1]-a[1])*(t-a[0])/(b[0]-a[0]); } return m[m.length-1][1]; }
 function journeyRate(t){ const m=JOURNEY[SC.id].map; for(let i=1;i<m.length;i++) if(t<m[i][0]){ const a=m[i-1],b=m[i]; return (b[1]-a[1])*60/(b[0]-a[0]); } return 0; }
 const hm=m=>{ m=Math.max(0,Math.round(m)); const h=Math.floor(m/60), mm=m%60; return h?h+' h '+String(mm).padStart(2,'0'):mm+' min'; };
@@ -2693,7 +2716,7 @@ function setScenario(id){
   if(traffic) traffic.visible=true;
   if(!two){ // restore the hub story parents and positions
     put(BA,base.BAparent,pA_barge,qA_barge); BA.visible=true; }
-  document.querySelectorAll('#scnTabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===id));
+  document.querySelectorAll('#scnTabs button[data-s]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===id));
   document.querySelector('#endc h2').textContent=SC.end.h; document.querySelector('#endc p').textContent=SC.end.p; fillWhy(id);
   lastStep=-1; vrTour=true; vrTourLast=null; setView(0); seek(0); cam.snap=true; hudDirty=true;
   if(guided){ cpNext=0; }
@@ -2731,9 +2754,10 @@ function updateRack(t){ const el=$('rkSlots'); if(!el) return; const R=rackState
     if(x){ const p=Math.round(x.p); f.style.height=Math.max(8,p)+'%'; f.style.background=p<=20?'#ff4a3d':p<99.5?'#f0a43a':'#22c07a'; b.textContent=p>=100?'✓':p+'%'; const id=document.createElement('span'); id.className='id'; id.textContent=x.id; d.append(f,id,b); }
     else { b.textContent='free'; d.append(b); }
     el.append(d); }); }
-function fillWhy(id){ const el=$('why'); if(!el) return; el.innerHTML=''; for(const [a,b] of (WHY[id]||[])){ const d=document.createElement('div'); const x=document.createElement('b'); x.textContent=a; const y=document.createElement('span'); y.textContent=b; d.append(x,y); el.append(d); }
+function fillWhy(id){ const el=$('why'); if(!el) return; el.innerHTML=''; const W=(WHY[id]||[]).map(x=>x.slice()); if(SEASON==='dry'&&W[0]) W[0][1]=id==='hub'?'alongside for two packs, while the lock queue runs to 2 to 4 h in a dry summer':'added: the swap fits inside a 2 to 4 h wait for group lockage'; for(const [a,b] of W){ const d=document.createElement('div'); const x=document.createElement('b'); x.textContent=a; const y=document.createElement('span'); y.textContent=b; d.append(x,y); el.append(d); }
   const n=document.createElement('div'); n.className='note'; n.textContent='Indicative: 60 kWh per km loaded, 2.6 MWh usable per pack, 20% reserve, 182 g CO2 per kWh on the 2025 Belgian grid. Real figures come with the operator and terminal data.'; el.append(n); }
-document.querySelectorAll('#scnTabs button').forEach(b=>b.onclick=()=>{ if(SC.id!==b.dataset.s) setScenario(b.dataset.s); });
+if(LAPTOP){ $('ssn').hidden=false; document.querySelectorAll('#ssn button').forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); setSeason(b.dataset.season); }); }
+document.querySelectorAll('#scnTabs button[data-s]').forEach(b=>b.onclick=()=>{ if(SC.id!==b.dataset.s) setScenario(b.dataset.s); });
 function hud2(t){
   const done=[...Array(NP).keys()].filter(k=>t>=liftTimes(2*k+1).off).length; const onCrane=cranePhase(t).carry;
   const pk=[...Array(NP).keys()].map(k=>k<done?100:SC.soc0);
@@ -3106,9 +3130,12 @@ function setupExtras(){
   EXTRA.push({scn:['hub','berth'],o:mk(),label:'Coming down',f:down(50.8,31,3.3),hide:gone(50.8,3.3)});
   EXTRA.push({scn:'lock',o:mk(),label:'Coming down',f:down(51.75,-30,1.8),hide:gone(51.75,1.8)});
   EXTRA.push({scn:'lock',o:mk(),label:'Coming down',f:down(51.2,-31,1.8),hide:gone(51.2,1.8)});
+  // dry summer: more barges queue for the group lockage below the lock
+  EXTRA.push({scn:'lock',o:mk(),label:'Queuing for group lockage',dry:true,K:unwrap([[0,lockAtZ(-960,-46),ryL],[200,lockAtZ(-960,-46),ryL]])});
+  EXTRA.push({scn:'lock',o:mk(),label:'Queuing for group lockage',dry:true,K:unwrap([[0,lockAtZ(-1130,-40),ryL],[200,lockAtZ(-1130,-40),ryL]])});
   for(const E of EXTRA){ const o=E.o; addLabel({id:'ex'+EXTRA.indexOf(E),scn:E.scn,minor:true,n:E.label,s:'',col:'#c5d3e4',from:0,to:200,when:t=>o.visible,at:()=>o.localToWorld(new V3(0,12,-60))}); }
 }
-function updateExtras(t){ for(const E of EXTRA){ const on=(Array.isArray(E.scn)?E.scn.includes(SC.id):E.scn===SC.id)&&!(E.hide&&E.hide(t)); E.o.visible=on; if(!on) continue;
+function updateExtras(t){ for(const E of EXTRA){ const on=(Array.isArray(E.scn)?E.scn.includes(SC.id):E.scn===SC.id)&&!(E.hide&&E.hide(t))&&(!E.dry||E.season); E.o.visible=on; if(!on) continue;
   if(E.f){ const p=E.f(t); E.o.position.copy(p.p); E.o.rotation.set(0,p.ry,0); continue; }
   E.o.position.set(hermite(E.K,t,k=>k.p.x),hermite(E.K,t,k=>k.p.y),hermite(E.K,t,k=>k.p.z)); E.o.rotation.set(0,curveR(E.K,t,hermite(E.K,t,k=>k.r)),0); } }
 /* ============================================================
@@ -3152,7 +3179,7 @@ function build(){
     mergeStatic(scene,/^merged$/,o=>models.has(o)||o.name==='BoxPivot'||rot.has(o)||(o.material&&(o.material.isShaderMaterial||o.material.isSpriteMaterial||(o.material.map&&o.material.isMeshLambertMaterial)))); }
   tm('merged'); setupExtras(); resetUnloading(); for(const [k,p] of HUB_EXTRA){ mergeStatic(k,/LED/); tintPack(k,p); setLED(k,pctColor(p)); }
   buildComposer(); resizeComposer(innerWidth,innerHeight);
-  if(TEST) window.__T={get scene(){ return scene; },V3,pose:t=>{ SC.apply(t); scene.updateMatrixWorld(true); const f=o=>{ const p=lockLocal(o.position.x,o.position.z); return [+p.x.toFixed(1),+p.z.toFixed(1),+(o.rotation.y).toFixed(3)]; }; return {barge:f(barge),tender:f(tender),ex:EXTRA.filter(E=>E.o.visible).map(E=>[E.label,f(E.o)])}; },ll:(x,z)=>{ const p=lockLocal(x,z); return [+p.x.toFixed(1),+p.z.toFixed(1)]; },hp:(x,z)=>hubPose(x,z).p.toArray().map(v=>+v.toFixed(1)),lockSide:()=>window.__lockSide,bank:(step=0.5)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i,E.o,5.73,-135,0]); }); return L; };
+  if(TEST) window.__T={get scene(){ return scene; },V3,season:se=>setSeason(se),pose:t=>{ SC.apply(t); scene.updateMatrixWorld(true); const f=o=>{ const p=lockLocal(o.position.x,o.position.z); return [+p.x.toFixed(1),+p.z.toFixed(1),+(o.rotation.y).toFixed(3)]; }; return {barge:f(barge),tender:f(tender),ex:EXTRA.filter(E=>E.o.visible).map(E=>[E.label,f(E.o)])}; },ll:(x,z)=>{ const p=lockLocal(x,z); return [+p.x.toFixed(1),+p.z.toFixed(1)]; },hp:(x,z)=>hubPose(x,z).p.toArray().map(v=>+v.toFixed(1)),lockSide:()=>window.__lockSide,bank:(step=0.5)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i,E.o,5.73,-135,0]); }); return L; };
     for(let t=0;t<T_END;t+=step){ SC.apply(t); scene.updateMatrixWorld(true); for(const [n,o,hw,z0,z1] of ships()){ let worst=null; const wl=o.position.y+(o===tender?2.0:-KEEL); for(let z=z0+1;z<=z1-1;z+=3) for(const x of [-hw-1,hw+1]){ const w=new V3(x,0,z).applyMatrix4(o.matrixWorld); const h=inGuide(w.x,w.z)?99:surfaceH(w.x,w.z)-wl; if(h>-0.6&&(!worst||h>worst.h)) worst={h:+h.toFixed(1),x:+w.x.toFixed(0),z:+w.z.toFixed(0),lz:z,lx:x}; } if(worst){ const last=out[out.length-1]; if(last&&last.n===n&&t-last.t1<=step+0.01) last.t1=t; else out.push({n,t0:t,t1:t,w:worst}); } } }
     SC.apply(tNow); return out; },stats:()=>{ renderer.info.autoReset=false; renderer.info.reset(); renderer.render(scene,camera); const r=renderer.info.render, m=renderer.info.memory; renderer.info.autoReset=true; return {calls:r.calls,tris:r.triangles,geo:m.geometries,tex:m.textures}; },xr:()=>{ const xc=renderer.xr.getCamera(camera); const h=new V3().setFromMatrixPosition(xc.matrixWorld); return {presenting:renderer.xr.isPresenting,view:VIEWS[cam.v].id,eye:h.toArray().map(x=>+x.toFixed(2)),ground:+surfaceH(h.x,h.z).toFixed(2),rigParent:rig.parent&&(rig.parent===scene?'scene':rig.parent===barge?'barge':rig.parent===tender?'tender':rig.parent.name)}; },dolph:()=>{ if(!LOCKWAIT) return 'none'; const hits=[]; const ships=[['barge',barge,5.73,-135,0],['tender',tender,4.3,-28,28],...EXTRA.map((E,i)=>['extra'+i,E.o,5.73,-135,0])];
     for(let t=0;t<T_END;t+=0.5){ SC.apply(t); scene.updateMatrixWorld(true); for(const [n,o,hw,z0,z1] of ships){ if(!o.visible) continue; const inv=o.matrixWorld.clone().invert(); for(const d of LOCKWAIT.tops){ const l=d.clone().applyMatrix4(inv); if(Math.abs(l.x)<hw+2.5&&l.z>z0-2.5&&l.z<z1+2.5) hits.push(n+'@'+t); } } } SC.apply(tNow); return hits.slice(0,20); },seek:t=>{ seek(t); setPaused(true); },view:i=>setView(i),scn:id=>setScenario(id),cam,get t(){ return tNow; },unload:()=>UNLOAD.cranes.map(c=>({n:c.jobs.length,p:c.g.position.toArray().map(v=>+v.toFixed(1))})),collide:(margin=3)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); if(moored&&moored.visible) L.push(['moored',moored,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i+':'+E.label,E.o,5.73,-135,0]); }); return L; };
