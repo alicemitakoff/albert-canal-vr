@@ -2119,9 +2119,9 @@ const VR_SPOTS={
   hub:()=>({p:hub.localToWorld(new V3(19,1.8,-11)), look:hub.localToWorld(new V3(21,1.8,8))}),
   lock:()=>({p:lock.localToWorld(new V3(10,12.05,-16)), look:lock.localToWorld(new V3(10,12.05,8))}),
   bridge:()=>({parent:barge, p:new V3(3.6,4.5,-15.4), look:new V3(0,4.5,-40)}),   // on deck right behind the battery bay
-  crane:()=>{ tender.updateMatrixWorld(true); const sl=SLOT['Slot_r2_c1']||SLOT['Slot_r1_c1']; const w=sl.getWorldPosition(new V3()); const L=tender.worldToLocal(w);
-    const bl=tender.worldToLocal(barge.localToWorld(new V3(0,4.5,-22))); const sd=bl.x>0?-1:1;   // on the free middle row of the tender deck, on the far side from the barge, facing the crane and the battery bay
-    return {parent:tender, p:new V3(sd*3.4,L.y,L.z), look:new V3(-sd*12,L.y,L.z)}; }
+  crane:()=>{ tender.updateMatrixWorld(true); const zl=n=>tender.worldToLocal(SLOT[n].getWorldPosition(new V3())); const L=SLOT['Slot_r2_c1']?zl('Slot_r2_c1'):zl('Slot_r1_c1').lerp(zl('Slot_r3_c1'),0.5);   /* the open gap between the pack rows, never inside a pack */
+    const tk=tNow; if(SC.swapT!=null){ SC.apply(SC.swapT+4); scene.updateMatrixWorld(true); } const bl=tender.worldToLocal(barge.localToWorld(new V3(0,4.5,-22))); const sd=bl.x>0?-1:1; bl.y=0; if(SC.swapT!=null){ SC.apply(tk); scene.updateMatrixWorld(true); }   /* which side the barge is on is read at swap time, not when the viewer arrives */   // on the free middle row of the tender deck, on the far side from the barge, facing the crane and the battery bay
+    return {parent:tender, p:new V3(-sd*3.3,L.y,L.z+2.6), look:new V3(bl.x,L.y,bl.z)}; }   /* at the rail on the barge side, just off the crane post, looking at the battery bay across the gap */
 };
 const VR_PLACES_BY={hub:['quay','bridge','lock','follow','over'],berth:['crane','bridge','quay','follow','over'],lock:['crane','bridge','lock','follow','over']};
 const vrPlaces=()=>VR_PLACES_BY[SC.id]||['follow','over'];
