@@ -2452,7 +2452,7 @@ function curveR(K,t,rKey){ const P=tt=>new V3(hermite(K,tt,k=>k.p.x),0,hermite(K
   const w=smooth(clamp((sp-0.4)/2.0,0,1))*(1-smooth(clamp((bd-0.6)/0.6,0,1)));   /* sideways moves (coming alongside) keep the keyed heading */ return rKey+(best-rKey)*w; }
 function applyScenario2(t){
   // vessel
-  const x=hermite(BK2,t,k=>k.p.x), y=hermite(BK2,t,k=>k.p.y), z=hermite(BK2,t,k=>k.p.z), r=SC.id==='berth'?curveR(BK2,t,hermite(BK2,t,k=>k.r)):hermite(BK2,t,k=>k.r);
+  const x=hermite(BK2,t,k=>k.p.x), y=hermite(BK2,t,k=>k.p.y), z=hermite(BK2,t,k=>k.p.z), r=(SC.id==='berth'||(SC.id==='lock'&&t<12))?curveR(BK2,t,hermite(BK2,t,k=>k.r)):hermite(BK2,t,k=>k.r);
   barge.position.set(x,y,z); barge.rotation.set(0,r,0);
   // tender
   tenderPose(hermite(TK2,t,k=>k.p.x),hermite(TK2,t,k=>k.p.z),hermite(TK2,t,k=>k.r)); scene.updateMatrixWorld(true);
@@ -2600,7 +2600,7 @@ let LOCKWAIT=null;
 function buildWaitingBerth(wait,ry,fwd,out){
   const g=new THREE.Group(); g.name='lockWaiting'; const lines=new THREE.Group(); g.add(lines);
   const pile=new THREE.MeshStandardMaterial({color:'#3b4046',roughness:0.6,metalness:0.5}), cap=triplanar(new THREE.MeshStandardMaterial({color:'#9a958a',roughness:0.9}),TEX.concrete,0.2,0.8), yel=new THREE.MeshStandardMaterial({color:'#e8b400',roughness:0.5}), blk=new THREE.MeshStandardMaterial({color:'#15171a',roughness:0.6,metalness:0.4}), rope=new THREE.MeshStandardMaterial({color:'#d8cfa8',roughness:0.9});
-  const wy=wait.y-KEEL, top=wy+3.4, off=11.45/2+3.2; const tops=[];
+  const wy=wait.y-KEEL, top=wy+3.4, off=11.45/2+4.2; const tops=[];
   for(const a of [-18,-62,-112]){ const c=wait.clone().addScaledVector(fwd,-a).addScaledVector(out,off); 
     for(const [dx,dz] of [[-0.9,0],[0.9,0],[0,1.4]]){ const q=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,top-wy+9,14),pile); const o=new V3(dx,0,dz).applyAxisAngle(new V3(0,1,0),ry); q.position.set(c.x+o.x,(top+wy-9)/2,c.z+o.z); g.add(q);
       const band=new THREE.Mesh(new THREE.CylinderGeometry(0.47,0.47,0.6,14),yel); band.position.set(c.x+o.x,top-0.9,c.z+o.z); g.add(band); }
@@ -2623,7 +2623,7 @@ function setupScenario3(){
   // pick the side of the lower approach with open water for both hulls
   const wet=(p,len,half)=>{ let bad=0; for(let a=0;a<=1;a+=0.1) for(const s of [-half,0,half]){ const q=p.clone().addScaledVector(fwd,a*len).addScaledVector(side,s); if(surfaceH(q.x,q.z)>-0.5) bad++; } return bad; };
   let best=null;
-  const XW=-430; for(const zW of [-22,-20]) for(const sd of [1]){ /* tender on the lane side, the waiting berth (dolphins) on the bank side */ const st=lockAtZ(XW,zW); const tz=zW+sd*sep; const tSt=lockAtZ(XW+31-28,tz);
+  const XW=-640; for(const zW of [-38,-36]) for(const sd of [-1]){ /* barge and tender on the left of the dolphin line, so the lane on the right stays wide for traffic */ const st=lockAtZ(XW,zW); const tz=zW+sd*sep; const tSt=lockAtZ(XW+3,tz);
     const score=wet(st,135,5.7)+wet(tSt,56,4.3)*2+Math.abs(zW)*0.01; if(!best||score<best.score) best={score,zW,sd}; }
   if(TEST) window.__lockSide=best;
   const zW=best.zW, sd=best.sd;
@@ -2636,12 +2636,17 @@ function setupScenario3(){
   const hubDockW=hubL(3,5.6), out=alongside.clone().addScaledVector(side,sd*16);
   const unwrap=a=>{ let prev=null; return a.map(([t,p,r])=>{ if(prev!==null){ while(r-prev>Math.PI) r-=2*Math.PI; while(r-prev<-Math.PI) r+=2*Math.PI; } prev=r; return {t,p,r}; }); };
   const T=S3L.T_END;
-  S3L.TK=unwrap([[0,hubDockW,rH],[12,hubDockW,rH],[15,hubL(-24,24),rH],[19,lockAtZ(-560,zW*0.2).setY(0),ryL],[25,alongside.clone().addScaledVector(fwd,-55),ryL],[30,alongside,ryL],[72,alongside,ryL],
-    [76,alongside.clone().addScaledVector(fwd,-45).addScaledVector(side,sd*1.5),ryL],[81,alongside.clone().addScaledVector(fwd,-80).addScaledVector(side,sd*10),ryL+Math.PI],[90,hubL(70,28),rH+Math.PI],[95,hubDockW,rH+Math.PI],[T,hubDockW,rH+Math.PI]]);
+  S3L.TK=unwrap([[0,hubDockW,rH],[12,hubDockW,rH],[15,hubL(-24,24),rH],[19,lockAtZ(-700,-20).setY(0),ryL],[22,lockAtZ(-694,-50).setY(0),ryL],[25,alongside.clone().addScaledVector(fwd,-40).addScaledVector(side,sd*2),ryL],[30,alongside,ryL],[72,alongside,ryL],[74,alongside.clone().addScaledVector(side,sd*5),ryL],
+    [77,lockAtZ(-596,-54).setY(0),ryL],[81,lockAtZ(-540,-50).setY(0),ryL],[84,lockAtZ(-492,-36).setY(0),ryL-0.5],[87,lockAtZ(-478,-4).setY(0),ryL-1.1],[90,lockAtZ(-470,26).setY(0),ryL-0.6],[94,hubDockW,rH],[T,hubDockW,rH]]);
   const inCh=lockAt(-85), up=lockAt(-85,KEEL+10), exit=lockAt(330,KEEL+10);
   const hd=(a,b)=>{ const A=lockLocal(a.x,a.z), B=lockLocal(b.x,b.z); return ryL-Math.atan2(B.z-A.z,B.x-A.x); };   // heading along the path, so the hull turns instead of sliding sideways
-  const k1=lockAtZ(-398,zW), k2=lockAtZ(-345,zW*0.5), k3=lockAtZ(-262,-1.5);
-  S3L.BK=unwrap([[0,lockAtZ(-1000,zW*0.6),ryL],[6,lockAtZ(-560,zW),ryL],[11,wait,ryL],[74,wait,ryL],[77,k1,ryL],[81,k2,hd(k1,k3)],[85,k3,hd(k2,inCh.p)*0.5+ryL*0.5],[90,inCh.p,inCh.ry],[95,inCh.p,inCh.ry],[115,up.p,up.ry],[119,up.p,up.ry],[T,exit.p,exit.ry]]);
+  /* leaving the berth: the bow runs along a track that stays on the waiting line until the hull is past the dolphins, then eases over to the chamber axis; the stern follows the same track 135 m behind, so the hull turns like a ship */
+  const zC=lockLocal(inCh.p.x,inCh.p.z).z, sm=u=>{ u=clamp(u,0,1); return u*u*(3-2*u); };
+  const trk=x=>zW+(zC-zW)*sm((x+390)/170);
+  const sternOf=bx=>{ let lo=bx-160, hi=bx-100; for(let i=0;i<30;i++){ const m=(lo+hi)/2; const d=Math.hypot(bx-m,trk(bx)-trk(m)); if(d>135) lo=m; else hi=m; } return (lo+hi)/2; };
+  const bx0=XW+135, bx1=lockLocal(inCh.p.x,inCh.p.z).x+135, OUT=[];
+  for(let t=74;t<90;t+=1){ const u=(t-74)/16, e=u<0.5?2*u*u:1-2*(1-u)*(1-u); const bx=bx0+(bx1-bx0)*e, sx=sternOf(bx), sz=trk(sx); OUT.push([t,lockAtZ(sx,sz),ryL-Math.atan2(trk(bx)-sz,bx-sx)]); }
+  S3L.BK=unwrap([[0,lockAtZ(-1000,-28),ryL],[5,lockAtZ(-880,-33),ryL],[8,lockAtZ(-770,-36),ryL],[11,wait,ryL],...OUT,[90,inCh.p,inCh.ry],[95,inCh.p,inCh.ry],[115,up.p,up.ry],[119,up.p,up.ry],[T,exit.p,exit.ry]]);
   S3L.HK=[{t:0,x:0,z:6.4,y:6.8},{t:T,x:0,z:6.4,y:6.8}];
   buildWaitingBerth(wait,ryL,fwd,side.clone().multiplyScalar(-sd));
   barge.position.set(0,0,0); barge.rotation.set(0,0,0);
@@ -2649,7 +2654,7 @@ function setupScenario3(){
 const CH3=[
  {t:0,  h:'Arriving at Kwaadmechelen', b:'The lock is busy, with barges coming down and another one waiting. The CMA CGM e-barge is heading upstream for Genk on two 2.9 MWh ZESpacks, now down to 10%. It ties up at the waiting berth.'},
  {t:9,  h:'Energy check before the lock', b:'Genk is 36 km and three more locks away: about 2.2 MWh loaded. At 10% the packs cannot get there. A swap during the wait fixes it.'},
- {t:12, h:'The tender comes up from the hub', b:'The battery tender leaves the charging hub, 400 m downstream on the BCTN quay, with 12 charged packs forward and room for empties aft.'},
+ {t:12, h:'The tender crosses from the hub', b:'The battery tender leaves the charging hub on the BCTN quay, just across the canal, with 12 charged packs forward and room for empties aft. The waiting berth is on the far side, so the lane stays clear for barges coming down from the lock.'},
  {t:26, h:'Alongside at the waiting berth', b:'The tender moors next to the barge, its crane right by the battery bay. No quay and no crane on land are needed.'},
  {t:30, h:'Swapping while waiting', b:'The knuckle boom crane swaps the two packs one by one, about 15 minutes each. The barge was waiting for the lock anyway, so the swap costs no time.'},
  {t:72, h:'The lock is ready', b:'The tender casts off with the empty packs and heads back to the hub to charge them. The barge sails into the push tow chamber.'},
@@ -3125,7 +3130,7 @@ function setupExtras(){
   const w=at(600,150); EXTRA.push({scn:'berth',o:mk(),label:'Waiting for a berth',K:unwrap([[0,w,ryE],[200,w,ryE]])});
   // scenario 3: a barge ahead in the queue, and one coming down out of the lock
   const ryL=lock.rotation.y-Math.PI/2, ryD=ryL+Math.PI;
-  EXTRA.push({scn:'lock',o:mk(),label:'Also waiting',K:unwrap([[0,lockAtZ(-790,-46),ryL],[200,lockAtZ(-790,-46),ryL]])});
+  EXTRA.push({scn:'lock',o:mk(),label:'Also waiting',K:unwrap([[0,lockAtZ(-800,-70),ryL],[200,lockAtZ(-800,-70),ryL]])});
   EXTRA.push({scn:'lock',o:mk(),label:'Leaving the lock',K:unwrap([[0,lockAtZ(60,0),ryD],[20,lockAtZ(60,0),ryD],[28,lockAtZ(-120,0),ryD],[33,lockAtZ(-240,6),ryD],[38,lockAtZ(-360,7),ryD],[46,lockAtZ(-560,26),ryD],[62,lockAtZ(-1150,30),ryD],[200,lockAtZ(-1150,30),ryD]]),hide:t=>t>=53});
   // barges coming the other way, down to Antwerp on the far side of the canal, keeping to their own side
   const down=(km0,lat,span)=>t=>{ const p=bargeAt(km0-(t/T_END)*span,lat); return {p:p.p,ry:p.ry+Math.PI}; };
@@ -3135,8 +3140,8 @@ function setupExtras(){
   EXTRA.push({scn:'lock',o:mk(),label:'Coming down',f:down(51.75,-30,1.8),hide:gone(51.75,1.8)});
   EXTRA.push({scn:'lock',o:mk(),label:'Coming down',f:down(51.2,-31,1.8),hide:gone(51.2,1.8)});
   // dry summer: more barges queue for the group lockage below the lock
-  EXTRA.push({scn:'lock',o:mk(),label:'Queuing for group lockage',dry:true,K:unwrap([[0,lockAtZ(-960,-46),ryL],[200,lockAtZ(-960,-46),ryL]])});
-  EXTRA.push({scn:'lock',o:mk(),label:'Queuing for group lockage',dry:true,K:unwrap([[0,lockAtZ(-1130,-40),ryL],[200,lockAtZ(-1130,-40),ryL]])});
+  EXTRA.push({scn:'lock',o:mk(),label:'Queuing for group lockage',dry:true,K:unwrap([[0,lockAtZ(-960,-54),ryL],[200,lockAtZ(-960,-54),ryL]])});
+  EXTRA.push({scn:'lock',o:mk(),label:'Queuing for group lockage',dry:true,K:unwrap([[0,lockAtZ(-1130,-50),ryL],[200,lockAtZ(-1130,-50),ryL]])});
   for(const E of EXTRA){ const o=E.o; addLabel({id:'ex'+EXTRA.indexOf(E),scn:E.scn,minor:true,n:E.label,s:'',col:'#c5d3e4',from:0,to:200,when:t=>o.visible,at:()=>o.localToWorld(new V3(0,12,-60))}); }
 }
 function updateExtras(t){ for(const E of EXTRA){ const on=(Array.isArray(E.scn)?E.scn.includes(SC.id):E.scn===SC.id)&&!(E.hide&&E.hide(t))&&(!E.dry||E.season); E.o.visible=on; if(!on) continue;
@@ -3183,7 +3188,7 @@ function build(){
     mergeStatic(scene,/^merged$/,o=>models.has(o)||o.name==='BoxPivot'||rot.has(o)||(o.material&&(o.material.isShaderMaterial||o.material.isSpriteMaterial||(o.material.map&&o.material.isMeshLambertMaterial)))); }
   tm('merged'); setupExtras(); resetUnloading(); for(const [k,p] of HUB_EXTRA){ mergeStatic(k,/LED/); tintPack(k,p); setLED(k,pctColor(p)); }
   buildComposer(); resizeComposer(innerWidth,innerHeight);
-  if(TEST) window.__T={get scene(){ return scene; },V3,season:se=>setSeason(se),pose:t=>{ SC.apply(t); scene.updateMatrixWorld(true); const f=o=>{ const p=lockLocal(o.position.x,o.position.z); return [+p.x.toFixed(1),+p.z.toFixed(1),+(o.rotation.y).toFixed(3)]; }; return {barge:f(barge),tender:f(tender),ex:EXTRA.filter(E=>E.o.visible).map(E=>[E.label,f(E.o)])}; },ll:(x,z)=>{ const p=lockLocal(x,z); return [+p.x.toFixed(1),+p.z.toFixed(1)]; },hp:(x,z)=>hubPose(x,z).p.toArray().map(v=>+v.toFixed(1)),lockSide:()=>window.__lockSide,bank:(step=0.5)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i,E.o,5.73,-135,0]); }); return L; };
+  if(TEST) window.__T={get scene(){ return scene; },V3,sh:(x,z)=>{ const p=lockAtZ(x,z); return +surfaceH(p.x,p.z).toFixed(1); },season:se=>setSeason(se),pose:t=>{ SC.apply(t); scene.updateMatrixWorld(true); const f=o=>{ const p=lockLocal(o.position.x,o.position.z); return [+p.x.toFixed(1),+p.z.toFixed(1),+(o.rotation.y).toFixed(3)]; }; return {barge:f(barge),tender:f(tender),ex:EXTRA.filter(E=>E.o.visible).map(E=>[E.label,f(E.o)])}; },ll:(x,z)=>{ const p=lockLocal(x,z); return [+p.x.toFixed(1),+p.z.toFixed(1)]; },hp:(x,z)=>hubPose(x,z).p.toArray().map(v=>+v.toFixed(1)),lockSide:()=>window.__lockSide,bank:(step=0.5)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i,E.o,5.73,-135,0]); }); return L; };
     for(let t=0;t<T_END;t+=step){ SC.apply(t); scene.updateMatrixWorld(true); for(const [n,o,hw,z0,z1] of ships()){ let worst=null; const wl=o.position.y+(o===tender?2.0:-KEEL); for(let z=z0+1;z<=z1-1;z+=3) for(const x of [-hw-1,hw+1]){ const w=new V3(x,0,z).applyMatrix4(o.matrixWorld); const h=inGuide(w.x,w.z)?99:surfaceH(w.x,w.z)-wl; if(h>-0.6&&(!worst||h>worst.h)) worst={h:+h.toFixed(1),x:+w.x.toFixed(0),z:+w.z.toFixed(0),lz:z,lx:x}; } if(worst){ const last=out[out.length-1]; if(last&&last.n===n&&t-last.t1<=step+0.01) last.t1=t; else out.push({n,t0:t,t1:t,w:worst}); } } }
     SC.apply(tNow); return out; },stats:()=>{ renderer.info.autoReset=false; renderer.info.reset(); renderer.render(scene,camera); const r=renderer.info.render, m=renderer.info.memory; renderer.info.autoReset=true; return {calls:r.calls,tris:r.triangles,geo:m.geometries,tex:m.textures}; },xr:()=>{ const xc=renderer.xr.getCamera(camera); const h=new V3().setFromMatrixPosition(xc.matrixWorld); return {presenting:renderer.xr.isPresenting,view:VIEWS[cam.v].id,eye:h.toArray().map(x=>+x.toFixed(2)),ground:+surfaceH(h.x,h.z).toFixed(2),rigParent:rig.parent&&(rig.parent===scene?'scene':rig.parent===barge?'barge':rig.parent===tender?'tender':rig.parent.name)}; },dolph:()=>{ if(!LOCKWAIT) return 'none'; const hits=[]; const ships=[['barge',barge,5.73,-135,0],['tender',tender,4.3,-28,28],...EXTRA.map((E,i)=>['extra'+i,E.o,5.73,-135,0])];
     for(let t=0;t<T_END;t+=0.5){ SC.apply(t); scene.updateMatrixWorld(true); for(const [n,o,hw,z0,z1] of ships){ if(!o.visible) continue; const inv=o.matrixWorld.clone().invert(); for(const d of LOCKWAIT.tops){ const l=d.clone().applyMatrix4(inv); if(Math.abs(l.x)<hw+2.5&&l.z>z0-2.5&&l.z<z1+2.5) hits.push(n+'@'+t); } } } SC.apply(tNow); return hits.slice(0,20); },seek:t=>{ seek(t); setPaused(true); },view:i=>setView(i),scn:id=>setScenario(id),cam,get t(){ return tNow; },unload:()=>UNLOAD.cranes.map(c=>({n:c.jobs.length,p:c.g.position.toArray().map(v=>+v.toFixed(1))})),collide:(margin=3)=>{ const out=[]; const ships=()=>{ const L=[['barge',barge,5.73,-135,0]]; if(SC.id!=='hub') L.push(['tender',tender,4.3,-28,28]); if(traffic&&traffic.visible) L.push(['traffic',traffic,5.73,-135,0]); if(moored&&moored.visible) L.push(['moored',moored,5.73,-135,0]); EXTRA.forEach((E,i)=>{ if(E.o.visible) L.push(['extra'+i+':'+E.label,E.o,5.73,-135,0]); }); return L; };
