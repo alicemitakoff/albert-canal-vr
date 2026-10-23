@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fleet on the corridor · Albert Canal</title>
+<style>
+:root{--navy:#061a33;--glass:rgba(8,32,66,.93);--ivory:#ffffff;--mist:#c5d3e4;--brass:#7cc8ff;--brass-soft:rgba(124,200,255,.16);--hair:rgba(255,255,255,.22);--hair-cool:rgba(255,255,255,.12);--sans:Arial,'Helvetica Neue',Helvetica,sans-serif;--r:14px;color-scheme:dark}
+html,body{height:100%;margin:0;background:var(--navy);overflow:hidden;font-family:var(--sans)}
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}
+.panel{background:var(--glass);border:1px solid var(--hair-cool);border-radius:var(--r);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 18px 50px rgba(0,0,0,.35)}
+/* sits in the simulation's own header bar, left of its theme button */
+.tools{position:fixed;top:8px;right:72px;z-index:5}
+@media (max-width:760px){.tools{top:auto;bottom:96px;right:16px}}
+
+/* scenario switcher, the same on every page: closed by default, opens to all four scenarios */
+.scn{width:320px;max-width:calc(100vw - 32px);padding:6px;pointer-events:auto;display:flex;flex-direction:column;gap:2px}
+.scn .sh{font:700 13px var(--sans);color:var(--mist);padding:4px 8px 3px}
+.scn a.sl{display:grid;grid-template-columns:24px 1fr;align-items:center;gap:10px;text-align:left;border-radius:9px;padding:6px 10px;color:var(--ivory);text-decoration:none}
+.scn a.sl:hover{background:rgba(255,255,255,.05)}
+.scn .no{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--hair);display:grid;place-items:center;font:700 13px var(--sans)}
+.scn b{display:block;font:700 15px/1.2 var(--sans)}
+.scn .sub{display:block;font:400 12px/1.3 var(--sans);color:var(--mist)}
+.scn a.sl[aria-current="page"]{background:var(--brass-soft);box-shadow:inset 0 0 0 1px var(--hair)}
+.scn a.sl[aria-current="page"] .no{background:var(--brass);color:var(--navy);border-color:var(--brass)}
+.scn button.scnHd{display:flex;align-items:center;gap:8px;width:100%;padding:5px 8px;border:0;background:transparent;border-radius:9px;cursor:pointer;color:var(--ivory);font:inherit;text-align:left}
+.scn button.scnHd:hover{background:rgba(255,255,255,.05)}
+.scn .scnHd .sh{padding:0;flex:none}
+.scn .scnHd .cur{flex:1;min-width:0;text-align:right;font:700 13px var(--sans);color:var(--ivory);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scn .chev{flex:none;width:16px;height:16px;fill:none;stroke:var(--mist);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+.scn:not(.closed) .chev{transform:rotate(180deg)}
+.scn.closed>:not(.scnHd){display:none!important}
+
+</style>
+</head><body>
+<iframe src="https://as-albert-canal-3d-uks-hfbdd9gfatazfaaz.uksouth-01.azurewebsites.net/" title="Fleet on the corridor, a simulation by NatPower Marine" allow="fullscreen; xr-spatial-tracking" allowfullscreen></iframe>
+<div class="tools">
+    <nav class="scn panel closed" id="scnTabs" aria-label="Scenarios">
+      <button class="scnHd" id="scnHd" aria-expanded="false"><span class="sh">Scenarios</span><span class="cur" id="scnCur">4 · Fleet on the corridor</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <a class="sl" href="../classic/" data-own><span class="no">1</span><span><b>Swap at the hub</b><span class="sub">The original: one pack swapped at the hub</span></span></a>
+      <a class="sl" href="../?s=berth" data-own><span class="no">2</span><span><b>Tender at the berth</b><span class="sub">Tender swaps both packs during unloading</span></span></a>
+      <a class="sl" href="../?s=lock" data-own><span class="no">3</span><span><b>Tender at the lock</b><span class="sub">Tender swaps both packs while waiting</span></span></a>
+      <a class="sl" href="#" data-own aria-current="page"><span class="no">4</span><span><b>Fleet on the corridor</b><span class="sub">Many e-barges, queues and lock traffic</span></span></a>
+    </nav>
+<script>
+(function(){ var n=document.getElementById('scnTabs'), h=document.getElementById('scnHd');
+  h.onclick=function(){ var c=n.classList.toggle('closed'); h.setAttribute('aria-expanded',!c); };
+  n.querySelectorAll('a[aria-current]').forEach(function(a){ a.onclick=function(e){ e.preventDefault(); n.classList.add('closed'); h.setAttribute('aria-expanded',false); }; });
+  /* cinema mode stays on when moving between our own pages */
+  if(new URLSearchParams(location.search).has('flat')) n.querySelectorAll('a[data-own]').forEach(function(a){ a.href+=(a.href.indexOf('?')<0?'?':'&')+'flat'; });
+})();
+</script>
+</div>
+</body></html>
