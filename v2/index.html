@@ -590,7 +590,10 @@ const D={}; const nodes={};
 const want=['scene/chunks','scene/height','scene/height_core','scene/ground','scene/water','scene/objects','scene/groundmask','map/route','map/route_base'];
 want.forEach(k=>jsonL.load('assets/'+k+'.json',d=>{ D[k.split('/')[1]]=d; if(k==='scene/chunks') loadChunkTextures(d); }));
 const chunkTex={};
-function loadChunkTextures(d){ d.chunks.forEach(c=>{ const t=texL.load('assets/scene/'+(params.get('ground')==='photo'?(IS_QUEST?'chunks_q/':'chunks/'):(IS_QUEST?'chunks_gq/':'chunks_g/'))+c.f);   /* Google colour coded ground with the photo drawn through it; ?ground=photo for the plain photo */ t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; chunkTex[c.f]=t; }); }
+/* ground tiles load with up to four tries each, so one dropped request on a busy connection does not leave a hole or stop the page */
+function loadTexRetry(url,t){ manager.itemStart(url); let n=0; const img=new Image(); const go=()=>{ img.src=url+(n?(url.includes('?')?'&':'?')+'retry='+n:''); };
+  img.onload=()=>{ t.image=img; t.needsUpdate=true; manager.itemEnd(url); }; img.onerror=()=>{ if(++n<4) setTimeout(go,700*n); else { manager.itemError(url); manager.itemEnd(url); } }; go(); return t; }
+function loadChunkTextures(d){ d.chunks.forEach(c=>{ const t=loadTexRetry('assets/scene/'+(params.get('ground')==='photo'?(IS_QUEST?'chunks_q/':'chunks/'):(IS_QUEST?'chunks_gq/':'chunks_g/'))+c.f,new THREE.Texture());   /* Google colour coded ground with the photo drawn through it; ?ground=photo for the plain photo */ t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; chunkTex[c.f]=t; }); }
 const mapImg={night:new Image(),sat:new Image()};
 ['night','sat'].forEach(k=>{ const url='assets/map/'+(k==='night'?'route_base.jpg':'route_sat.jpg'); manager.itemStart(url); mapImg[k].onload=()=>manager.itemEnd(url); mapImg[k].onerror=()=>manager.itemError(url); mapImg[k].src=url; });
 const hub=new THREE.Group(), lock=new THREE.Group(), barge=new THREE.Group();
