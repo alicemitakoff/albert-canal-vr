@@ -255,20 +255,6 @@ body.quest #act{display:none}
 .endc h2{margin:8px 0 10px;font:700 30px/1.2 var(--sans);color:var(--ivory)}
 .endc p{margin:0 0 18px;font:400 18px/1.55 var(--sans);color:var(--ivory)}
 .endc .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.rack{position:absolute;left:16px;top:calc(env(safe-area-inset-top,0px) + 132px);width:300px;padding:11px 13px 10px;pointer-events:auto}
-.rk-hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.rk-t{font:700 13px/1.25 var(--sans);color:var(--mist)} .rk-n{font:700 13px/1.25 var(--sans);color:var(--ivory);white-space:nowrap}
-.rk-slots{display:flex;gap:5px;margin:9px 0 8px}
-.rk-s{position:relative;flex:1;height:44px;border-radius:6px;border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);overflow:hidden}
-.rk-s i{position:absolute;left:0;right:0;bottom:0;transition:height .5s ease,background .5s}
-.rk-s b{position:absolute;inset:0;display:grid;place-items:center;font:700 12px var(--sans);color:#08131f}
-.rk-s.empty b{color:var(--mist);font-weight:400}
-.rk-s.next{border-color:#22f08f;box-shadow:0 0 0 2px rgba(34,240,143,.35)}
-.rk-s .id{position:absolute;left:0;right:0;top:2px;text-align:center;font:700 9px var(--sans);color:rgba(8,19,31,.75)}
-.rk-gap{width:6px}
-.rk-ev,.rk-nx{margin:0;font:400 13px/1.4 var(--sans);color:var(--ivory)} .rk-nx{color:var(--mist);margin-top:2px}
-.rk-lg{display:flex;gap:10px;margin-top:7px;font:400 11px var(--sans);color:var(--mist)} .rk-lg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0} .rk-lg i.e{border:1px solid rgba(255,255,255,.4)}
-@media (max-height:700px),(max-width:560px){ .rack{display:none} }
 .why{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 18px}.why div{background:rgba(255,255,255,.06);border:1px solid var(--hair-cool);border-radius:10px;padding:10px 12px}
 .why b{display:block;font:700 22px/1.15 var(--sans);color:var(--ivory)}.why span{display:block;margin-top:4px;font:400 14px/1.35 var(--sans);color:var(--mist)}
 .why .note{grid-column:1/-1;background:none;border:0;padding:0;font:400 13px/1.4 var(--sans);color:var(--mist)}
@@ -398,13 +384,6 @@ body.hidden-ui .restore{display:flex}
   <p id="actP"></p>
   <button class="actbtn" id="actBtn">Start</button>
   <span class="or" id="actOr">or press Space</span>
-</section>
-<section class="rack panel" id="rack" aria-label="Charging hub">
-  <div class="rk-hd"><span class="rk-t">Charging hub · Meerhout</span><span class="rk-n" id="rkN"></span></div>
-  <div class="rk-slots" id="rkSlots"></div>
-  <p class="rk-ev" id="rkEv"></p>
-  <p class="rk-nx" id="rkNx"></p>
-  <div class="rk-lg"><span><i style="background:#22c07a"></i>Full</span><span><i style="background:#f0a43a"></i>Charging</span><span><i style="background:#ff4a3d"></i>Flat</span><span><i class="e"></i>Free slot</span></div>
 </section>
 <section class="endc panel" id="endc" hidden role="dialog" aria-label="Journey complete">
   <div class="eyebrow">Journey complete</div>
@@ -1843,7 +1822,7 @@ function buildLabels(){
 let labelsOn=true;
 const _v=new V3(); let _ui=null, _uiT=0;
 function uiRects(){ if(document.body.classList.contains('hidden-ui')) return []; const n=performance.now(); if(_ui&&n-_uiT<400) return _ui; _uiT=n;
-  _ui=['.brand','#rack','#scnTabs','.toolrow','#mini','#live','#story','#viewSeg','.zoom','.timeline','#act','#endc'].map(q=>document.querySelector(q)).filter(e=>e&&!e.hidden&&e.getClientRects().length)
+  _ui=['.brand','#scnTabs','.toolrow','#mini','#live','#story','#viewSeg','.zoom','.timeline','#act','#endc'].map(q=>document.querySelector(q)).filter(e=>e&&!e.hidden&&e.getClientRects().length)
     .map(e=>{ const r=e.getBoundingClientRect(); return {x0:r.left-6,x1:r.right+6,y0:r.top-6,y1:r.bottom+6}; }).filter(r=>r.x1-r.x0>20); return _ui; }
 function updateLabels(t){
   const W=window.innerWidth, H=window.innerHeight, vid=VIEWS[cam.v].id; const vis=[];
