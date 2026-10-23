@@ -447,7 +447,7 @@ body.hidden-ui .restore{display:flex}
   </div>
 </div>
 
-<div class="credits">Orthofoto 2024 and DHM Vlaanderen II © Digitaal Vlaanderen · © OpenStreetMap contributors · Concept visualisation by AImovation</div>
+<div class="credits">Orthofoto 2024 and DHM Vlaanderen II © Digitaal Vlaanderen · © OpenStreetMap contributors · Concept by NatPower Digital · XR development by AImovation</div>
 <div id="load"><div class="c"><div class="eyebrow">NatPower Digital × CMA CGM</div><h1>Albert Canal Battery Swap</h1><p>Loading terrain, imagery and models</p><div id="bar"><i></i></div><div id="loadTxt">0%</div></div></div>
 
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/","@dgreenheck/ez-tree":"https://cdn.jsdelivr.net/npm/@dgreenheck/ez-tree@1.1.0/build/ez-tree.es.js"}}</script>
@@ -1834,6 +1834,9 @@ function buildLabels(){
   addLabel({id:'gd',max:950,n:t=>t<79.2?'Lower gate':'Lower gate closing',s:'',from:76,to:84,at:()=>wp(nodes['l:Gate_PushTow_Down'],0,26,0)});
   addLabel({id:'wl',max:950,n:t=>'Chamber filling +'+Math.max(0,hermite(WC,t,k=>k.v)).toFixed(1)+' m',s:'',col:'var(--water)',from:84,to:104,at:()=>lock.localToWorld(new V3(60,(nodes['l:Water_Chamber_PushTow'].position.y)+2,0))});
   addLabel({id:'gu',max:950,n:t=>t<104.2?'Upper gate':'Upper gate opening',s:'',from:102,to:112,at:()=>wp(nodes['l:Gate_PushTow_Up'],0,22,0)});
+  addLabel({id:'gd3',scn:'lock',max:950,n:t=>t<90.2?'Lower gate':'Lower gate closing',s:'',from:87,to:95,at:()=>wp(nodes['l:Gate_PushTow_Down'],0,26,0)});
+  addLabel({id:'wl3',scn:'lock',max:950,n:t=>'Chamber filling +'+Math.max(0,hermite(WC,t-11,k=>k.v)).toFixed(1)+' m',s:'',col:'var(--water)',from:95,to:115,at:()=>lock.localToWorld(new V3(60,(nodes['l:Water_Chamber_PushTow'].position.y)+2,0))});
+  addLabel({id:'gu3',scn:'lock',max:950,n:t=>t<115.2?'Upper gate':'Upper gate opening',s:'',from:113,to:123,at:()=>wp(nodes['l:Gate_PushTow_Up'],0,22,0)});
   if(D.objects.turbines.length){ const t0=D.objects.turbines.reduce((a,b)=>Math.hypot(a.x-1000,a.z-330)<Math.hypot(b.x-1000,b.z-330)?a:b);
     addLabel({id:'wind',n:'Wind turbines',s:'Local renewable supply',minor:true,from:0,to:126,when:(t,v)=>v==='over',at:()=>new V3(t0.x,t0.g+t0.hub+t0.rotor/2+6,t0.z),
       info:{e:'Around the canal',h:'Wind turbines',p:'Fourteen turbines stand along this stretch of the Albert Canal, part of the renewable supply a corridor charging network can draw on.',d:[['In this scene','14'],['Hub height','about 65 to 100 m']]}}); }
@@ -2370,7 +2373,7 @@ function swingPath(a,b,u){ const S=IK.S; const ra=Math.hypot(a.x-S.x,a.z-S.z), r
 
 /* ---------------- scenario 2 timeline ---------------- */
 const NP=2;   // packs on the barge: two 20 ft ZESpacks of 2.9 MWh
-const S2B={T_END:140, LIFT0:34, LIFT:10.5, HUB0:97, HUBL:6.3}, S3L={T_END:128, LIFT0:30, LIFT:10.5, HUB0:1e9, HUBL:6.3, lock:true, lockOff:11};
+const S2B={T_END:140, LIFT0:34, LIFT:10.5, HUB0:97, HUBL:6.3}, S3L={T_END:137, LIFT0:30, LIFT:10.5, HUB0:1e9, HUBL:6.3, lock:true, lockOff:11};
 let S2=S2B;
 const TIP_TRANSIT=17.5, DROP0=2.6;
 function bargeSlotWorld(k){ return base.BAparent.localToWorld(pA_barge.clone().add(new V3(BAY[k],0,0))); }
@@ -2650,7 +2653,7 @@ function setupScenario3(){
   const sternOf=bx=>{ let lo=bx-160, hi=bx-100; for(let i=0;i<30;i++){ const m=(lo+hi)/2; const d=Math.hypot(bx-m,trk(bx)-trk(m)); if(d>135) lo=m; else hi=m; } return (lo+hi)/2; };
   const bx0=XW+135, bx1=lockLocal(inCh.p.x,inCh.p.z).x+135, OUT=[];
   for(let t=74;t<90;t+=1){ const u=(t-74)/16, e=u<0.5?2*u*u:1-2*(1-u)*(1-u); const bx=bx0+(bx1-bx0)*e, sx=sternOf(bx), sz=trk(sx); OUT.push([t,lockAtZ(sx,sz),ryL-Math.atan2(trk(bx)-sz,bx-sx)]); }
-  S3L.BK=unwrap([[0,lockAtZ(-1000,-28),ryL],[5,lockAtZ(-880,-33),ryL],[8,lockAtZ(-770,-36),ryL],[11,wait,ryL],...OUT,[90,inCh.p,inCh.ry],[95,inCh.p,inCh.ry],[115,up.p,up.ry],[119,up.p,up.ry],[T,exit.p,exit.ry]]);
+  S3L.BK=unwrap([[0,lockAtZ(-1000,-28),ryL],[5,lockAtZ(-880,-33),ryL],[8,lockAtZ(-770,-36),ryL],[11,wait,ryL],...OUT,[90,inCh.p,inCh.ry],[95,inCh.p,inCh.ry],[115,up.p,up.ry],[121,up.p,up.ry],[T-1,exit.p,exit.ry],[T,exit.p,exit.ry]]);   /* the same lock passage as scenario 1, 11 minutes later: gate shut 90 to 95, filling 95 to 115, upper gate open 115 to 120, out from 121 */
   S3L.HK=[{t:0,x:0,z:6.4,y:6.8},{t:T,x:0,z:6.4,y:6.8}];
   buildWaitingBerth(wait,ryL,fwd,side.clone().multiplyScalar(-sd));
   barge.position.set(0,0,0); barge.rotation.set(0,0,0);
@@ -2662,16 +2665,18 @@ const CH3=[
  {t:26, h:'Alongside at the waiting berth', b:'The tender moors next to the barge, its crane right by the battery bay. No quay and no crane on land are needed.'},
  {t:30, h:'Swapping while waiting', b:'The knuckle boom crane swaps the two packs one by one, about 15 minutes each. The barge was waiting for the lock anyway, so the swap costs no time.'},
  {t:72, h:'The lock is ready', b:'The tender casts off with the empty packs and heads back to the hub to charge them. The barge sails into the push tow chamber.'},
- {t:90, h:'Lower gate closes', b:'The two doors swing shut behind the stern.'},
- {t:95, h:'Rising ten metres', b:'The chamber fills until it matches the upper reach, 10.1 m higher.'},
- {t:115,h:'On to Genk', b:'Full packs and a healthy reserve for the last 36 km. The empty packs are already back at the hub on charge.'}
+ {t:90, h:'Lower gate closes', b:'The two doors swing shut behind the stern and meet in a V that holds back the water.'},
+ {t:95, h:'Rising ten metres', b:'Water flows in until the chamber matches the upper reach, 10.1 m higher. The barge rises with it.'},
+ {t:115,h:'Upper gate opens', b:'With the levels equal, the two doors of the upper gate swing open.'},
+ {t:121,h:'On to Genk', b:'Full packs and a healthy reserve for the last 36 km. The empty packs are already back at the hub on charge.'}
 ];
 const CP3=[
  {t:0,  btn:'Start', p:'The e-barge is heading for Kwaadmechelen lock. Its two packs are down to 10%.'},
  {t:11, btn:'Call the battery tender', p:'The lock is busy. The barge needs full packs to reach Genk with its reserve, and the wait is long enough for a swap.'},
  {t:30, btn:'Start the battery swap', p:'The tender is alongside at the waiting berth.', batt:true},
  {t:72, btn:'Into the lock', p:'Two full packs are connected. The lock is ready for the barge.'},
- {t:95, btn:'Fill the chamber', p:'The barge is in the chamber and the lower gate is shut.'}
+ {t:90, btn:'Close the lower gate', p:'The barge is inside the 200 m push-tow chamber of Kwaadmechelen lock.'},
+ {t:115, btn:'Open the upper gate', p:'The water in the chamber now matches the upper reach.'}
 ];
 const followTarget3=()=>{ const t=tNow; const b=barge.localToWorld(new V3(0,5,-60)); const tp=tender.localToWorld(new V3(0,6,-10)); const wT=smooth((t-11)/3)*(1-smooth((t-73)/3));
   const sp=TN.Crane_spreader?TN.Crane_spreader.getWorldPosition(new V3()):tp; const wS=smooth((t-27)/3)*(1-smooth((t-72)/3)); const p=b.lerp(tp,wT); if(wS>0) p.lerp(sp.setY(Math.min(sp.y,9)),wS*0.8); return p; };
@@ -2683,7 +2688,7 @@ const VIEWS3=[
  {id:'over',  name:'Overview',vr:'High above the canal',type:'orbit',target:()=>lock.localToWorld(new V3(-350,0,0)),rel:false,az:-2.5,el:0.6,dist:900,min:200,max:5200}
 ];
 JOURNEY.lock={title:'Antwerp to Genk', foot:'88 km · 6 locks · swap while waiting', segs:[['sail',65],['lock',30],['sail',160],['lock',30],['sail',143],['wait',7],['swapw',30],['wait',8],['lock',30],['sail',100],['lock',30],['sail',70],['lock',30],['sail',70],['lock',30]],
-  map:[[0,420],[11,428],[26,433],[30,435],[72,465],[90,480],[95,483],[115,500],[128,508]]};
+  map:[[0,420],[11,428],[26,433],[30,435],[72,465],[90,480],[95,483],[115,500],[121,503],[137,510]]};
 SEGC.wait='#9fb0c4'; SEGC.swapw='#22f08f'; SEGN.wait='Waiting for the lock'; SEGN.swapw='Battery swap';
 SCN.lock={id:'lock',S:S3L,soc0:10,T_END:S3L.T_END,CH:CH3,CP:CP3,VIEWS:VIEWS3,apply:applyScenario2,end:{h:'Full packs, no time lost at the lock',p:'The swap happened during the wait for the lock, so it cost the barge nothing. It sails on to Genk with full packs while the tender takes the empties back to the hub to charge.'},swapT:26};
 /* activity clocks: when the labels are hidden, small clocks over the action say how long each job takes in real time */
@@ -3230,7 +3235,7 @@ function frame(now){
   if(!started){ renderer.render(scene,camera); return; }
   const dt=clamp((now-last)/1000,0,0.1); last=now;
   // the run from the quay to the lock gate (56 s to 78 s of story time) plays 1.8 times faster, it was the longest wait
-  const boost=SC.id!=='hub'?1:(tNow>56.5&&tNow<78)?1.8:(tNow>84&&tNow<104)?1.7:1;   // the chamber fills 1.7 times faster too
+  const boost=SC.id==='lock'?((tNow>95&&tNow<115)?1.7:1):SC.id!=='hub'?1:(tNow>56.5&&tNow<78)?1.8:(tNow>84&&tNow<104)?1.7:1;   // the chamber fills 1.7 times faster too
   if(!paused&&!waiting&&!ended){ let nt=tNow+dt*speed*boost;
     if(guided&&cpNext<CP.length&&nt>=CP[cpNext].t){ nt=CP[cpNext].t; arrive(CP[cpNext]); }
     if(nt>=T_END){ nt=T_END; finish(); }
