@@ -188,6 +188,7 @@ body.quest #act{display:none}
 /* version 2: scenario tabs, journey clock, powered by */
 .scn{width:320px;max-width:calc(100vw - 32px);padding:6px;pointer-events:auto;display:flex;flex-direction:column;gap:2px}
 .scn .sh{font:700 13px var(--sans);color:var(--mist);padding:4px 8px 3px}
+.scn a.sl{display:grid;grid-template-columns:24px 1fr;align-items:center;gap:10px;text-align:left;border-radius:9px;padding:7px 10px;color:var(--ivory);text-decoration:none} .scn a.sl:hover{background:rgba(255,255,255,.05)} .scn .ext{width:13px;height:13px;vertical-align:-1px;margin-left:4px;fill:none;stroke:var(--mist);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .scn button{display:grid;grid-template-columns:24px 1fr;align-items:center;gap:10px;text-align:left;border:0;background:transparent;border-radius:9px;padding:7px 10px;cursor:pointer;color:var(--ivory)}
 .scn button:hover{background:rgba(255,255,255,.05)}
 .scn .no{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--hair);display:grid;place-items:center;font:700 13px var(--sans)}
@@ -202,7 +203,7 @@ body.quest #act{display:none}
 .ssn .snote{grid-column:1/-1;font:400 12px/1.35 var(--sans);color:var(--mist)} .ssn .snote:empty{display:none}
 .scn button[aria-pressed="true"] .no{background:var(--brass);color:var(--navy);border-color:var(--brass)}
 .scn button:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
-@media (max-height:860px){ .scn .sub{display:none} .scn button{padding:6px 10px} }
+@media (max-height:860px){ .scn button,.scn a.sl{padding:5px 10px} .scn .sub{font-size:12px} }
 .clock{margin:8px 2px 0}
 .clock .ch{display:flex;justify-content:space-between;align-items:center;gap:8px;font:700 13px var(--sans);color:var(--mist)}
 .lapse{font:700 12px var(--sans);padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.1);color:var(--ivory);white-space:nowrap}
@@ -315,9 +316,10 @@ body.hidden-ui .restore{display:flex}
     </div>
     <nav class="scn panel" id="scnTabs" aria-label="Scenarios">
       <div class="sh">Scenarios</div>
-      <button data-s="hub" aria-pressed="true"><span class="no">1</span><span><b>Swap at the hub</b><span class="sub">The barge calls at the charging station</span></span></button>
-      <button data-s="berth" aria-pressed="false"><span class="no">2</span><span><b>Tender at the berth</b><span class="sub">Swap during cargo handling</span></span></button>
-      <button data-s="lock" aria-pressed="false"><span class="no">3</span><span><b>Tender at the lock</b><span class="sub">Swap while waiting for the lock</span></span></button>
+      <a class="sl" title="The original version, opens in a new tab" href="classic/" target="_blank" rel="noopener"><span class="no">1</span><span><b>Swap at the hub <svg class="ext" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></b><span class="sub">The original: one pack swapped at the hub</span></span></a>
+      <button data-s="berth" aria-pressed="true"><span class="no">2</span><span><b>Tender at the berth</b><span class="sub">Tender swaps both packs during unloading</span></span></button>
+      <button data-s="lock" aria-pressed="false"><span class="no">3</span><span><b>Tender at the lock</b><span class="sub">Tender swaps both packs while waiting</span></span></button>
+      <a class="sl" title="Fleet simulation by NatPower Marine, opens in a new tab" href="https://as-albert-canal-3d-uks-hfbdd9gfatazfaaz.uksouth-01.azurewebsites.net/" target="_blank" rel="noopener"><span class="no">4</span><span><b>Fleet on the corridor <svg class="ext" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></b><span class="sub">Many e-barges, queues and lock traffic</span></span></a>
       <div class="ssn" id="ssn" hidden><span class="sh2">Season</span><span class="seg2"><button data-season="normal" aria-pressed="true">Normal flow</button><button data-season="dry" aria-pressed="false">Dry summer</button></span>
         <span class="snote" id="snote"></span></div>
     </nav>
@@ -345,11 +347,11 @@ body.hidden-ui .restore{display:flex}
     </section>
   </div>
 
-  <section class="story panel" id="story" aria-live="polite">
+  <section class="story panel min" id="story" aria-live="polite">
     <div class="in">
       <div class="top">
         <div class="meta"><span class="eyebrow" id="stepNo">Step 01 of 15</span><span class="tl" id="tlChip">Time-lapse ×20</span><span class="mini-title" id="miniTitle"></span></div>
-        <button class="collapse" id="storyFold" aria-label="Shrink story card" aria-expanded="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+        <button class="collapse" id="storyFold" aria-label="Expand story card" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
       </div>
       <h2 id="stepTitle">Under way on battery power</h2>
       <p class="body" id="stepBody"></p>
@@ -1994,7 +1996,8 @@ function drawRoute(ctx,view,opt){
 }
 const mini={cv:$('miniCv'),view:null};
 function miniView(){ const [x0,y0]=mapXY(4.25,51.31), [x1,y1]=mapXY(5.53,50.92); const W=mini.cv.width,H=mini.cv.height; const s=Math.min(W/(x1-x0),H/(y1-y0))*0.96; return {cx:(x0+x1)/2,cy:(y0+y1)/2,s}; }
-let miniOn=true; $('miniFold').onclick=()=>{ const m=$('mini'); m.classList.toggle('collapsed'); $('miniFold').textContent=m.classList.contains('collapsed')?'Show':'Fold'; };
+let miniOn=true; if(innerHeight<820&&!IS_QUEST){ $('mini').classList.add('collapsed'); $('miniFold').textContent='Show'; }   /* short screens: the map starts folded so it never covers the views */
+$('miniFold').onclick=()=>{ const m=$('mini'); m.classList.toggle('collapsed'); $('miniFold').textContent=m.classList.contains('collapsed')?'Show':'Fold'; };
 $('tMap').onclick=()=>{ miniOn=!miniOn; $('mini').hidden=!miniOn; $('tMap').setAttribute('aria-pressed',miniOn); };
 /* full-screen map */
 const big={cv:$('mapCv'),view:null,sel:null,open:false,drag:null};
@@ -3176,7 +3179,7 @@ function build(){
   for(let t=0;t<T_END;t+=0.25){ SC.apply(t); scene.updateMatrixWorld(true); const L=ships(); const C=L.map(s=>corners(s[1],s[2],s[3],s[4]));
     for(let i=0;i<L.length;i++) for(let j=i+1;j<L.length;j++){ if(!sep(C[i],C[j])){ const k=L[i][0]+' x '+L[j][0]; const last=out[out.length-1]; if(last&&last.k===k&&t-last.t1<=0.3) last.t1=t; else out.push({k,t0:t,t1:t}); } } }
   SC.apply(tNow); return out; },pmat:()=>{ const p=T_PACK.get('Slot_r4_c1'); const out=[]; p.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>out.push([o.name,m.name,m.type,m.color&&m.color.getHexString(),m.emissive&&m.emissive.getHexString(),m.emissiveIntensity,m.vertexColors,!!m.map,m.opacity,m.transparent])); }); return out; },tmats:()=>{ const out={}; tender.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m.color) out[m.name]=m.color.getHexString(); }); }); return [out,UNLOAD.cranes.map(c=>c.moves.length)]; },mats:()=>{ const out=[]; BA.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>out.push([o.name,m.name,m.type,m.color&&m.color.getHexString(),!!m.map,m.userData&&m.userData.rag])); }); return out; },look:(x,y,z)=>{ VIEWS[cam.v].target=()=>new V3(x,y,z); VIEWS[cam.v].rel=false; }};
-  setView(0); applyTime(0); if(params.get('s')&&SCN[params.get('s')]) setScenario(params.get('s')); else { buildClock(); fillWhy('hub'); } started=true; last=performance.now(); if(!TEST||params.has('live')) startLive();
+  setView(0); applyTime(0); { const s0=params.get('s'); setScenario(s0&&SCN[s0]&&(s0!=='hub'||TEST)?s0:'berth'); }   /* scenario 1 is now the original version in its own tab, so the page opens on the berth */ started=true; last=performance.now(); if(!TEST||params.has('live')) startLive();
   if(TEST){ seek(parseFloat(params.get('t'))); if(params.has('cp')){ const c=CP.find(c=>Math.abs(c.t-tNow)<0.05); if(c){ cpNext=CP.indexOf(c); arrive(c); } } else if(params.has('end')){ tNow=T_END; finish(); } setPaused(true); if(params.has('v')) setView(+params.get('v')); if(params.has('d')) cam.g.dist=+params.get('d'); if(params.has('az')) cam.g.az=+params.get('az'); if(params.has('el')) cam.g.el=+params.get('el'); if(params.has('hide')) setHidden(true); if(params.has('min')) $('storyFold').click(); if(params.has('map')) openMap(); }
 }
 
