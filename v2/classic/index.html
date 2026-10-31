@@ -1,4 +1,5 @@
 <base href="../../">
+<link rel="icon" href="data:,">
 <title>Kwaadmechelen Swap VR</title>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -408,10 +409,27 @@ body.hidden-ui .restore{display:flex}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
 <div id="diag" style="position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:50;display:none;padding:18px 20px;border-radius:14px;background:#5a0f12;color:#fff;font:400 18px/1.45 Arial,sans-serif;box-shadow:0 10px 40px rgba(0,0,0,.5)"></div>
 <script>
-window.__diag=function(msg){ try{ const d=document.getElementById('diag'); d.style.display='block'; d.innerHTML='<b>Something went wrong</b><br>'+String(msg).replace(/</g,'&lt;')+'<br><span style="opacity:.75;font-size:15px">Please read this message to Claude.</span>'; }catch(e){} };
-window.addEventListener('error',e=>window.__diag((e.message||'Error')+(e.filename?' ('+e.filename.split('/').pop()+':'+e.lineno+')':'')));
-window.addEventListener('unhandledrejection',e=>window.__diag('Promise: '+(e.reason&&(e.reason.message||e.reason.name)||e.reason)));
-setTimeout(()=>{ const L=document.getElementById('load'); if(L&&L.isConnected) window.__diag('Still loading after 3 minutes: '+(document.getElementById('loadTxt')||{}).textContent); },180000);
+function installRetry(T){ var bust=function(u,n){ return u+(u.indexOf('?')<0?'?':'&')+'retry='+n; };
+  [T.FileLoader,T.ImageLoader,T.ImageBitmapLoader].forEach(function(C){ if(!C||C.prototype.load.__retry) return; var orig=C.prototype.load;
+    var w=function(url,onLoad,onProgress,onError){ var self=this; if(typeof url!=='string'||/^(data|blob):/.test(url)) return orig.call(self,url,onLoad,onProgress,onError);
+      var mgr=self.manager||T.DefaultLoadingManager, key='hold:'+url, n=0; mgr.itemStart(key);
+      var go=function(){ return orig.call(self,n?bust(url,n):url,function(r){ try{ if(onLoad) onLoad(r); } finally{ mgr.itemEnd(key); } },onProgress,function(e){ if(++n<4) setTimeout(go,800*n); else { try{ if(onError) onError(e); } finally{ mgr.itemEnd(key); } } }); };
+      return go(); };
+    w.__retry=true; C.prototype.load=w; }); }
+installRetry(THREE);
+</script>
+<script>
+/* Problems are recorded in window.__errs and the console. The red banner only shows when the scene cannot run
+   (it did not build, the frame loop keeps failing, VR could not start, or nothing loaded after 8 minutes); ?debug shows everything. */
+(function(){ var dbg=/[?&]debug\b/.test(location.search); window.__errs=[];
+  function show(msg){ try{ var d=document.getElementById('diag'); d.style.display='block'; d.innerHTML='<b>Something went wrong</b><br>'+String(msg).replace(/</g,'&lt;')+'<br><span style="opacity:.75;font-size:15px">Please refresh the page. If it happens again, read this message to Claude.</span>'; }catch(e){} }
+  window.__fatal=show;
+  window.__diag=function(msg){ window.__errs.push(String(msg)); try{ console.warn('[demo] '+msg); }catch(e){} if(dbg) show(msg); };
+  window.addEventListener('error',function(e){ if(!e||!e.message) return; var f=e.filename||''; if(f&&f.indexOf(location.origin)!==0&&!/jsdelivr|cdnjs/.test(f)) return; window.__diag(e.message+(f?' ('+f.split('/').pop()+':'+e.lineno+')':'')); });
+  window.addEventListener('unhandledrejection',function(e){ window.__diag('Promise: '+(e.reason&&(e.reason.message||e.reason.name)||e.reason)); });
+  setTimeout(function(){ var L=document.getElementById('load'); if(L&&L.isConnected){ var p=L.querySelector('p'); if(p) p.textContent='Still loading. The scene is large, so on a slow connection this can take a few minutes.'; } },120000);
+  setTimeout(function(){ var L=document.getElementById('load'); if(L&&L.isConnected) show('The scene has not finished loading after 8 minutes. The connection may be too slow.'); },480000);
+})();
 </script>
 <script>
 'use strict';
@@ -546,7 +564,7 @@ gltfL.load('assets/models/lock.gltf.json',g=>{ lockGLTF=g; });
 let fontsReady=false; (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>{ fontsReady=true; hudDirty=true; });
 manager.onError=u=>window.__diag('Could not load '+u);
 let built=false;
-manager.onLoad=()=>{ if(built) return; built=true; try{ build(); }catch(e){ console.error(e); $('loadTxt').textContent='Error: '+e.message; window.__diag('Build: '+e.message); return; }
+manager.onLoad=()=>{ if(built) return; built=true; try{ build(); }catch(e){ console.error(e); $('loadTxt').textContent='Error: '+e.message; window.__fatal('Build: '+e.message); return; }
   const L=$('load'); L.style.opacity=0; setTimeout(()=>L.remove(),900); };
 
 /* ============================================================
@@ -1933,12 +1951,12 @@ function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
   vrBtn.disabled=false; vrBtn.textContent='Enter VR';
   if(IS_QUEST&&!FLAT){ document.body.classList.add('quest'); $('vrBig').hidden=false; $('vrBig').onclick=()=>vrBtn.onclick(); }
   vrBtn.onclick=async()=>{ const cur=renderer.xr.getSession(); if(cur){ cur.end(); return; }
-    let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ window.__diag('Enter VR refused: '+e.name+' '+e.message); return; }
+    let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ window.__fatal('Enter VR refused: '+e.name+' '+e.message); return; }
     // sharper headset image: render at 1.4x the headset's default resolution, little edge foveation, and a 2 m visual high quality hint
     try{ renderer.xr.setFramebufferScaleFactor&&renderer.xr.setFramebufferScaleFactor(params.has('soft')?1.0:params.has('max')?2.0:1.5); }catch(e){}
     try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(params.has('soft')?1:params.has('max')?0:0.35); }catch(e){}
     sun.shadow.mapSize.set(1024,1024); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
-    try{ await renderer.xr.setSession(s); }catch(e){ window.__diag('Starting VR failed: '+e.name+' '+e.message); try{ s.end(); }catch(_){} return; }
+    try{ await renderer.xr.setSession(s); }catch(e){ window.__fatal('Starting VR failed: '+e.name+' '+e.message); try{ s.end(); }catch(_){} return; }
     vrBtn.textContent='Exit VR'; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; setView(1); panelSnap=true; hudDirty=true; $('vrBig').hidden=true;
     s.addEventListener('end',()=>{ vrBtn.textContent='Enter VR'; if(IS_QUEST&&!FLAT) $('vrBig').hidden=false; vrPanel.visible=false; vrMap.visible=false; scene.add(rig); rig.position.set(0,0,0); rig.rotation.set(0,0,0); camera.position.set(0,0,0); setView(cam.v,true); }); };
 })();
@@ -1970,11 +1988,11 @@ async function refreshLive(){
   const [w,wind,sun,load]=await Promise.allSettled([
     liveJSON('https://api.open-meteo.com/v1/forecast?latitude=51.099&longitude=5.105&current=temperature_2m,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation,is_day&wind_speed_unit=ms&timezone=Europe%2FBrussels'),
     liveJSON(E+'ods086/records?where=realtime%20is%20not%20null&order_by=datetime%20desc&limit=20&select=datetime,realtime'),
-    liveJSON(E+'ods087/records?where=realtime%20is%20not%20null%20and%20region%3D%22Belgium%22&order_by=datetime%20desc&limit=1&select=datetime,realtime'),
+    liveJSON(E+'ods210/records?where=measured%20is%20not%20null%20and%20region%3D%22Belgium%22%20and%20gridconnectiontype%3D%22Total%22&order_by=datetime%20desc&limit=1&select=datetime,measured'),   /* ods087 was discontinued in 2026; ods210 replaces it */
     liveJSON(E+'ods002/records?where=measured%20is%20not%20null&order_by=datetime%20desc&limit=1&select=datetime,measured')]);
   if(w.status==='fulfilled'){ const c=w.value.current; LIVE.temp=c.temperature_2m; LIVE.wind=c.wind_speed_10m; LIVE.dir=c.wind_direction_10m; LIVE.cloud=c.cloud_cover; LIVE.rain=c.precipitation; LIVE.time=c.time; LIVE.ok=true; }
   if(wind.status==='fulfilled'&&wind.value.results.length){ const R=wind.value.results, t0=R[0].datetime; LIVE.windMW=R.filter(r=>r.datetime===t0).reduce((a,r)=>a+r.realtime,0); LIVE.gridTime=t0; }
-  if(sun.status==='fulfilled'&&sun.value.results.length) LIVE.solarMW=sun.value.results[0].realtime;
+  if(sun.status==='fulfilled'&&sun.value.results.length) LIVE.solarMW=sun.value.results[0].measured;
   if(load.status==='fulfilled'&&load.value.results.length) LIVE.loadMW=load.value.results[0].measured;
   // the wind turbines turn at the measured wind speed (stopped below 3 m/s cut-in, tip speed ratio about 7)
   if(LIVE.wind!=null) for(const r of turbines){ const R=r.userData.radius||45; r.userData.speed=LIVE.wind<3?0.05:Math.min(1.6,7*Math.min(LIVE.wind,13)/R); }
@@ -2008,7 +2026,7 @@ async function refreshAIS(){
   AIS.err=false; AIS.updated=d.updated; const now=Date.now()/1000;
   AIS.list=(d.ships||[]).filter(v=>v.lat&&v.lon&&now-v.seen<12*3600);   // keep the last known positions up to 12 h, the age is shown
   for(const v of AIS.list){ const p=ll(v.lon,v.lat); v.x=p.x; v.z=p.z; v.inScene=p.x>-2600&&p.x<3450&&p.z>-1200&&p.z<1430; }
-  syncAIS(); drawLive(); hudDirty=true; }
+  try{ syncAIS(); }catch(e){ window.__diag('AIS: '+e.message); } drawLive(); hudDirty=true; }   /* a bad record in the feed never stops the scene */
 function aisHeading(v){ return (v.hdg!=null&&v.hdg<360)?v.hdg:(v.cog!=null&&v.cog<360?v.cog:null); }
 function syncAIS(){
   const keep=new Set();
@@ -2076,8 +2094,8 @@ function build(){
 }
 function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
 addEventListener('resize',resize); resize();
-let xrFrame=0, loopErr=false;
-renderer.setAnimationLoop(now=>{ try{ frame(now); }catch(e){ if(!loopErr){ loopErr=true; window.__diag('Frame: '+e.message+' '+((e.stack||'').split('\n')[1]||'')); } } });
+let xrFrame=0, loopErrN=0;   /* one bad frame is logged; a frame loop that keeps failing for a second is fatal */
+renderer.setAnimationLoop(now=>{ try{ frame(now); loopErrN=0; }catch(e){ loopErrN++; const m='Frame: '+e.message+' '+((e.stack||'').split('\n')[1]||''); if(loopErrN===1) window.__diag(m); if(loopErrN===60) window.__fatal(m); } });
 function frame(now){
   if(!started){ renderer.render(scene,camera); return; }
   const dt=clamp((now-last)/1000,0,0.1); last=now;
@@ -2087,7 +2105,7 @@ function frame(now){
     if(guided&&cpNext<CP.length&&nt>=CP[cpNext].t){ nt=CP[cpNext].t; arrive(CP[cpNext]); }
     if(nt>=T_END){ nt=T_END; finish(); }
     tNow=nt; }
-  applyTime(tNow); updateBatteryFX(tNow,dt); updateWake(dt); updatePeople(dt); if(AIS.objs.size) updateAIS();
+  applyTime(tNow); updateBatteryFX(tNow,dt); updateWake(dt); updatePeople(dt); if(AIS.objs.size){ try{ updateAIS(); }catch(e){ window.__diag('AIS: '+e.message); for(const o of AIS.objs.values()) o.visible=false; AIS.objs.clear(); } }
   const xr=renderer.xr.isPresenting;
   // in the headset the shadows are refreshed every frame (a refresh every third frame gave a regular hitch); the map is smaller there to keep the cost even
   renderer.shadowMap.autoUpdate=true;
