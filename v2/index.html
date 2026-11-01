@@ -458,12 +458,17 @@ body.hidden-ui .restore{display:flex}
    (it did not build, the frame loop keeps failing, VR could not start, or nothing loaded after 8 minutes); ?debug shows everything. */
 (function(){ var dbg=/[?&]debug\b/.test(location.search); window.__errs=[];
   function show(msg){ try{ var d=document.getElementById('diag'); d.style.display='block'; d.innerHTML='<b>Something went wrong</b><br>'+String(msg).replace(/</g,'&lt;')+'<br><span style="opacity:.75;font-size:15px">Please refresh the page. If it happens again, read this message to Claude.</span>'; }catch(e){} }
-  window.__fatal=show;
+  /* a viewer never sees an error: if the scene truly cannot run, the page quietly reloads itself (at most twice in ten minutes) */
+  window.__fatal=function(msg){ window.__errs.push('FATAL '+msg); try{ console.error('[demo] '+msg); }catch(e){} if(dbg){ show(msg); return; }
+    var k='demoRecover', now=Date.now(), a=[]; try{ a=JSON.parse(sessionStorage.getItem(k)||'[]').filter(function(t){ return now-t<600000; }); }catch(e){ return; }
+    if(a.length>=2) return; a.push(now); try{ sessionStorage.setItem(k,JSON.stringify(a)); }catch(e){ return; }
+    var n=document.createElement('div'); n.textContent='Refreshing the scene'; n.style.cssText='position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:60;padding:10px 18px;border-radius:999px;background:rgba(8,32,66,.93);color:#fff;font:600 15px Arial,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.35)'; document.body.appendChild(n);
+    setTimeout(function(){ location.reload(); },1200); };
   window.__diag=function(msg){ window.__errs.push(String(msg)); try{ console.warn('[demo] '+msg); }catch(e){} if(dbg) show(msg); };
   window.addEventListener('error',function(e){ if(!e||!e.message) return; var f=e.filename||''; if(f&&f.indexOf(location.origin)!==0&&!/jsdelivr|cdnjs/.test(f)) return; window.__diag(e.message+(f?' ('+f.split('/').pop()+':'+e.lineno+')':'')); });
   window.addEventListener('unhandledrejection',function(e){ window.__diag('Promise: '+(e.reason&&(e.reason.message||e.reason.name)||e.reason)); });
   setTimeout(function(){ var L=document.getElementById('load'); if(L&&L.isConnected){ var p=L.querySelector('p'); if(p) p.textContent='Still loading. The scene is large, so on a slow connection this can take a few minutes.'; } },120000);
-  setTimeout(function(){ var L=document.getElementById('load'); if(L&&L.isConnected) show('The scene has not finished loading after 8 minutes. The connection may be too slow.'); },480000);
+  setTimeout(function(){ var L=document.getElementById('load'); if(L&&L.isConnected) window.__fatal('not loaded after 8 minutes'); },480000);
 })();
 </script>
 <script type="module">
@@ -625,7 +630,7 @@ gltfL.load('assets/models/lock.gltf.json',g=>{ lockGLTF=g; });
 let fontsReady=false; (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>{ fontsReady=true; hudDirty=true; });
 manager.onError=u=>window.__diag('Could not load '+u);
 let built=false;
-manager.onLoad=()=>{ if(built) return; built=true; try{ build(); }catch(e){ console.error(e); $('loadTxt').textContent='Error: '+e.message; window.__fatal('Build: '+e.message); return; }
+manager.onLoad=()=>{ if(built) return; built=true; try{ build(); }catch(e){ console.error(e); $('loadTxt').textContent='Getting the scene ready'; window.__fatal('Build: '+e.message); return; }
   const L=$('load'); L.style.opacity=0; setTimeout(()=>L.remove(),900); };
 
 /* ============================================================
@@ -2218,13 +2223,13 @@ function vrUnavailable(why){ vrBtn.textContent='VR on Quest'; vrBtn.title=why;
   vrBtn.disabled=false; vrBtn.textContent='Enter VR';
   if(IS_QUEST&&!FLAT){ document.body.classList.add('quest'); $('vrBig').hidden=false; $('vrBig').onclick=()=>vrBtn.onclick(); }
   vrBtn.onclick=async()=>{ const cur=renderer.xr.getSession(); if(cur){ cur.end(); return; }
-    let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ window.__fatal('Enter VR refused: '+e.name+' '+e.message); return; }
+    let s; try{ s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}); }catch(e){ window.__diag('Enter VR refused: '+e.name+' '+e.message); vrBtn.textContent='Tap to try VR again'; return; }
     // sharper headset image: render at 1.4x the headset's default resolution, little edge foveation, and a 2 m visual high quality hint
     try{ renderer.xr.setFramebufferScaleFactor&&renderer.xr.setFramebufferScaleFactor(params.has('soft')?1.0:params.has('max')?2.0:1.5); }catch(e){}
     try{ renderer.xr.setFoveation&&renderer.xr.setFoveation(params.has('soft')?1:params.has('max')?0:0.35); }catch(e){}
     sun.shadow.mapSize.set(1024,1024); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
     { const c=sun.shadow.camera; c.left=-120; c.right=120; c.top=120; c.bottom=-120; c.updateProjectionMatrix(); }   // a tighter shadow box round the viewer keeps shadows crisp at 1024 px
-    try{ await renderer.xr.setSession(s); }catch(e){ window.__fatal('Starting VR failed: '+e.name+' '+e.message); try{ s.end(); }catch(_){} return; }
+    try{ await renderer.xr.setSession(s); }catch(e){ window.__diag('Starting VR failed: '+e.name+' '+e.message); vrBtn.textContent='Tap to try VR again'; try{ s.end(); }catch(_){} return; }
     vrBtn.textContent='Exit VR'; vrTour=true; vrTourLast=null; terrainMeshes.forEach(m=>m.castShadow=false); vrPanel.visible=vrCaptions; vrMap.visible=vrMapOn; setView(1); panelSnap=true; hudDirty=true; $('vrBig').hidden=true;
     s.addEventListener('end',()=>{ { const c=sun.shadow.camera; c.left=-260; c.right=260; c.top=260; c.bottom=-260; c.updateProjectionMatrix(); } vrBtn.textContent='Enter VR'; if(IS_QUEST&&!FLAT) $('vrBig').hidden=false; vrPanel.visible=false; vrMap.visible=false; scene.add(rig); rig.position.set(0,0,0); rig.rotation.set(0,0,0); camera.position.set(0,0,0); setView(cam.v,true); }); };
 })();
