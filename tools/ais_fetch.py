@@ -49,6 +49,7 @@ def main():
     if not KEY:
         print('AISSTREAM_KEY is not set yet: nothing to do'); return
     ships = load_previous()
+    start = int(time.time())
     asyncio.run(collect(ships))
     now = int(time.time())
     keep = [s for s in ships.values() if 'lat' in s and now - s.get('seen', 0) < KEEP_H * 3600]
@@ -56,7 +57,16 @@ def main():
     json.dump({'updated': datetime.datetime.utcnow().replace(microsecond=0).isoformat() + 'Z', 'source': 'aisstream.io',
                'count': len(keep), 'ships': sorted(keep, key=lambda s: -s['seen'])}, open(OUT, 'w'), separators=(',', ':'))
     open('live/.ok', 'w').write('1')
-    print('ships', len(keep))
+    # History: one line per vessel seen in this run, appended to a daily file that is never rewritten.
+    # This is the raw material for the vessel patterns (lock waits, terminal dwell, speeds) in v3.
+    day = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    os.makedirs('live/history', exist_ok=True)
+    fresh = [s for s in keep if s.get('seen', 0) >= start]
+    with open(f'live/history/{day}.jsonl', 'a') as f:
+        for s in fresh:
+            f.write(json.dumps({k: s.get(k) for k in ('mmsi', 'name', 'lat', 'lon', 'sog', 'cog', 'hdg', 'seen', 'type', 'dest', 'len', 'beam')},
+                               separators=(',', ':')) + '\n')
+    print('ships', len(keep), 'logged', len(fresh))
 
 if __name__ == '__main__':
     main()

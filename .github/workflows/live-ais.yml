@@ -17,7 +17,12 @@ jobs:
       - name: Previous data
         run: |
           mkdir -p live
-          git fetch origin live-data --depth=1 && git show origin/live-data:live/ships.json > live/ships.json || echo '{"ships":[]}' > live/ships.json
+          if git fetch origin live-data --depth=1; then
+            git show origin/live-data:live/ships.json > live/ships.json || echo '{"ships":[]}' > live/ships.json
+            git archive origin/live-data live/history 2>/dev/null | tar -x || true
+          else
+            echo '{"ships":[]}' > live/ships.json
+          fi
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -26,15 +31,15 @@ jobs:
         env:
           AISSTREAM_KEY: ${{ secrets.AISSTREAM_KEY }}
         run: python tools/ais_fetch.py
-      - name: Publish to the live-data branch (one commit, replaced each time)
+      - name: Publish to the live-data branch (ships.json replaced, history kept)
         run: |
           [ -f live/.ok ] || { echo "no new data"; exit 0; }
-          cp live/ships.json /tmp/ships.json
+          rm -rf /tmp/live && cp -r live /tmp/live
           git config user.name "live-ais bot"
           git config user.email "actions@users.noreply.github.com"
           git checkout --orphan live-data-new
           git rm -rq --cached .
-          mkdir -p live && cp /tmp/ships.json live/ships.json
-          git add live/ships.json
+          rm -rf live && cp -r /tmp/live live && rm -f live/.ok
+          git add live
           git commit -qm "Live AIS positions"
           git push -f origin HEAD:live-data
