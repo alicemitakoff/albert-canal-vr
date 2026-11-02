@@ -143,7 +143,7 @@ select option{background:#0b1e33}
         <div class="row"><input id="pName" placeholder="Vessel name" maxlength="18"></div>
         <div class="row"><select id="pFrom"></select><select id="pTo"></select></div>
         <div class="row"><select id="pTeu"><option value="96">96 TEU</option><option value="150" selected>150 TEU</option><option value="208">208 TEU</option><option value="342">342 TEU (4 layers)</option></select><select id="pStart"><option value="5">Leave 05:00</option><option value="7" selected>Leave 07:00</option><option value="11">Leave 11:00</option><option value="15">Leave 15:00</option><option value="21">Leave 21:00</option></select></div>
-        <div class="row"><select id="pSwap"><option value="auto" selected>Swap where the twin suggests</option><option value="hub">Swap at BCTN Meerhout hub</option><option value="lock">Tender swap at Kwaadmechelen lock</option><option value="none">No swap, see what happens</option></select></div>
+        <div class="row"><select id="pSwap"><option value="call" selected>Boxes for Meerhout: swap at the berth while the cranes work</option><option value="pass">No boxes for Meerhout: the tender meets me at the lock</option><option value="none">No swap, see what happens</option></select></div>
         <div class="row"><button class="btn primary" id="pAdd">Add my vessel</button><button class="btn ghost" id="pClear">Clear canal</button></div>
         <div id="players"></div>
         <div class="faint" style="margin-top:10px">Business model shown as the trip unfolds: <span class="badge eaas">EaaS</span> energy as a service at the charging hub, <span class="badge baas">BaaS</span> battery as a service when a tender moves packs, <span class="badge own">owner</span> for the pack owner.</div>
@@ -287,12 +287,16 @@ function forecast(s,trail){
   events.push({t,km,kind:'now',label:`Now, km ${km.toFixed(1)}`});
   if(!moving){ const nl=C.locks.find(l=>Math.abs(l.km-km)<1.2); if(nl){ const waited=trail.length?Math.max(0,(Date.now()-trail.findLast(p=>p.sog>0.8)?.t)/36e5||0):0; const more=Math.max(0.3,1-waited*0.5); events.push({t:t+more*36e5,km,kind:'lock',label:`Through ${nl.name} lock, waiting${waited?' since '+h2(waited)+' ago':''}; forecast another ${h2(more)}`}); t+=more*36e5; } else { events.push({t:t+45*60e3,km,kind:'past',label:'Cargo call or mooring, forecast under way in 45 min'}); t+=45*60e3; } }
   let swap=null, swapTxt='';
+  // Toby's rule: a vessel with boxes for Meerhout swaps at the berth while the cranes work (scenario 2);
+  // a vessel passing through keeps sailing and the tender meets it at the Kwaadmechelen lock (scenario 3).
+  const dest=(s.dest||'').toUpperCase(); const calls=/MEERHOUT|BCTN|GEEL|\bHAM\b|BERINGEN|LAAKDAL/.test(dest);
+  const callsTxt=calls?`AIS destination ${s.dest}: boxes for Meerhout, so this is a berth swap (scenario 2).`:(dest?`AIS destination ${s.dest}: no call at Meerhout, so the tender meets it at the lock (scenario 3).`:'No destination in its AIS, so we assume it passes Meerhout and the tender meets it at the lock (scenario 3).');
   const end=dir>0?KM_END:0; let guard=0;
   while(Math.abs(km-end)>0.05&&t<Date.now()+horizonH*36e5&&guard++<60){
     // next feature ahead
     const ahead=[];
     for(const l of C.locks){ if(l.km>KM_END)continue; if((dir>0&&l.km>km+0.3)||(dir<0&&l.km<km-0.3))ahead.push({km:l.km,kind:'lock',name:l.name,lift:l.lift}); }
-    if((dir>0&&HUB_KM>km+0.3)||(dir<0&&HUB_KM<km-0.3))ahead.push({km:HUB_KM,kind:'hub',name:'BCTN Meerhout'});
+    if(calls&&((dir>0&&HUB_KM>km+0.3)||(dir<0&&HUB_KM<km-0.3)))ahead.push({km:HUB_KM,kind:'hub',name:'BCTN Meerhout'});
     ahead.push({km:end,kind:'end',name:dir>0?'end of the corridor at km 72, towards Genk':'Antwerp, canal km 0'});
     ahead.sort((a,b)=>dir>0?a.km-b.km:b.km-a.km); const nx=ahead[0];
     const dist=Math.abs(nx.km-km); const dt=dist/v*36e5; t+=dt; energy+=dist*kwhKm; path.push(llAt(nx.km)); km=nx.km;
@@ -303,6 +307,7 @@ function forecast(s,trail){
     else { events.push({t,km,kind:'past',label:`Reaches ${nx.name}`}); break; }
   }
   if(!swap)swapTxt=`no hub or Kwaadmechelen lock ahead within ${horizonH} h; with ${Math.round(energy)} kWh used the packs are at ${packs[0]}% and ${packs[1]}%, no swap needed on this leg.`;
+  swapTxt=callsTxt+' '+swapTxt;
   return {events,path,dir,moving,vkmh:v,vSrc,stateTxt,pastTxt,packs,kwhKm,swapTxt,horizonH};
 }
 
@@ -335,8 +340,8 @@ function stepGame(dtH){
     const used=p.energy/1000; p.packs=[Math.max(0,Math.round(100-used/PACK_USABLE*100)),Math.max(0,Math.round(100-Math.max(0,used-PACK_USABLE)/PACK_USABLE*100))];
     const crossed=k=>(p.dir>0&&kmBefore<k&&p.km>=k)||(p.dir<0&&kmBefore>k&&p.km<=k);
     for(const l of C.locks){ if(l.km>KM_END||p.locksDone.includes(l.name))continue; if(crossed(l.km)){ p.km=l.km; const hour=new Date(simT).getHours(); const q=congestion(hour,l.km); const wait=LOCK_MIN/60+q; p.hoursLost+=q; p.locksDone.push(l.name); p.state='hold'; p.stateUntil=simT+wait*36e5; p.log.push([simT,`${l.name} lock: ${h2(LOCK_MIN/60)} passage${q>0.2?' plus '+h2(q)+' queue (leaving at '+String(hour).padStart(2,'0')+':00 h traffic)':''}`]);
-        if(!p.swapped&&l.name==='Kwaadmechelen'&&(p.swapPlan==='lock'||(p.swapPlan==='auto'&&p.packs[0]<60))){ p.swapped=true; p.packs=[100,100]; p.energy=0; p.log.push([simT,`Tender alongside at the waiting berth: both packs swapped in 30 min, inside the lock wait <span class="badge baas">BaaS</span> <span class="badge own">owner: NatPower</span>`]); } return; } }
-    if(crossed(HUB_KM)&&!p.hubDone){ p.hubDone=true; p.km=HUB_KM; const call=1; p.state='hold'; p.stateUntil=simT+call*36e5; p.log.push([simT,`BCTN Meerhout: cargo call ${h2(call)} <span class="badge eaas">EaaS</span>`]); if(!p.swapped&&(p.swapPlan==='hub'||(p.swapPlan==='auto'&&p.packs[0]<60))){ p.swapped=true; p.packs=[100,100]; p.energy=0; p.log.push([simT,'Hub crane swaps both packs while the boxes are worked: 30 min inside the call']); } if(p.to.km===HUB_KM){ finish(p); } return; }
+        if(!p.swapped&&l.name==='Kwaadmechelen'&&p.swapPlan==='pass'){ p.swapped=true; p.packs=[100,100]; p.energy=0; p.log.push([simT,`Tender alongside at the waiting berth: both packs swapped in 30 min, inside the lock wait (scenario 3) <span class="badge baas">BaaS</span> <span class="badge own">owner: NatPower</span>`]); } return; } }
+    if(crossed(HUB_KM)&&!p.hubDone){ p.hubDone=true; const stops=p.swapPlan==='call'||p.to.km===HUB_KM; if(!stops){ p.log.push([simT,'Passes BCTN Meerhout without a cargo call']); if(p.to.km===HUB_KM)finish(p); return; } p.km=HUB_KM; const call=1; p.state='hold'; p.stateUntil=simT+call*36e5; p.log.push([simT,`BCTN Meerhout: cargo call ${h2(call)}, boxes in and out <span class="badge eaas">EaaS</span>`]); if(!p.swapped&&p.swapPlan!=='none'){ p.swapped=true; p.packs=[100,100]; p.energy=0; p.log.push([simT,'Hub crane swaps both packs while the boxes are worked: 30 min inside the call (scenario 2) <span class="badge eaas">EaaS</span> <span class="badge own">owner: NatPower</span>']); } if(p.to.km===HUB_KM){ finish(p); } return; }
     if(p.nextStopKm!=null&&crossed(p.nextStopKm)&&p.stopsLeft>0){ p.stopsLeft--; const kinds=['Oncoming push convoy at a bridge: 20 min hold','Bridge works: single lane, 15 min','Low water near the bank: slow passage, 25 min']; const k=kinds[Math.floor(Math.random()*kinds.length)]; const mins=+k.match(/(\d+) min/)[1]; p.hoursLost+=mins/60; p.state='hold'; p.stateUntil=simT+mins*60e3; p.log.push([simT,k]); p.nextStopKm=p.stopsLeft?p.km+p.dir*(5+Math.random()*10):null; return; }
     if(p.packs[1]<=0&&!p.done){ p.state='hold'; p.stateUntil=simT+CHARGE_H*36e5; p.hoursLost+=CHARGE_H; p.packs=[100,100]; p.energy=0; p.log.push([simT,`Packs empty at km ${p.km.toFixed(1)}: ${CHARGE_H} h alongside a charger <span class="badge eaas">EaaS</span>`]); return; }
     if(crossed(p.to.km)){ p.km=p.to.km; finish(p); }
