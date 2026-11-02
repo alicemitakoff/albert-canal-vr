@@ -43,6 +43,7 @@ select option{background:#0b1e33}
 .ship.sel i{background:#fff;box-shadow:0 0 0 3px var(--brass),0 0 18px var(--brass)}
 .ship.still i{opacity:.75}
 .ship.game i{width:16px;height:26px;margin:-13px 0 0 -8px}
+.ship.far i{width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;clip-path:none;transform:none!important}
 .ship.red i{background:var(--low)} .ship.amber i{background:var(--amber)} .ship.green i{background:var(--full)}
 .chrome{position:fixed;inset:0;pointer-events:none;z-index:600}
 .panel{background:var(--glass);border:1px solid var(--hair-cool);border-radius:var(--r);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 18px 50px rgba(0,0,0,.35);pointer-events:auto}
@@ -243,7 +244,7 @@ function shipIcon(cls,hdg){ return L.divIcon({className:'ship '+cls,html:`<i sty
 function drawLive(){
   for(const m of maps){ m._g.live.clearLayers(); }
   const showAll=document.getElementById('lyAll').checked;
-  for(const s of ships){ const isP=picked.includes(s); if(!showAll&&!isP)continue; const hdg=(s.hdg&&s.hdg<360)?s.hdg:(s.cog&&s.cog<360&&s.sog>0.5?s.cog:bearingAt(s.km)); const stale=(Date.now()-s.seen*1000)>40*60e3; const cls=(selected&&selected.mmsi===s.mmsi?'sel ':'')+(stale?'still':'');
+  for(const s of ships){ const isP=picked.includes(s); if(!showAll&&!isP)continue; const hdg=(s.hdg&&s.hdg<360)?s.hdg:(s.cog&&s.cog<360&&s.sog>0.5?s.cog:bearingAt(s.km)); const stale=(Date.now()-s.seen*1000)>40*60e3; const cls=(selected&&selected.mmsi===s.mmsi?'sel ':'')+(stale?'still ':'')+(maps[0].getZoom()<12?'far':'');
     for(const m of maps){ const mk=L.marker([s.lat,s.lon],{icon:shipIcon(cls,hdg),zIndexOffset:isP?500:100}).addTo(m._g.live); mk.bindTooltip(`<b>${s.name||'MMSI '+s.mmsi}</b><br>km ${s.km.toFixed(1)} · ${s.sog!=null?(s.sog*1.852).toFixed(1)+' km/h':''}${s.len?' · '+s.len+' × '+s.beam+' m':''}<br>${s.dest?'to '+s.dest+'<br>':''}<span class="faint">last report ${fmtT(s.seen*1000)}</span>`); mk.on('click',()=>selectVessel(s)); } }
 }
 function renderList(){
@@ -260,7 +261,7 @@ function selectVessel(s,keep){
   const fc=forecast(s,trail);
   // forecast line
   if(fc.path.length>1)L.polyline(fc.path.map(p=>[p[1],p[0]]),{color:'#7cc8ff',weight:3,opacity:.8,dashArray:'2 8'}).addTo(m._g.sel);
-  for(const e of fc.events){ if(e.kind==='swap'){ const p=llAt(e.km); L.circleMarker([p[1],p[0]],{radius:9,color:'#7cc8ff',weight:3,fillColor:'#07213a',fillOpacity:.9}).addTo(m._g.sel).bindTooltip('Suggested swap, '+e.label,{permanent:true,direction:'top',offset:[0,-10]}); } }
+  for(const e of fc.events){ if(e.kind==='swap'){ const p=llAt(e.km); L.circleMarker([p[1],p[0]],{radius:9,color:'#7cc8ff',weight:3,fillColor:'#07213a',fillOpacity:.9}).addTo(m._g.sel).bindTooltip('Suggested swap',{permanent:true,direction:'top',offset:[0,-10]}); } }
   if(!keep){ const b=L.latLngBounds([[s.lat,s.lon]]); fc.path.forEach(p=>b.extend([p[1],p[0]])); trail.forEach(p=>b.extend([p.lat,p.lon])); m.fitBounds(b.pad(.3),{maxZoom:14,paddingTopLeft:[40,130],paddingBottomRight:[420,60]}); }
   const el=document.getElementById('vsel'); const dirTxt=fc.dir>0?'east, towards Meerhout and Genk':'west, towards Antwerp';
   el.innerHTML=`<div class="card hi"><div class="big">${s.name||'MMSI '+s.mmsi}</div><div class="kv"><b>Now</b><span>km ${s.km.toFixed(1)}, ${fc.stateTxt}</span><b>Heading</b><span>${fc.moving?dirTxt:'holding position'}</span><b>Speed</b><span>${fc.vkmh.toFixed(1)} km/h ${fc.vSrc}</span>${s.len?`<b>Size</b><span>${s.len} × ${s.beam} m</span>`:''}${s.dest?`<b>AIS destination</b><span>${s.dest}</span>`:''}<b>Fixes today</b><span>${h.length} in our history</span></div></div>
@@ -360,7 +361,7 @@ tick._s=0;
 // ---------- boot ----------
 async function boot(){
   C=await (await fetch('data/corridor.json?v=1')).json();
-  setLayout(1); mainMap=maps[0]; maps[0].invalidateSize(); fitAll(maps[0]); setTimeout(()=>{maps[0].invalidateSize(); if(!maps[0]._userMoved)fitAll(maps[0]);},120); maps[0].on('dragstart zoomstart',()=>{maps[0]._userMoved=true;});
+  setLayout(1); mainMap=maps[0]; maps[0].invalidateSize(); fitAll(maps[0]); setTimeout(()=>{maps[0].invalidateSize(); if(!maps[0]._userMoved)fitAll(maps[0]);},120); maps[0].on('dragstart zoomstart',()=>{maps[0]._userMoved=true;}); maps[0].on('zoomend',()=>{ if((maps[0].getZoom()<12)!==maps[0]._wasFar){ maps[0]._wasFar=maps[0].getZoom()<12; drawLive(); } });
   document.querySelectorAll('.tabs button[data-t]').forEach(b=>b.onclick=()=>{ document.querySelectorAll('.tabs button[data-t]').forEach(x=>x.classList.toggle('on',x===b)); document.querySelectorAll('.sec').forEach(s=>s.classList.toggle('on',s.id==='sec-'+b.dataset.t)); document.getElementById('side').classList.remove('fold'); });
   document.getElementById('foldBtn').onclick=()=>{ const s=document.getElementById('side'); s.classList.toggle('fold'); document.getElementById('foldBtn').textContent=s.classList.contains('fold')?'▴':'▾'; };
   for(const [id,key] of [['lyBridges','bridges'],['lyLocks','locks'],['lyTerm','terms'],['lyLabels','labels']]){ document.getElementById(id).onchange=e=>{ for(const m of maps){ e.target.checked?m._g[key].addTo(m):m.removeLayer(m._g[key]);  } }; }
