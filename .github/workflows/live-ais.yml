@@ -1,7 +1,7 @@
 name: Live barge positions (AIS)
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '7 * * * *'
   workflow_dispatch:
 permissions:
   contents: write
@@ -11,7 +11,7 @@ concurrency:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - name: Previous data
@@ -27,19 +27,30 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install websockets==12.0
-      - name: Listen to AIS for 45 seconds
+      - name: Listen to AIS for 55 minutes, publish every 5 minutes
         env:
           AISSTREAM_KEY: ${{ secrets.AISSTREAM_KEY }}
-        run: python tools/ais_fetch.py
-      - name: Publish to the live-data branch (ships.json replaced, history kept)
+          LISTEN: "290"
         run: |
-          [ -f live/.ok ] || { echo "no new data"; exit 0; }
-          rm -rf /tmp/live && cp -r live /tmp/live
           git config user.name "live-ais bot"
           git config user.email "actions@users.noreply.github.com"
-          git checkout --orphan live-data-new
-          git rm -rq --cached .
-          rm -rf live && cp -r /tmp/live live && rm -f live/.ok
-          git add live
-          git commit -qm "Live AIS positions"
-          git push -f origin HEAD:live-data
+          for i in $(seq 1 11); do
+            python tools/ais_fetch.py || true
+            [ -f live/.ok ] || { echo "no new data in window $i"; continue; }
+            rm -f live/.ok
+            # keep history lines another run may have written meanwhile
+            if git fetch -q origin live-data --depth=1 2>/dev/null; then
+              rm -rf /tmp/theirs && mkdir -p /tmp/theirs
+              git archive origin/live-data live/history 2>/dev/null | tar -x -C /tmp/theirs || true
+              for f in /tmp/theirs/live/history/*.jsonl; do
+                [ -f "$f" ] || continue; b=$(basename "$f")
+                cat "$f" "live/history/$b" 2>/dev/null | sort -u > /tmp/merged && mv /tmp/merged "live/history/$b"
+              done
+            fi
+            # publish live/ as a single root commit on the live-data branch
+            export GIT_INDEX_FILE=/tmp/live-index; rm -f "$GIT_INDEX_FILE"
+            git add -f live
+            tree=$(git write-tree); unset GIT_INDEX_FILE
+            sha=$(git commit-tree "$tree" -m "Live AIS positions")
+            git push -qf origin "$sha:refs/heads/live-data" && echo "published window $i ($(date -u +%H:%M))" || echo "publish failed in window $i"
+          done
