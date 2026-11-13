@@ -28,6 +28,10 @@
 html,body{height:100%}
 body{margin:0;background:var(--navy);color:var(--ivory);font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased}
 #gl{position:fixed;inset:0;display:block;width:100%;height:100%;touch-action:none;cursor:grab;outline:none}
+body.proj{background:#000!important;overflow:hidden} body.proj *{visibility:hidden!important} body.proj #gl,body.proj #projUI,body.proj #projUI *{visibility:visible!important}
+body.proj #gl{inset:auto;left:0;top:0;transform-origin:0 0;cursor:default} #projUI{position:fixed;inset:0;z-index:99999;pointer-events:none;font:13px Arial,sans-serif;color:#fff}
+#projUI .h{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border:2px solid #ff3b6b;border-radius:50%;background:rgba(255,59,107,.25);pointer-events:auto;cursor:move;touch-action:none}
+#projUI .tip{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:rgba(0,0,0,.72);padding:8px 12px;border-radius:8px;white-space:nowrap} #projUI.off .h,#projUI.off .tip{display:none}
 #gl.drag{cursor:grabbing}
 button{font:inherit;color:inherit}
 .chrome{position:fixed;inset:0;pointer-events:none;transition:opacity .45s ease}
@@ -504,7 +508,8 @@ const IS_QUEST=/OculusBrowser|Quest/i.test(navigator.userAgent);
 const params=new URLSearchParams(location.search);
 const QLOW=IS_QUEST&&params.has('soft');   // the headset runs the scene at full laptop quality; ?soft is the lighter fallback
 const TEST=params.has('t');
-const FLAT=params.has('flat');   // ?flat: on the Quest, show the normal screen version without the big Enter VR banner
+const FLAT=params.has('flat');
+const PROJ=params.has('proj');   // ?proj: straight-down view framed to the 3D printed model, for the projector   // ?flat: on the Quest, show the normal screen version without the big Enter VR banner
 
 /* Geodesy: local frame around km 51.0 of the Albert Canal (same as the Unreal georeference).
    X east, Z south, Y up in metres above the lower canal level (20.0 m TAW). */
@@ -537,6 +542,9 @@ let composer=null, gtao=null;
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(50,1,0.5,14000);
 const rig=new THREE.Group(); rig.add(camera); scene.add(rig);
+/* projector view: orthographic, straight down, covering exactly the printed model (1152 m by 647.68 m, canal axis horizontal) */
+const PROJ_W=1152, PROJ_H=647.68, PROJ_C=[1117.67,403.06];
+const projCam=new THREE.OrthographicCamera(-PROJ_W/2,PROJ_W/2,PROJ_H/2,-PROJ_H/2,1,4000); projCam.position.set(PROJ_C[0],900,PROJ_C[1]); projCam.up.set(Math.sin(14.4*Math.PI/180),0,-Math.cos(14.4*Math.PI/180)); projCam.lookAt(PROJ_C[0],0,PROJ_C[1]); projCam.updateMatrixWorld(true); scene.add(projCam);
 
 /* Sun from the south east, mid morning in summer: the 2024 orthophoto was flown with the same light,
    so our shadows fall the same way as the shadows in the photo. */
@@ -3227,7 +3235,7 @@ function build(){
   for(let t=0;t<T_END;t+=0.25){ SC.apply(t); scene.updateMatrixWorld(true); const L=ships(); const C=L.map(s=>corners(s[1],s[2],s[3],s[4]));
     for(let i=0;i<L.length;i++) for(let j=i+1;j<L.length;j++){ if(!sep(C[i],C[j])){ const k=L[i][0]+' x '+L[j][0]; const last=out[out.length-1]; if(last&&last.k===k&&t-last.t1<=0.3) last.t1=t; else out.push({k,t0:t,t1:t}); } } }
   SC.apply(tNow); return out; },pmat:()=>{ const p=T_PACK.get('Slot_r4_c1'); const out=[]; p.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>out.push([o.name,m.name,m.type,m.color&&m.color.getHexString(),m.emissive&&m.emissive.getHexString(),m.emissiveIntensity,m.vertexColors,!!m.map,m.opacity,m.transparent])); }); return out; },tmats:()=>{ const out={}; tender.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{ if(m.color) out[m.name]=m.color.getHexString(); }); }); return [out,UNLOAD.cranes.map(c=>c.moves.length)]; },mats:()=>{ const out=[]; BA.traverse(o=>{ if(o.isMesh) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>out.push([o.name,m.name,m.type,m.color&&m.color.getHexString(),!!m.map,m.userData&&m.userData.rag])); }); return out; },look:(x,y,z)=>{ VIEWS[cam.v].target=()=>new V3(x,y,z); VIEWS[cam.v].rel=false; }};
-  setView(0); applyTime(0); { const s0=params.get('s'); setScenario(s0&&SCN[s0]&&(s0!=='hub'||TEST)?s0:'berth'); }   /* scenario 1 is now the original version in its own tab, so the page opens on the berth */ started=true; last=performance.now(); if(!TEST||params.has('live')) startLive();
+  setView(0); applyTime(0); { const s0=params.get('s'); setScenario(s0&&SCN[s0]&&(s0!=='hub'||TEST)?s0:'berth'); }   /* scenario 1 is now the original version in its own tab, so the page opens on the berth */ started=true; last=performance.now(); if(!TEST||params.has('live')) startLive(); if(PROJ) startProjection();
   if(TEST){ seek(parseFloat(params.get('t'))); if(params.has('cp')){ const c=CP.find(c=>Math.abs(c.t-tNow)<0.05); if(c){ cpNext=CP.indexOf(c); arrive(c); } } else if(params.has('end')){ tNow=T_END; finish(); } setPaused(true); if(params.has('v')) setView(+params.get('v')); if(params.has('d')) cam.g.dist=+params.get('d'); if(params.has('az')) cam.g.az=+params.get('az'); if(params.has('el')) cam.g.el=+params.get('el'); if(params.has('hide')) setHidden(true); if(params.has('min')) $('storyFold').click(); if(params.has('map')) openMap(); }
 }
 
@@ -3248,7 +3256,8 @@ function buildComposer(){
     fragmentShader:'uniform sampler2D tDiffuse; uniform float uT; uniform float uK; varying vec2 vUv; float h(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }\n void main(){ vec4 c=texture2D(tDiffuse,vUv); vec2 d=vUv-0.5; float v=1.0-dot(d,d)*0.42*uK; c.rgb*=v; c.rgb+=(h(vUv*1000.0+uT)-0.5)*0.012*uK; gl_FragColor=c; }'}));
 }
 function resizeComposer(w,h){ if(!composer) return; const pr=renderer.getPixelRatio(); composer.setPixelRatio(pr); composer.setSize(w,h); }
-function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); resizeComposer(w,h); }
+function resize(){ if(PROJ){ const w=innerWidth,h=Math.round(w*PROJ_H/PROJ_W); renderer.setSize(w,h,false); const g=renderer.domElement; g.style.setProperty('width',w+'px','important'); g.style.setProperty('height',h+'px','important'); if(window.__projPin) window.__projPin(); return; }
+  const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); resizeComposer(w,h); }
 addEventListener('resize',resize); resize();
 let xrFrame=0, loopErrN=0;   /* one bad frame is logged; a frame loop that keeps failing for a second is fatal */
 renderer.setAnimationLoop(now=>{ try{ frame(now); loopErrN=0; }catch(e){ loopErrN++; const m='Frame: '+e.message+' '+((e.stack||'').split('\n')[1]||''); if(loopErrN===1) window.__diag(m); if(loopErrN===60) window.__fatal(m); } });
@@ -3275,6 +3284,35 @@ function frame(now){
   updateTreesV2(now);
   if(!xr){ updateLabels(tNow); updateHUD(tNow); }
   if(Math.floor(now/100)!==Math.floor((now-dt*1000)/100)) drawMaps(kmOf(barge.position));
+  if(PROJ&&!xr){ if(ended) projNextScenario(); renderer.render(scene,projCam); } else
   if(composer&&!xr) composer.render(dt); else renderer.render(scene,camera);
+}
+/* ---- projector mode: loops the stories, no interface, four corner handles to line the picture up with the printed model ---- */
+let projList=['berth','lock'], projIdx=0;
+function projNextScenario(){ projIdx=(projIdx+1)%projList.length; setScenario(projList[projIdx]); guided=false; setPaused(false); }
+function startProjection(){
+  document.body.classList.add('proj'); guided=false; scene.fog=null;
+  { const want=(params.get('proj')||'').split(',').filter(k=>SCN[k]); if(want.length) projList=want; projIdx=0; setScenario(projList[0]); guided=false; setPaused(false); }
+  scene.traverse(o=>{ if(o.isSprite||o.name==='treeBill') o.visible=false; });   // flat tree cards read as specks from straight above; the ground photo already shows the canopy
+  const ui=document.createElement('div'); ui.id='projUI'; document.body.appendChild(ui);
+  const tip=document.createElement('div'); tip.className='tip'; tip.textContent='Drag the 4 circles onto the corners of the model.  H hide circles   R reset   F full screen   Space pause'; ui.appendChild(tip);
+  const g=renderer.domElement; let P=null; const KEY='albertCanalProjPin';
+  const base=()=>{ const w=innerWidth,h=Math.round(w*PROJ_H/PROJ_W), y=Math.max(0,(innerHeight-h)/2); return [[0,y],[w,y],[w,y+h],[0,y+h]]; };
+  try{ const sv=JSON.parse(localStorage.getItem(KEY)||'null'); if(sv&&sv.length===4) P=sv.map(([a,b])=>[a*innerWidth,b*innerHeight]); }catch(e){}
+  if(!P) P=base();
+  const hs=P.map((_,i)=>{ const d=document.createElement('div'); d.className='h'; ui.appendChild(d);
+    d.onpointerdown=e=>{ d.setPointerCapture(e.pointerId); d.onpointermove=m=>{ P[i]=[m.clientX,m.clientY]; pin(true); }; d.onpointerup=()=>{ d.onpointermove=null; }; }; return d; });
+  function pin(save){ const w=innerWidth,h=Math.round(w*PROJ_H/PROJ_W), S=[[0,0],[w,0],[w,h],[0,h]];
+    // homography from the canvas rectangle to the four dragged corners
+    const A=[],b=[]; for(let k=0;k<4;k++){ const [x,y]=S[k],[u,v]=P[k]; A.push([x,y,1,0,0,0,-u*x,-u*y]); b.push(u); A.push([0,0,0,x,y,1,-v*x,-v*y]); b.push(v); }
+    for(let c=0;c<8;c++){ let m=c; for(let r=c+1;r<8;r++) if(Math.abs(A[r][c])>Math.abs(A[m][c])) m=r; [A[c],A[m]]=[A[m],A[c]]; [b[c],b[m]]=[b[m],b[c]]; if(Math.abs(A[c][c])<1e-12) return;
+      for(let r=0;r<8;r++){ if(r===c) continue; const f=A[r][c]/A[c][c]; for(let q=c;q<8;q++) A[r][q]-=f*A[c][q]; b[r]-=f*b[c]; } }
+    const H=b.map((v,k)=>v/A[k][k]);
+    g.style.transform='matrix3d('+[H[0],H[3],0,H[6], H[1],H[4],0,H[7], 0,0,1,0, H[2],H[5],0,1].join(',')+')';
+    hs.forEach((d,k)=>{ d.style.left=P[k][0]+'px'; d.style.top=P[k][1]+'px'; });
+    if(save) try{ localStorage.setItem(KEY,JSON.stringify(P.map(([a,c])=>[a/innerWidth,c/innerHeight]))); }catch(e){} }
+  window.__projPin=()=>pin(false); resize();
+  addEventListener('keydown',e=>{ const k=e.key.toLowerCase();
+    if(k==='h') ui.classList.toggle('off'); else if(k==='r'){ P=base(); pin(true); } else if(k==='f'){ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(()=>{}); } else if(k===' '){ setPaused(!paused); e.preventDefault(); } },true);
 }
 </script>
